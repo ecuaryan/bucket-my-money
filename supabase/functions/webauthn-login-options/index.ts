@@ -12,6 +12,10 @@ import {
   relyingParty,
   storeChallenge,
 } from '../_shared/webauthn.ts'
+import {
+  checkPreAuthRateLimit,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 type Body = { familyId?: string; memberId?: string }
 
@@ -20,6 +24,11 @@ Deno.serve(async (req: Request) => {
   if (cors) return cors
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405)
+  }
+
+  // Distributed pre-auth rate limit (migration 93, budget in rate_limit_rules).
+  if (!(await checkPreAuthRateLimit(req, 'webauthn-login-options'))) {
+    return rateLimitResponse()
   }
 
   let body: Body
