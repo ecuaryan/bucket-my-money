@@ -1277,6 +1277,13 @@ export type Database = {
         }
         Returns: string
       }
+      record_pin_failure: {
+        Args: { p_member_id: string; p_max_attempts: number }
+        Returns: {
+          attempts: number
+          locked: boolean
+        }[]
+      }
       reorder_bucket: {
         Args: { p_bucket_id: string; p_direction: string }
         Returns: undefined
