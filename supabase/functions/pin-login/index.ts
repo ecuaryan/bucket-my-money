@@ -5,6 +5,10 @@ import { handleCors, jsonResponse } from '../_shared/http.ts'
 import { serviceClient } from '../_shared/supabase.ts'
 import { issueSessionForMember } from '../_shared/session.ts'
 import { isValidPin, MAX_PIN_ATTEMPTS, verifyPin } from '../_shared/pin.ts'
+import {
+  checkPreAuthRateLimit,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 type Body = {
   familyId?: string
@@ -17,6 +21,13 @@ Deno.serve(async (req: Request) => {
   if (cors) return cors
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405)
+  }
+
+  // Distributed pre-auth rate limit (migration 93, budget in
+  // rate_limit_rules). Generous for a household; 429s only under abuse.
+  // Per-member PIN lockout below remains the primary brute-force control.
+  if (!(await checkPreAuthRateLimit(req, 'pin-login'))) {
+    return rateLimitResponse()
   }
 
   let body: Body
