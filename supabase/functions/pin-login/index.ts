@@ -64,17 +64,20 @@ Deno.serve(async (req: Request) => {
 
   const ok = await verifyPin(pin, member.pin_hash)
   if (!ok) {
-    const attempts = (member.pin_failed_attempts ?? 0) + 1
-    const locked = attempts >= MAX_PIN_ATTEMPTS
-    await admin
-      .from('family_members')
-      .update({
-        pin_failed_attempts: attempts,
-        pin_locked: locked,
-      })
-      .eq('id', member.id)
-
-    if (locked) {
+    // Atomic increment + lock check in a single UPDATE (the row lock
+    // serializes concurrent attempts). The old read-modify-write let
+    // parallel requests all read the same stale counter, so N simultaneous
+    // wrong guesses advanced the lockout by ~1 instead of N.
+    const { data: failure, error: failureError } = await admin.rpc(
+      'record_pin_failure',
+      { p_member_id: member.id, p_max_attempts: MAX_PIN_ATTEMPTS },
+    )
+    if (failureError) {
+      console.error('pin-login record failure', failureError)
+      return jsonResponse({ error: 'Wrong PIN' }, 401)
+    }
+    const row = Array.isArray(failure) ? failure[0] : failure
+    if (row?.locked) {
       return jsonResponse(
         {
           error: 'Too many attempts — PIN locked. Ask your admin.',

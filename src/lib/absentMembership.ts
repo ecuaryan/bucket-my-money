@@ -1,5 +1,6 @@
 import { clearLocalAuthSession } from '@/lib/authStorage'
 import { isPinAuthEmail, ORPHAN_MEMBER_MESSAGE, stashOrphanMemberNotice } from '@/lib/pinAuth'
+import { clearSupabaseApiCache } from '@/lib/serviceWorkerCache'
 import { supabase } from '@/lib/supabase'
 
 /** PIN members go straight to sign-out; email members see the orphan notice. */
@@ -15,6 +16,7 @@ export function absentMembershipAction(
 export async function signOutRemovedPinMember(): Promise<void> {
   stashOrphanMemberNotice(ORPHAN_MEMBER_MESSAGE)
   clearLocalAuthSession()
+  clearSupabaseApiCache()
   try {
     await supabase.auth.signOut({ scope: 'local' })
   } catch {

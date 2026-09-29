@@ -32,6 +32,7 @@ import {
   clearAllBucketsPageCaches,
   writeBucketsPageCache,
 } from '@/lib/bucketsPageCache'
+import { clearSupabaseApiCache } from '@/lib/serviceWorkerCache'
 import {
   fetchHomeBootstrap,
   type BucketsPageData,
@@ -422,6 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAutoSignOut()
     clearBackgroundPrivacyState()
     clearAllBucketsPageCaches()
+    clearSupabaseApiCache()
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   }, [])

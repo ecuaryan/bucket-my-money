@@ -9,6 +9,8 @@
  *   - SPA navigations always serve the precached index.html (never a stale
  *     per-route NetworkFirst copy that can reference deleted JS chunks).
  *   - Supabase auth is network-only — never cache tokens or session checks.
+ *   - Authenticated Supabase traffic is network-only — never cache
+ *     financial data in Cache Storage.
  *   - Other Supabase calls are network-first with a short timeout for offline.
  *   - Images/fonts only in runtime cache-first (JS/CSS come from precache).
  *
@@ -46,7 +48,20 @@ registerRoute(
   new NetworkOnly(),
 )
 
-// Supabase REST + Realtime: network-first with a short timeout.
+// Authenticated Supabase traffic must never hit the cache. supabase-js sends
+// an Authorization header on every API call, and responses to authenticated
+// requests carry the signed-in member's financial data — Cache Storage is
+// readable by any same-origin script (XSS) and by DevTools on a shared
+// device, so those responses go straight to the network.
+registerRoute(
+  ({ url, request }) =>
+    url.hostname.endsWith('.supabase.co') &&
+    request.headers.has('authorization'),
+  new NetworkOnly(),
+)
+
+// Remaining Supabase calls carry no Authorization header, so no user data can
+// come back — network-first with a short timeout for brief offline blips.
 registerRoute(
   ({ url }) => url.hostname.endsWith('.supabase.co'),
   new NetworkFirst({
