@@ -3,6 +3,10 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { handleCors, jsonResponse } from '../_shared/http.ts'
 import { serviceClient } from '../_shared/supabase.ts'
+import {
+  checkPreAuthRateLimit,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 type Body = { code?: string }
 
@@ -11,6 +15,13 @@ Deno.serve(async (req: Request) => {
   if (cors) return cors
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405)
+  }
+
+  // Distributed pre-auth rate limit (migration 93, budget in
+  // rate_limit_rules). Join codes carry ~48 bits of entropy; this is
+  // abuse throttling.
+  if (!(await checkPreAuthRateLimit(req, 'validate-join-code'))) {
+    return rateLimitResponse()
   }
 
   let body: Body

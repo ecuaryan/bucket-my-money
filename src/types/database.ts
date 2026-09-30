@@ -700,6 +700,39 @@ export type Database = {
           },
         ]
       }
+      rate_limit_hits: {
+        Row: {
+          created_at: string
+          limit_key: string
+        }
+        Insert: {
+          created_at?: string
+          limit_key: string
+        }
+        Update: {
+          created_at?: string
+          limit_key?: string
+        }
+        Relationships: []
+      }
+      rate_limit_rules: {
+        Row: {
+          endpoint: string
+          max_hits: number
+          window_seconds: number
+        }
+        Insert: {
+          endpoint: string
+          max_hits: number
+          window_seconds: number
+        }
+        Update: {
+          endpoint?: string
+          max_hits?: number
+          window_seconds?: number
+        }
+        Relationships: []
+      }
       simplefin_connections: {
         Row: {
           access_url: string
@@ -1187,6 +1220,14 @@ export type Database = {
         Args: { p_bucket_id: string }
         Returns: boolean
       }
+      check_pre_auth_rate_limit: {
+        Args: { p_endpoint: string; p_ip: string }
+        Returns: boolean
+      }
+      check_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number }
+        Returns: boolean
+      }
       claim_stale_enrollments: {
         Args: { p_claim_ttl: string; p_limit: number; p_stale_before: string }
         Returns: {
@@ -1210,6 +1251,7 @@ export type Database = {
           id: string
         }[]
       }
+      cleanup_rate_limit_hits: { Args: never; Returns: number }
       client_float_balance_after: {
         Args: { p_transaction_id: string }
         Returns: number
@@ -1277,8 +1319,9 @@ export type Database = {
         }
         Returns: string
       }
+      pre_auth_rate_limit: { Args: { p_endpoint: string }; Returns: undefined }
       record_pin_failure: {
-        Args: { p_member_id: string; p_max_attempts: number }
+        Args: { p_max_attempts?: number; p_member_id: string }
         Returns: {
           attempts: number
           locked: boolean
