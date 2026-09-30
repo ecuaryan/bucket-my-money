@@ -72,7 +72,6 @@ export default function MoveMoneyDialog({
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [floatConfirmOpen, setFloatConfirmOpen] = useState(false)
   const amountRef = useRef<HTMLInputElement | null>(null)
 
   // Reset state whenever the dialog re-opens (or the tapped bucket changes).
@@ -99,7 +98,6 @@ export default function MoveMoneyDialog({
     setAmountStr('')
     setNote('')
     setError(null)
-    setFloatConfirmOpen(false)
     setTimeout(() => amountRef.current?.focus(), 0)
   }, [open, initialBucketId, buckets, float, preferredIntent])
 
@@ -147,6 +145,8 @@ export default function MoveMoneyDialog({
     !overdraft
       ? `${fromEndpoint.label} has ${formatMoney(fromBalance)} available.`
       : null
+  // Shown live as the amount crosses the float: the warning appears and
+  // disappears with the amount itself, so there is no separate confirm step.
   const needsFloatConfirm =
     amountValid &&
     fromIsFloat &&
@@ -183,7 +183,6 @@ export default function MoveMoneyDialog({
           />,
         )
       }
-      setFloatConfirmOpen(false)
       onClose()
       await Promise.resolve(
         onMoved({
@@ -202,10 +201,6 @@ export default function MoveMoneyDialog({
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!canSubmit) return
-    if (needsFloatConfirm) {
-      setFloatConfirmOpen(true)
-      return
-    }
     await performMove()
   }
 
@@ -342,6 +337,19 @@ export default function MoveMoneyDialog({
             </p>
           )}
 
+          {needsFloatConfirm && (
+            <div
+              aria-live="polite"
+              className="space-y-2 border-t border-zinc-800 pt-4"
+            >
+              <h3 className="text-lg font-semibold text-zinc-100">
+                {AUTO_ORGANIZE_SET_ASIDE_FLOAT_CONFIRM_TITLE}
+              </h3>
+              <p className="text-sm text-zinc-300">
+                {autoOrganizeSetAsideFloatConfirmBody(formatMoney(amount))}
+              </p>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
@@ -357,44 +365,19 @@ export default function MoveMoneyDialog({
             >
               {submitting
                 ? moveMoneyDialogSubmittingLabel(intent)
-                : amountValid
-                  ? moveMoneyDialogSubmitLabel(
-                      intent,
-                      formatMoney(amount),
-                      intent === 'cover'
-                        ? fromEndpoint?.label
-                        : toEndpoint?.label,
-                    )
-                  : moveMoneyDialogSubmitLabel(intent, '', undefined)}
+                : needsFloatConfirm
+                  ? 'Set aside anyway'
+                  : amountValid
+                    ? moveMoneyDialogSubmitLabel(
+                        intent,
+                        formatMoney(amount),
+                        intent === 'cover'
+                          ? fromEndpoint?.label
+                          : toEndpoint?.label,
+                      )
+                    : moveMoneyDialogSubmitLabel(intent, '', undefined)}
             </button>
           </div>
-        {floatConfirmOpen ? (
-          <div className="space-y-4 border-t border-zinc-800 pt-4">
-            <h3 className="text-lg font-semibold text-zinc-100">
-              {AUTO_ORGANIZE_SET_ASIDE_FLOAT_CONFIRM_TITLE}
-            </h3>
-            <p className="text-sm text-zinc-300">
-              {autoOrganizeSetAsideFloatConfirmBody(formatMoney(amount))}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setFloatConfirmOpen(false)}
-                className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-800"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => void performMove()}
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
-              >
-                {submitting ? 'Moving…' : 'Set aside anyway'}
-              </button>
-            </div>
-          </div>
-        ) : null}
         </form>
     </Sheet>
   )
