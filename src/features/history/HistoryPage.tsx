@@ -74,6 +74,8 @@ import {
 import { HistoryEntityTransfer } from '@/features/history/HistoryEntityTransfer'
 import { historyBalanceSides } from '@/lib/historyBalanceSides'
 import { historyTransactionNoteDisplay } from '@/lib/historyTransactionNote'
+import { APP_CHROME_Z_INDEX } from '@/components/layout/navLayout'
+import { useSheetBackdropOpen } from '@/hooks/useSheetBackdropOpen'
 
 type TxRow = HistoryDisplayRow
 
@@ -115,11 +117,20 @@ export default function HistoryPage() {
   const [rows, setRows] = useState<TxRow[] | null>(null)
   // Only offer Peek when there are actually amounts on screen.
   usePeekTarget((rows?.length ?? 0) > 0)
+  const { formatMoney, hidden, hasPeekTarget } = useHideAmounts()
+  const sheetOpen = useSheetBackdropOpen()
   const [buckets, setBuckets] = useState<Bucket[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  // Transaction selection for summing: id -> amount snapshot. A Map instead
+  // of deriving from `rows` so the selection — and its total — survives
+  // filter changes and realtime refreshes.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedAmounts, setSelectedAmounts] = useState<Map<string, number>>(
+    () => new Map(),
+  )
 
   // Bump when family or filter changes so stale async work cannot mutate state.
   const listGeneration = useRef(0)
@@ -294,6 +305,13 @@ export default function HistoryPage() {
     setSearchParams({})
   }, [giveReady, showGiveFilter, filter.kind, setSearchParams])
 
+  // A selection you can't see — or unselect — is confusing, so clear it when
+  // the filter changes. Stay in select mode so you can keep picking from the
+  // new filter.
+  useEffect(() => {
+    setSelectedAmounts(new Map())
+  }, [filterKey])
+
   usePostgresChanges(
     accessToken,
     familyId ? `history:${familyId}` : null,
@@ -310,6 +328,17 @@ export default function HistoryPage() {
   )
 
   const grouped = useMemo(() => groupByDay(rows ?? []), [rows])
+
+  const selectedCount = selectedAmounts.size
+  const selectedTotal = useMemo(() => {
+    let total = 0
+    for (const amount of selectedAmounts.values()) total += amount
+    return total
+  }, [selectedAmounts])
+
+  // The Peek FAB floats bottom-right above the nav; lift the selection bar
+  // above it while it's visible so Done stays tappable.
+  const peekFabVisible = hidden && hasPeekTarget && !sheetOpen
 
   const filteredBucketName = useMemo(() => {
     const activeFilter = filterForKey(filterKey)
@@ -335,6 +364,31 @@ export default function HistoryPage() {
     [],
   )
 
+  const toggleTransactionSelected = useCallback(
+    (transactionId: string, amount: number) => {
+      setSelectedAmounts((prev) => {
+        const next = new Map(prev)
+        if (next.has(transactionId)) {
+          next.delete(transactionId)
+        } else {
+          next.set(transactionId, amount)
+        }
+        return next
+      })
+    },
+    [],
+  )
+
+  const enterSelectMode = useCallback(() => {
+    setSelectMode(true)
+  }, [])
+
+  // Leaving selection mode discards the selection — same as iOS Photos/Mail.
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false)
+    setSelectedAmounts(new Map())
+  }, [])
+
   if (!member) return null
 
   if (loadError && rows === null) {
@@ -351,19 +405,30 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-lg font-semibold">History</h1>
-        <p className="mt-0.5 text-xs text-zinc-400">
-          {rows === null
-            ? LOADING_STATUS_LABEL
-            : rows.length === 0
-              ? isGiveFilter
-                ? 'No gives or takes yet'
-                : 'No transactions yet'
-              : isGiveFilter
-                ? `${rows.length}${hasMore ? '+' : ''} ${rows.length === 1 ? 'give or take' : 'gives & takes'}`
-                : `${rows.length}${hasMore ? '+' : ''} ${rows.length === 1 ? 'transaction' : 'transactions'}`}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold">History</h1>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            {rows === null
+              ? LOADING_STATUS_LABEL
+              : rows.length === 0
+                ? isGiveFilter
+                  ? 'No gives or takes yet'
+                  : 'No transactions yet'
+                : isGiveFilter
+                  ? `${rows.length}${hasMore ? '+' : ''} ${rows.length === 1 ? 'give or take' : 'gives & takes'}`
+                  : `${rows.length}${hasMore ? '+' : ''} ${rows.length === 1 ? 'transaction' : 'transactions'}`}
+          </p>
+        </div>
+        {rows !== null && rows.length > 0 ? (
+          <button
+            type="button"
+            onClick={selectMode ? exitSelectMode : enterSelectMode}
+            className="shrink-0 px-2 py-2 text-sm font-semibold text-emerald-300 transition active:opacity-60"
+          >
+            {selectMode ? 'Cancel' : 'Select'}
+          </button>
+        ) : null}
       </header>
 
       {/* Keep the filter as a skeleton until its options are settled, so it
@@ -410,12 +475,21 @@ export default function HistoryPage() {
               </h2>
               <ul className="flex flex-col gap-2">
                 {group.rows.map((row) => (
-                  <HistoryRowShell key={row.id} justArrived={row.justArrived === true}>
+                  <HistoryRowShell
+                    key={row.id}
+                    justArrived={row.justArrived === true}
+                    selectMode={selectMode}
+                    selected={selectedAmounts.has(row.id)}
+                    onToggleSelect={() =>
+                      toggleTransactionSelected(row.id, Number(row.amount))
+                    }
+                  >
                     <TxItem
                       row={row}
                       currentMemberId={member.id}
                       viewerRole={member.role}
                       onNoteUpdated={handleNoteUpdated}
+                      selectMode={selectMode}
                     />
                   </HistoryRowShell>
                 ))}
@@ -446,15 +520,59 @@ export default function HistoryPage() {
           )}
         </div>
       )}
+      {selectMode ? (
+        <div
+          className={
+            'fixed inset-x-0 ' +
+            (peekFabVisible
+              ? 'bottom-[calc(9rem+max(0.5rem,env(safe-area-inset-bottom,0px)))]'
+              : 'bottom-[calc(4.75rem+max(0.5rem,env(safe-area-inset-bottom,0px)))]')
+          }
+          style={{ zIndex: APP_CHROME_Z_INDEX }}
+        >
+          <div className="mx-auto max-w-md px-4">
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-800 px-4 py-3 shadow-2xl shadow-black/70 ring-1 ring-zinc-500">
+              <p className="min-w-0 truncate text-sm text-zinc-400">
+                {selectedCount === 0 ? (
+                  'Tap transactions to add them up'
+                ) : (
+                  <>
+                    <span className="font-semibold text-zinc-100">
+                      {selectedCount}
+                    </span>{' '}
+                    selected ·{' '}
+                    <span className="font-semibold text-zinc-100">
+                      {formatMoney(selectedTotal)}
+                    </span>
+                  </>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={exitSelectMode}
+                className="shrink-0 rounded-lg bg-emerald-500 px-4 py-1.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
 
 function HistoryRowShell({
   justArrived,
+  selectMode,
+  selected,
+  onToggleSelect,
   children,
 }: {
   justArrived: boolean
+  selectMode: boolean
+  selected: boolean
+  onToggleSelect: () => void
   children: ReactNode
 }) {
   const shellRef = useRef<HTMLLIElement>(null)
@@ -463,7 +581,43 @@ function HistoryRowShell({
   return (
     <li ref={shellRef}>
       <div className="min-h-0 overflow-hidden">
-        <div className="rounded-2xl bg-zinc-900 px-3 py-3 ring-1 ring-zinc-800">
+        <div
+          onClick={selectMode ? onToggleSelect : undefined}
+          onKeyDown={
+            selectMode
+              ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onToggleSelect()
+                  }
+                }
+              : undefined
+          }
+          role={selectMode ? 'checkbox' : undefined}
+          aria-checked={selectMode ? selected : undefined}
+          aria-label={
+            selectMode
+              ? selected
+                ? 'Deselect transaction'
+                : 'Select transaction'
+              : undefined
+          }
+          tabIndex={selectMode ? 0 : undefined}
+          className={
+            // Border (not ring): the row's overflow-hidden wrapper clips the
+            // outer pixel of a box-shadow ring.
+            // In select mode the border itself is the selection affordance —
+            // dashed while unselected, solid emerald when selected — so no
+            // checkbox is needed and the layout never shifts.
+            'rounded-2xl border px-3 py-3 transition ' +
+            (selectMode ? 'cursor-pointer ' : '') +
+            (selected
+              ? 'border-emerald-500/40 bg-emerald-500/[0.06]'
+              : selectMode
+                ? 'border-dashed border-zinc-600 bg-zinc-900'
+                : 'border-zinc-800 bg-zinc-900')
+          }
+        >
           {children}
         </div>
       </div>
@@ -596,11 +750,13 @@ function TxItem({
   currentMemberId,
   viewerRole,
   onNoteUpdated,
+  selectMode,
 }: {
   row: TxRow
   currentMemberId: string
   viewerRole: string
   onNoteUpdated: (transactionId: string, note: string | null) => void
+  selectMode: boolean
 }) {
   const { formatMoney } = useHideAmounts()
   const [noteExpanded, setNoteExpanded] = useState(false)
@@ -735,8 +891,12 @@ function TxItem({
       onClick={() => setNoteExpanded((v) => !v)}
       aria-expanded={noteExpanded}
       aria-label={noteExpanded ? 'Collapse note' : 'Expand note'}
+      tabIndex={selectMode ? -1 : undefined}
       className={
         'block w-full text-left text-xs italic leading-snug text-zinc-400 transition hover:text-zinc-300 focus:outline-none focus-visible:text-zinc-300 ' +
+        // In select mode the whole row toggles selection — the note is inert
+        // so taps fall through to the row instead of being swallowed.
+        (selectMode ? 'pointer-events-none ' : '') +
         (noteExpanded ? 'whitespace-pre-wrap break-words' : 'truncate')
       }
     >
@@ -750,7 +910,13 @@ function TxItem({
         <button
           type="button"
           onClick={openNoteEditor}
-          className="text-xs text-zinc-500 hover:text-zinc-300"
+          tabIndex={selectMode ? -1 : undefined}
+          className={
+            'text-xs text-zinc-500 hover:text-zinc-300' +
+            // In select mode the whole row toggles selection — inert here
+            // so taps fall through to the row instead of being swallowed.
+            (selectMode ? ' pointer-events-none' : '')
+          }
         >
           {row.note || displayedNote ? HISTORY_NOTE_EDIT : HISTORY_NOTE_ADD}
         </button>
