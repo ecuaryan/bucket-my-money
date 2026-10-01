@@ -59,6 +59,19 @@ export async function renameBucket(
   if (error) throw new Error(humaniseBucketWriteError(error))
 }
 
+/** Update a bucket's freeform notes. RLS gates it to the owner or an admin. */
+export async function updateBucketNotes(
+  bucketId: string,
+  notes: string | null,
+): Promise<void> {
+  const trimmed = (notes ?? '').trim()
+  const { error } = await supabase
+    .from('buckets')
+    .update({ notes: trimmed ? trimmed : null })
+    .eq('id', bucketId)
+  if (error) throw new Error(humaniseBucketWriteError(error))
+}
+
 /**
  * Delete a bucket atomically via `delete_bucket` (auto-organize cleanup,
  * optional bucket→Unbucketed reclaim via `move_money`, then bucket row).

@@ -363,6 +363,7 @@ export type Database = {
           family_id: string
           id: string
           name: string
+          notes: string | null
           owner_member_id: string | null
         }
         Insert: {
@@ -372,6 +373,7 @@ export type Database = {
           family_id: string
           id?: string
           name: string
+          notes?: string | null
           owner_member_id?: string | null
         }
         Update: {
@@ -381,6 +383,7 @@ export type Database = {
           family_id?: string
           id?: string
           name?: string
+          notes?: string | null
           owner_member_id?: string | null
         }
         Relationships: [

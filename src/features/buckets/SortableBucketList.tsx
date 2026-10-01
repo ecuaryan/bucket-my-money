@@ -53,6 +53,7 @@ type Props = {
   onMoveMoney: (id: string) => void
   onViewHistory: (id: string) => void
   onRename: (id: string, name: string) => void
+  onViewNotes: (bucket: Bucket) => void
   onMoveUp: (id: string) => void
   onMoveDown: (id: string) => void
   onDelete: (bucket: Bucket) => void
@@ -72,6 +73,7 @@ export default function SortableBucketList({
   onMoveMoney,
   onViewHistory,
   onRename,
+  onViewNotes,
   onMoveUp,
   onMoveDown,
   onDelete,
@@ -165,6 +167,7 @@ export default function SortableBucketList({
     onMoveMoney,
     onViewHistory,
     onRename,
+    onViewNotes,
     onMoveUp,
     onMoveDown,
     onDelete,
@@ -305,6 +308,7 @@ type RowProps = {
   onMoveMoney: (id: string) => void
   onViewHistory: (id: string) => void
   onRename: (id: string, name: string) => void
+  onViewNotes: (bucket: Bucket) => void
   onMoveUp: (id: string) => void
   onMoveDown: (id: string) => void
   onDelete: (bucket: Bucket) => void
@@ -394,6 +398,7 @@ function BucketRowContent({
   onMoveMoney,
   onViewHistory,
   onRename,
+  onViewNotes,
   onMoveUp,
   onMoveDown,
   onDelete,
@@ -429,6 +434,7 @@ function BucketRowContent({
           canManageStructure={canManageStructure}
           onViewHistory={() => onViewHistory(bucket.id)}
           onRename={() => onRename(bucket.id, bucket.name)}
+          onNotes={() => onViewNotes(bucket)}
           onMoveUp={() => onMoveUp(bucket.id)}
           onMoveDown={() => onMoveDown(bucket.id)}
           onDelete={() => onDelete(bucket)}
@@ -457,10 +463,38 @@ function BucketRowContent({
             : '')
         }
       >
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-zinc-300">
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <p className="min-w-0 truncate text-sm font-medium text-zinc-300">
             {bucket.name}
           </p>
+          {(bucket.notes ?? '').trim() && (
+            <button
+              type="button"
+              aria-label={`View notes for ${bucket.name}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                onViewNotes(bucket)
+              }}
+              className="shrink-0 rounded p-2 -m-1.5 text-zinc-500 transition hover:text-zinc-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.8}
+                stroke="currentColor"
+                aria-hidden="true"
+                className="h-4 w-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                />
+              </svg>
+            </button>
+          )}
         </div>
         <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-300">
           {formatMoney(Number(bucket.allocated_amount))}
@@ -473,6 +507,7 @@ function BucketRowContent({
         canManageStructure={canManageStructure}
         onViewHistory={() => onViewHistory(bucket.id)}
         onRename={() => onRename(bucket.id, bucket.name)}
+        onNotes={() => onViewNotes(bucket)}
         onMoveUp={() => onMoveUp(bucket.id)}
         onMoveDown={() => onMoveDown(bucket.id)}
         onDelete={() => onDelete(bucket)}
