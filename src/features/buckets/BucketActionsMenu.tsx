@@ -10,6 +10,7 @@ type Props = {
   canManageStructure?: boolean
   onViewHistory: () => void
   onRename: () => void
+  onNotes: () => void
   onMoveUp: () => void
   onMoveDown: () => void
   onDelete: () => void
@@ -27,6 +28,7 @@ export default function BucketActionsMenu({
   canManageStructure = true,
   onViewHistory,
   onRename,
+  onNotes,
   onMoveUp,
   onMoveDown,
   onDelete,
@@ -97,6 +99,7 @@ export default function BucketActionsMenu({
           }
         >
           <MenuItem onClick={fire(onViewHistory)}>View history</MenuItem>
+          <MenuItem onClick={fire(onNotes)}>Notes</MenuItem>
           {canManageStructure && (
             <>
               <div className="my-1 h-px bg-zinc-800" />

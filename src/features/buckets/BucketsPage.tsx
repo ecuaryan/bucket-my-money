@@ -75,6 +75,7 @@ import {
   BUCKET_NAME_MAX_LENGTH,
   humaniseBucketWriteError,
   renameBucket,
+  updateBucketNotes,
   reorderBucket,
   reorderBuckets,
   validateBucketNameForList,
@@ -87,6 +88,7 @@ import {
 import { formatErrorMessage } from '@/lib/errorMessage'
 import type { Database } from '@/types/database'
 import MoveMoneyDialog from '@/features/buckets/MoveMoneyDialog'
+import BucketNotesSheet from '@/features/buckets/BucketNotesSheet'
 import AutoOrganizeSection from '@/features/buckets/AutoOrganizeSection'
 import SortableBucketList from '@/features/buckets/SortableBucketList'
 import { ReorderHintProvider } from '@/features/buckets/ReorderHintContext'
@@ -151,6 +153,7 @@ export default function BucketsPage() {
   const [moveBucketId, setMoveBucketId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [notesBucketId, setNotesBucketId] = useState<string | null>(null)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [manualSourceOpen, setManualSourceOpen] = useState(false)
@@ -516,6 +519,30 @@ export default function BucketsPage() {
   function cancelRename() {
     setRenamingId(null)
     setRenameValue('')
+  }
+
+  const notesBucket =
+    notesBucketId != null
+      ? (buckets?.find((b) => b.id === notesBucketId) ?? null)
+      : null
+
+  async function commitNotes(id: string, notes: string | null) {
+    const previous = buckets?.find((b) => b.id === id)?.notes ?? null
+    if ((previous ?? '') === (notes ?? '')) return
+    setBuckets((prev) =>
+      prev ? prev.map((b) => (b.id === id ? { ...b, notes } : b)) : prev,
+    )
+    try {
+      await updateBucketNotes(id, notes)
+      void loadData()
+    } catch (e) {
+      setBuckets((prev) =>
+        prev
+          ? prev.map((b) => (b.id === id ? { ...b, notes: previous } : b))
+          : prev,
+      )
+      throw e
+    }
   }
 
   async function handleReorder(id: string, direction: 'up' | 'down') {
@@ -943,6 +970,7 @@ export default function BucketsPage() {
             onMoveMoney={setMoveBucketId}
             onViewHistory={(id) => navigate(`/history?bucket=${id}`)}
             onRename={startRename}
+            onViewNotes={(bucket) => setNotesBucketId(bucket.id)}
             onMoveUp={(id) => void handleReorder(id, 'up')}
             onMoveDown={(id) => void handleReorder(id, 'down')}
             onDelete={requestDeleteBucket}
@@ -1072,6 +1100,14 @@ export default function BucketsPage() {
         }}
       />
 
+      {notesBucket && (
+        <BucketNotesSheet
+          bucket={notesBucket}
+          canEdit={canManageStructure}
+          onClose={() => setNotesBucketId(null)}
+          onSave={(notes) => commitNotes(notesBucket.id, notes)}
+        />
+      )}
       {deleteTarget ? (
         <Sheet
           open
