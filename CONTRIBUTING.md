@@ -232,6 +232,16 @@ user to run `supabase db push` on their machine after merge — hosted schema is
 applied by **Deploy Supabase** automatically (see table above). Manual CLI
 deploy is documented below only as a fallback when that workflow fails.
 
+**CI runs on `main` are never cancelled** (PR runs still are when superseded): the
+deploy only fires after a green CI run on `main`, so a merge landing mid-run used
+to cancel it and silently skip that deploy. Runs on `main` now go one at a time;
+one still waiting is replaced by a newer run that contains the same commits.
+
+**Manual deploy:** if a deploy was skipped or failed for a transient reason, run
+**Actions → Deploy Supabase → Run workflow** (branch `main`). It checks that CI
+passed for that exact commit first, then runs the same migrations + functions
+steps.
+
 ### If frontend and backend are out of sync
 
 Symptoms: new UI calls a missing RPC, or Edge Function behavior is stale while
