@@ -206,7 +206,7 @@ sequenceDiagram
   alt CI success
     CI-->>Deploy: workflow_run completed
     Deploy->>Supabase: supabase db push
-    Deploy->>Supabase: supabase functions deploy
+    Deploy->>Supabase: supabase functions deploy --use-api
   else CI failed
     Note over Deploy: Deploy Supabase skipped
   end
@@ -241,7 +241,7 @@ the site already updated.
 | ----- | ------ |
 | CI still running on `main` | Wait — Deploy Supabase has not started |
 | CI failed | Fix and merge a follow-up; Deploy Supabase will not run |
-| **Deploy Supabase** failed | A `Deploy Supabase failed on main` issue is opened automatically with the run link; fix secrets or `db push` errors |
+| **Deploy Supabase** failed | A `Deploy Supabase failed on main` issue is opened automatically with the run link; fix secrets or `db push` errors. Functions are deployed with `--use-api` (bundled on Supabase's servers, no Docker image pull), so a registry rate limit can't fail that step — if the run fails anyway, re-run the workflow |
 | Deploy succeeded | Confirm migration in Supabase → **Database → Migrations** |
 
 One-time GitHub **production** environment secrets: [docs/MAINTENANCE.md § Production Supabase deploy](./docs/MAINTENANCE.md#production-supabase-deploy-one-time-secrets).
@@ -251,7 +251,7 @@ Manual fallback (hosted DB — use with care):
 ```bash
 npx supabase link
 npx supabase db push
-npx supabase functions deploy
+npx supabase functions deploy --use-api
 npx supabase unlink
 ```
 
