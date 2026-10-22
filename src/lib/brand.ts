@@ -1146,7 +1146,8 @@ export const AUTO_ORGANIZE_FREQUENCY_OPTIONS = [
 export type AutoOrganizeFrequencySelection =
   (typeof AUTO_ORGANIZE_FREQUENCY_OPTIONS)[number]['value']
 
-export const AUTO_ORGANIZE_TWICE_MONTHLY_ON_LABEL = 'On which days?'
+export const AUTO_ORGANIZE_TWICE_FIRST_DAY_LABEL = 'First day'
+export const AUTO_ORGANIZE_TWICE_SECOND_DAY_LABEL = 'Second day'
 
 export const AUTO_ORGANIZE_INTERVAL_START_LABEL = 'Starts on'
 

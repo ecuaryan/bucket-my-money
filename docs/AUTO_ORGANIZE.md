@@ -150,9 +150,13 @@ weekday).
 ### B. Monthly (calendar days)
 
 - **Once a month** → one day picker (**1st–28th** or **Last day of month**)
-- **Twice a month** → fixed presets for typical pay schedules:
-  **1st & 15th**, **2nd & 16th**, **1st & 16th** (pay on the 15th, organize the next
-  day while keeping the 1st), **7th & 22nd**, **15th & last day**, **16th & last day**
+- **Twice a month** → two pickers: **First day** (1st–16th) and **Second day**. The
+  second day follows the first by **15 days** (7th → 22nd, 5th → 20th) until you pick
+  your own; past the 28th it becomes **Last day** (so 14th/15th/16th pair with the last
+  day). Any pair is allowed as long as the second comes after the first — so
+  **1st & 15th**, **2nd & 16th**, **1st & 16th**, **7th & 22nd**, **15th & last day**,
+  **16th & last day** (the former presets) are all just choices of the two days. The
+  server has always accepted any `days_of_month` pair; only the editor was limited.
 - **Every 2 weeks** (interval) → biweekly / every-other-Friday when anchored to a
   Friday start date
 
