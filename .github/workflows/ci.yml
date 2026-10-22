@@ -13,9 +13,15 @@ on:
 permissions:
   contents: read
 
+# Newer pushes cancel superseded runs on PR branches, but never on main: each
+# merge's CI must be able to finish, because Deploy Supabase only runs after a
+# green CI run on main. (A merge landing while a run was in progress used to
+# cancel it, so back-to-back merges starved the deploy.) On main, runs execute
+# one at a time in order; a run still waiting is replaced by a newer one, which
+# contains the same commits.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Smoke/db tests need Postgres, Auth, REST, and Realtime — not Studio, Storage, etc.

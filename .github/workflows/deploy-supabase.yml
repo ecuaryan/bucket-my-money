@@ -8,10 +8,14 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  # Manual run (Actions → Deploy Supabase → Run workflow, branch: main), e.g.
+  # when a deploy was skipped. Requires a green CI run for the commit.
+  workflow_dispatch:
 
 permissions:
   contents: read
   issues: write
+  actions: read
 
 concurrency:
   group: deploy-supabase-production
@@ -20,14 +24,30 @@ concurrency:
 jobs:
   deploy:
     name: migrations + Edge Functions
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     environment: production
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # A manual run skips the workflow_run gate, so check it ourselves: never
+      # deploy a commit whose CI did not pass.
+      - name: Require green CI for this commit (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI \
+            --commit "$GITHUB_SHA" --status success --json databaseId --jq 'length')
+          if [ "$passed" -lt 1 ]; then
+            echo "::error::No successful CI run for $GITHUB_SHA — wait for CI (or re-run it) before deploying manually."
+            exit 1
+          fi
 
       - uses: supabase/setup-cli@v1
         with:
@@ -60,7 +80,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           title="Deploy Supabase failed on main"
           printf '%s\n' \
