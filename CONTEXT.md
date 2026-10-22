@@ -372,6 +372,11 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   section sits; new groups are appended at the bottom (next to the New group button). Deleting a group only ungroups its
   buckets. Writes go through `create/rename/delete_bucket_group`,
   `set_bucket_group_collapsed`, and `save_bucket_layout`.
+- **Bank tab card order (v1.16):** each person can reorder the institution cards
+  on the Bank tab (grip, long-press the card heading, or the heading menu) —
+  whole institutions only, never the accounts inside. Per-member only
+  (`member_bank_order`, keyed by lower-cased institution name; written by
+  `save_bank_order`); unlisted institutions follow in first-seen order.
 - **Biometric (passkey) fast path:** any member can enroll a **WebAuthn passkey**
   on their **own device** (Settings → Biometric unlock) so they open the app with
   Face ID / Touch ID instead of typing their PIN (or, for the admin, email +

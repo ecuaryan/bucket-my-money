@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ACCOUNT_CARD_OWED_SUFFIX,
   BANK_ACCOUNT_MEMBER_FALLBACK,
@@ -9,6 +9,21 @@ import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database'
 import BankAccountActivity from '@/features/accounts/BankAccountActivity'
+import DragHandle from '@/components/ui/DragHandle'
+import { ReorderMenu } from '@/features/buckets/BucketGroupHeader'
+import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
+import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
+import { useFlipList } from '@/hooks/useFlipList'
+import {
+  fetchBankOrder,
+  institutionKey,
+  moveKey,
+  saveBankOrder,
+  sortByBankOrder,
+} from '@/lib/bankOrder'
+import { headerIdForKey, keyFromHeaderId } from '@/lib/bucketGroups'
+import { prefersReducedMotion } from '@/lib/motion'
+import { toast } from '@/lib/toast'
 
 type Account = Database['public']['Tables']['accounts']['Row']
 
@@ -26,6 +41,9 @@ type Props = {
  * every family account; a child sees only their own (enforced by RLS + the
  * edge functions). Household (unassigned) accounts sort first within a card,
  * then accounts assigned to a kid.
+ *
+ * Cards reorder per person (grip, long-press on the card heading, or the
+ * heading's menu) — whole institutions only, never the accounts inside.
  */
 export default function BankAccountsTab({
   accounts,
@@ -38,6 +56,8 @@ export default function BankAccountsTab({
   const [openAccountIds, setOpenAccountIds] = useState<Set<string>>(
     () => new Set(),
   )
+  const [orderKeys, setOrderKeys] = useState<string[]>([])
+  const { listRef, prepareFlip } = useFlipList(orderKeys)
 
   // Accounts assigned to someone other than the viewer (e.g. a kid). Drives
   // both the member-name lookup and whether to show tags at all — with no such
@@ -60,13 +80,88 @@ export default function BankAccountsTab({
     const groups = new Map<string, { name: string; accounts: Account[] }>()
     for (const account of ordered) {
       const name = account.institution_name ?? 'Bank'
-      const key = name.toLowerCase()
+      const key = institutionKey(account.institution_name)
       const group = groups.get(key)
       if (group) group.accounts.push(account)
       else groups.set(key, { name, accounts: [account] })
     }
-    return [...groups.values()]
+    return [...groups.entries()].map(([key, g]) => ({ key, ...g }))
   }, [accounts])
+
+  // The person's own card order (first-seen order until they set one).
+  const sortedGroups = useMemo(
+    () => sortByBankOrder(institutionGroups, orderKeys),
+    [institutionGroups, orderKeys],
+  )
+  const canReorder = sortedGroups.length >= 2
+  const sortedKeys = useMemo(() => sortedGroups.map((g) => g.key), [sortedGroups])
+  const headerIds = useMemo(() => sortedKeys.map(headerIdForKey), [sortedKeys])
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchBankOrder().then((keys) => {
+      if (!cancelled) setOrderKeys(keys)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const orderRef = useRef(orderKeys)
+  useEffect(() => {
+    orderRef.current = orderKeys
+  }, [orderKeys])
+
+  async function commitOrder(keys: string[]) {
+    if (keys === sortedKeys) return
+    prepareFlip()
+    const snapshot = orderRef.current
+    setOrderKeys(keys)
+    try {
+      await saveBankOrder(keys)
+    } catch (e) {
+      setOrderKeys(snapshot)
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  function moveBank(key: string, direction: 'up' | 'down') {
+    const from = sortedKeys.indexOf(key)
+    void commitOrder(moveKey(sortedKeys, from, from + (direction === 'up' ? -1 : 1)))
+  }
+
+  const {
+    pendingBucketId,
+    manualDragBucketId,
+    manualDragOverlay,
+    manualDragOverIndex,
+    manualBlockExtents,
+    getRowHandlers,
+  } = useRowLongPressReorder({
+    listRef,
+    bucketIds: headerIds,
+    // A plain tap on a heading does nothing; accounts below handle their own taps.
+    onMoveMoney: () => {},
+    onDragReorder: (next) => void commitOrder(next.map(keyFromHeaderId)),
+    notifyDragStarted: () => {},
+    disabled: !canReorder,
+  })
+
+  const draggedIndex = manualDragBucketId
+    ? sortedKeys.indexOf(keyFromHeaderId(manualDragBucketId))
+    : -1
+  const draggedGroup = draggedIndex >= 0 ? sortedGroups[draggedIndex] : null
+  const dragTransition = prefersReducedMotion() ? undefined : 'transform 250ms ease'
+
+  function shiftStyle(index: number) {
+    if (draggedIndex < 0 || !manualBlockExtents) return undefined
+    if (manualDragOverIndex == null || manualDragOverIndex < 0) return undefined
+    const y = blockShiftY(index, draggedIndex, manualDragOverIndex, manualBlockExtents)
+    return {
+      transform: y ? `translateY(${y}px)` : undefined,
+      transition: dragTransition,
+    }
+  }
 
   useEffect(() => {
     if (!active) setOpenAccountIds(new Set())
@@ -98,16 +193,66 @@ export default function BankAccountsTab({
   }
 
   return (
-    <div className="space-y-4">
-      {institutionGroups.map((group) => (
-        <section
-          key={group.name}
-          aria-label={group.name}
-          className="overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-zinc-800"
-        >
-          <h3 className="border-b border-zinc-800 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            {group.name}
-          </h3>
+    <>
+    <ul ref={listRef}>
+      {sortedGroups.flatMap((group, index) => {
+        const headerId = headerIdForKey(group.key)
+        const dragging = draggedGroup?.key === group.key
+        const style = shiftStyle(index)
+        const titleId = `bank-title-${index}`
+        return [
+          <li
+            key={headerId}
+            data-flip-id={headerId}
+            data-group-header=""
+            style={style}
+            className={
+              'flex items-center gap-1 rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-900 py-1.5 ' +
+              (canReorder ? 'pl-2 pr-1 ' : 'px-4 py-2.5 ') +
+              (index > 0 ? 'mt-4 ' : '') +
+              (dragging ? 'opacity-40' : '')
+            }
+          >
+            {canReorder ? (
+              <DragHandle label="Reorder bank" {...getRowHandlers(headerId, true)} />
+            ) : null}
+            <div
+              data-reorder-row=""
+              {...(canReorder ? getRowHandlers(headerId) : {})}
+              className={
+                'min-w-0 flex-1 select-none rounded-lg px-1.5 py-1.5 touch-pan-y [-webkit-touch-callout:none] ' +
+                (pendingBucketId === headerId
+                  ? 'bg-zinc-800/70 ring-2 ring-inset ring-emerald-400/45'
+                  : '')
+              }
+            >
+              <h3
+                id={titleId}
+                className="truncate text-xs font-semibold uppercase tracking-wide text-zinc-500"
+              >
+                {group.name}
+              </h3>
+            </div>
+            {canReorder ? (
+              <ReorderMenu
+                ariaLabel={`${group.name} options`}
+                isFirst={index === 0}
+                isLast={index === sortedGroups.length - 1}
+                onMoveUp={() => moveBank(group.key, 'up')}
+                onMoveDown={() => moveBank(group.key, 'down')}
+              />
+            ) : null}
+          </li>,
+          <li
+            key={`body:${group.key}`}
+            data-flip-id={`body:${group.key}`}
+            style={style}
+            aria-labelledby={titleId}
+            className={
+              'overflow-hidden rounded-b-2xl border border-zinc-800 bg-zinc-900 ' +
+              (dragging ? 'opacity-40' : '')
+            }
+          >
           <ul className="divide-y divide-zinc-800/70">
             {group.accounts.map((a) => {
               const tag = bankAccountOwnerTag(a, roles, names, viewerMemberId, {
@@ -185,8 +330,27 @@ export default function BankAccountsTab({
               )
             })}
           </ul>
-        </section>
-      ))}
-    </div>
+          </li>,
+        ]
+      })}
+    </ul>
+    {draggedGroup && manualDragOverlay ? (
+      <div
+        className="pointer-events-none fixed z-[999]"
+        style={{
+          left: manualDragOverlay.left,
+          width: manualDragOverlay.width,
+          top: manualDragOverlay.top,
+        }}
+      >
+        <div className="flex items-center gap-1 rounded-2xl bg-zinc-900 py-1.5 pl-2 pr-3 shadow-lg ring-2 ring-emerald-400">
+          <DragHandle label="Reorder bank" className="cursor-grabbing text-zinc-400" tabIndex={-1} />
+          <span className="truncate px-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            {draggedGroup.name}
+          </span>
+        </div>
+      </div>
+    ) : null}
+    </>
   )
 }

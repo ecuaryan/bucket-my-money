@@ -172,12 +172,13 @@ function HeaderRow({
       <span className="shrink-0 pr-1 text-xs tabular-nums text-zinc-500">
         {summary}
       </span>
-      <GroupMenu
-        isUngrouped={isUngrouped}
+      <ReorderMenu
+        ariaLabel="Group options"
         isFirst={isFirst}
         isLast={isLast}
-        onRename={onRename}
-        onDelete={onDelete}
+        onRename={isUngrouped ? undefined : onRename}
+        onDelete={isUngrouped ? undefined : onDelete}
+        deleteLabel="Delete group"
         onMoveUp={onMoveUp}
         onMoveDown={onMoveDown}
       />
@@ -185,18 +186,30 @@ function HeaderRow({
   )
 }
 
-function GroupMenu({
-  isUngrouped,
+/**
+ * Kebab menu for a reorderable section heading: Move up / Move down, plus
+ * Rename / Delete when those handlers are given. Shared by bucket groups and
+ * the Bank tab's institution cards.
+ */
+export function ReorderMenu({
+  ariaLabel,
   isFirst,
   isLast,
   onRename,
   onDelete,
+  deleteLabel = 'Delete',
   onMoveUp,
   onMoveDown,
-}: Pick<
-  Props,
-  'isFirst' | 'isLast' | 'onRename' | 'onDelete' | 'onMoveUp' | 'onMoveDown'
-> & { isUngrouped: boolean }) {
+}: {
+  ariaLabel: string
+  isFirst: boolean
+  isLast: boolean
+  onRename?: () => void
+  onDelete?: () => void
+  deleteLabel?: string
+  onMoveUp: () => void
+  onMoveDown: () => void
+}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
 
@@ -227,7 +240,7 @@ function GroupMenu({
     <div ref={ref} className="relative shrink-0">
       <button
         type="button"
-        aria-label="Group options"
+        aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -252,20 +265,18 @@ function GroupMenu({
             (isLast ? 'bottom-full mb-1' : 'top-full mt-1')
           }
         >
-          {!isUngrouped && (
-            <MenuItem onClick={fire(onRename)}>Rename</MenuItem>
-          )}
+          {onRename && <MenuItem onClick={fire(onRename)}>Rename</MenuItem>}
           <MenuItem onClick={fire(onMoveUp)} disabled={isFirst}>
             Move up
           </MenuItem>
           <MenuItem onClick={fire(onMoveDown)} disabled={isLast}>
             Move down
           </MenuItem>
-          {!isUngrouped && (
+          {onDelete && (
             <>
               <div className="my-1 h-px bg-zinc-800" />
               <MenuItem onClick={fire(onDelete)} destructive>
-                Delete group
+                {deleteLabel}
               </MenuItem>
             </>
           )}
