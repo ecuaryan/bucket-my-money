@@ -331,6 +331,32 @@ describe('formatEditorSaveScheduleSummary', () => {
 })
 
 describe('computeNextRunOn', () => {
+  const twice = (daysOfMonth: number[]) => ({
+    autoOrganizeType: 'monthly' as const,
+    startDate: null,
+    intervalCount: null,
+    intervalUnit: null,
+    daysOfMonth,
+  })
+
+  it('finds the next run for a custom twice-a-month pair', () => {
+    const tz = 'America/Boise'
+    expect(computeNextRunOn(twice([5, 20]), tz, new Date('2026-10-22T18:00:00Z'))).toBe('2026-11-05')
+    expect(computeNextRunOn(twice([5, 20]), tz, new Date('2026-11-05T18:00:00Z'))).toBe('2026-11-05')
+    expect(computeNextRunOn(twice([5, 20]), tz, new Date('2026-11-06T18:00:00Z'))).toBe('2026-11-20')
+    // Pair order in storage doesn't matter.
+    expect(computeNextRunOn(twice([20, 5]), tz, new Date('2026-11-06T18:00:00Z'))).toBe('2026-11-20')
+  })
+
+  it('runs the second day on the real last day of a short month', () => {
+    const tz = 'America/Boise'
+    // 16th & last day, mid-February → the 28th (not a non-existent 30th/31st).
+    expect(computeNextRunOn(twice([16, 0]), tz, new Date('2026-02-17T18:00:00Z'))).toBe('2026-02-28')
+    expect(computeNextRunOn(twice([16, 0]), tz, new Date('2026-03-17T18:00:00Z'))).toBe('2026-03-31')
+    // A 28th second day exists in every month.
+    expect(computeNextRunOn(twice([13, 28]), tz, new Date('2026-02-14T18:00:00Z'))).toBe('2026-02-28')
+  })
+
   it('returns the start date for a weekly interval (matches editor summary)', () => {
     const cadence = {
       autoOrganizeType: 'interval' as const,
