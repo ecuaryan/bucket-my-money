@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -12,7 +13,11 @@ import {
   TOAST_PAUSE_LABEL,
   TOAST_RESUME_LABEL,
 } from '@/lib/brand'
-import { TOAST_AUTO_DISMISS_MS, TOAST_EXIT_MS } from '@/lib/toastDismiss'
+import {
+  TOAST_AUTO_DISMISS_MS,
+  TOAST_EXIT_MS,
+  toastPushPx,
+} from '@/lib/toastDismiss'
 import { pausableTimeout, type PausableTimeout } from '@/lib/pausableTimeout'
 import {
   registerToastPublisher,
@@ -69,6 +74,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [dragDx, setDragDx] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [settling, setSettling] = useState(false)
+  // A swipe past the threshold: the toast is flying out, so the page can ease back up.
+  const [flung, setFlung] = useState(false)
   const dragStartXRef = useRef(0)
   const [panelWidth, setPanelWidth] = useState(360)
   const activePointerRef = useRef<number | null>(null)
@@ -89,6 +96,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const remove = useCallback(() => {
     setToast(null)
+    setFlung(false)
     setDragDx(0)
     setDragging(false)
     setSettling(false)
@@ -116,6 +124,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setDragDx(0)
       setDragging(false)
       setSettling(false)
+      setFlung(false)
       activePointerRef.current = null
       const id = ++idRef.current
       setToast({ item: { ...next, id }, exiting: false })
@@ -144,6 +153,33 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     else timer.resume()
   }, [paused])
 
+  // Make room for the toast: the page content slides down by the panel's height
+  // while it is showing and eases back as it leaves (see .toast-push-target).
+  const leaving = toast?.exiting === true || flung
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    const panel = panelRef.current
+    if (!item || leaving || !panel) {
+      root.style.setProperty('--toast-push', '0px')
+      return
+    }
+    const apply = () =>
+      root.style.setProperty(
+        '--toast-push',
+        `${toastPushPx(panel.offsetHeight)}px`,
+      )
+    apply()
+    const observer = new ResizeObserver(apply)
+    observer.observe(panel)
+    return () => observer.disconnect()
+  }, [item, leaving])
+  useEffect(
+    () => () => {
+      document.documentElement.style.removeProperty('--toast-push')
+    },
+    [],
+  )
+
   // ----- swipe-to-dismiss -----
   // While OUR drag owns the gesture, consume the touchmove stream. Otherwise
   // Chrome's native recognizer classifies a fast horizontal swipe as a fling
@@ -168,6 +204,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       timerRef.current?.cancel()
       timerRef.current = null
       setSettling(true)
+      setFlung(true)
       setDragDx(direction * (width + 140))
       if (exitTimerRef.current) clearTimeout(exitTimerRef.current)
       exitTimerRef.current = setTimeout(() => {
