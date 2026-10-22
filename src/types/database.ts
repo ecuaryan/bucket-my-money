@@ -45,6 +45,7 @@ export type Database = {
           institution_name: string | null
           last_synced_at: string | null
           owner_member_id: string | null
+          pending_payment_credit: number
           plaid_account_id: string | null
           plaid_item_id: string | null
           simplefin_account_id: string | null
@@ -63,6 +64,7 @@ export type Database = {
           institution_name?: string | null
           last_synced_at?: string | null
           owner_member_id?: string | null
+          pending_payment_credit?: number
           plaid_account_id?: string | null
           plaid_item_id?: string | null
           simplefin_account_id?: string | null
@@ -81,6 +83,7 @@ export type Database = {
           institution_name?: string | null
           last_synced_at?: string | null
           owner_member_id?: string | null
+          pending_payment_credit?: number
           plaid_account_id?: string | null
           plaid_item_id?: string | null
           simplefin_account_id?: string | null
@@ -675,6 +678,42 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plaid_account_signals: {
+        Row: {
+          account_id: string
+          family_id: string
+          observed_at: string
+          signals: Json
+        }
+        Insert: {
+          account_id: string
+          family_id: string
+          observed_at?: string
+          signals: Json
+        }
+        Update: {
+          account_id?: string
+          family_id?: string
+          observed_at?: string
+          signals?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plaid_account_signals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plaid_account_signals_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
@@ -1293,6 +1332,10 @@ export type Database = {
       bucket_visible_to_adults: {
         Args: { p_bucket_id: string }
         Returns: boolean
+      }
+      card_effective_debt: {
+        Args: { p_balance: number; p_pending: number }
+        Returns: number
       }
       check_pre_auth_rate_limit: {
         Args: { p_endpoint: string; p_ip: string }

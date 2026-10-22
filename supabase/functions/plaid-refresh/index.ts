@@ -23,6 +23,7 @@ import {
 } from '../_shared/cashAccountTypes.ts'
 import { shouldSkipRefresh } from '../_shared/refreshThrottle.ts'
 import { getBalances, isReconnectError, pickPlaidBalance } from '../_shared/plaid.ts'
+import { syncPendingCardPayments } from '../_shared/plaidPendingSync.ts'
 
 const PLAID_REFRESH_THROTTLE_MS = 30 * 60_000
 
@@ -154,6 +155,7 @@ Deno.serve(async (req: Request) => {
   const errors: string[] = []
   let accountsUpdated = 0
   const nowIso = new Date().toISOString()
+  const pendingSyncItems = []
 
   // One Plaid request per Item covers all of its accounts.
   const results = await Promise.all(
@@ -195,6 +197,11 @@ Deno.serve(async (req: Request) => {
           .from('plaid_items')
           .update({ last_synced_at: nowIso })
           .eq('id', item.id)
+        pendingSyncItems.push({
+          accessToken: item.access_token,
+          plaidAccounts,
+          linked,
+        })
       } catch (err) {
         if (isReconnectError(err)) {
           // Repairable via Link update mode — costs no Item slot.
@@ -210,6 +217,12 @@ Deno.serve(async (req: Request) => {
       return { updated, errors: itemErrors }
     }),
   )
+
+  // Net payments already in flight against card debt (never throws).
+  await syncPendingCardPayments(admin, {
+    familyId,
+    items: pendingSyncItems,
+  })
 
   for (const result of results) {
     accountsUpdated += result.updated

@@ -22,6 +22,7 @@ function adultBreakdown(
     bankCash,
     manualCash,
     cardDebt: 0,
+    cardPendingPayments: 0,
     bucketAllocated: 500,
     childrenSetAside: 50,
     children: [
@@ -284,6 +285,29 @@ describe('formatFloatCashSubtext', () => {
       fmt,
     )
     expect(text).toBe('$3000.00 linked · $2000.00 manual · $1200.00 owed on cards')
+  })
+
+  it('says so when a card payment is already in progress', () => {
+    const text = formatFloatCashSubtext(
+      adultBreakdown({
+        totalCash: 5000,
+        bankCash: 5000,
+        manualCash: 0,
+        cardDebt: 900,
+        cardPendingPayments: 300,
+      }),
+      {
+        isChild: false,
+        cashAccountsCount: 2,
+        bankAccountsCount: 2,
+        manualAccountsCount: 0,
+        childTotal: 0,
+      },
+      fmt,
+    )
+    expect(text).toBe(
+      '$5000.00 across 2 money sources · $900.00 owed on cards after pending $300.00 payment',
+    )
   })
 
   it('appends the card clause to a single-source summary', () => {

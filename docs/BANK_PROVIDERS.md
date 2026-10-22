@@ -112,8 +112,15 @@ with `isLinkedAccount()` in `src/lib/accounts.ts`.
   configured self-healingly by the sweep (`/item/webhook/update`,
   stamped in `plaid_items.webhook_configured_at`). The 6h sweep remains
   the quiet-period safety net.
+- **Pending card payments**: after every balance refresh (on-demand,
+  sweep, webhook) `_shared/plaidPendingSync.ts` pulls one
+  `/transactions/get` per Item and nets payments already in flight against
+  card debt (`accounts.pending_payment_credit`, `plaid_account_signals`).
+  Conservative by design — see [CREDIT_CARDS.md § Pending
+  payments](./CREDIT_CARDS.md#pending-payments-plaid). Optional secret
+  `PLAID_PENDING_NETTING` = `strict` (default) / `standard` / `off`.
 - **Env**: `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV`
-  (`sandbox`/`production`), and optionally `PLAID_WEBHOOK_URL` (the
+  (`sandbox`/`production`), optionally `PLAID_PENDING_NETTING`, and optionally `PLAID_WEBHOOK_URL` (the
   deployed `plaid-webhook` function URL — webhooks are off until set) as
   Edge Function secrets. All development uses sandbox (fake banks, no
   Item cost).

@@ -377,6 +377,13 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   whole institutions only, never the accounts inside. Per-member only
   (`member_bank_order`, keyed by lower-cased institution name; written by
   `save_bank_order`); unlisted institutions follow in first-seen order.
+- **Pending card payments (v1.16.4):** while a card payment is pending, checking
+  may already be lower while the card still shows the old balance, so the payment
+  would be subtracted twice. For Plaid, the refresh path nets in-flight payments
+  against card debt (`accounts.pending_payment_credit`, applied by
+  `card_effective_debt` in `member_float` / the breakdown) — conservatively, and
+  only when both feeds clearly agree. Details and limits:
+  [docs/CREDIT_CARDS.md § Pending payments](./docs/CREDIT_CARDS.md#pending-payments-plaid).
 - **Biometric (passkey) fast path:** any member can enroll a **WebAuthn passkey**
   on their **own device** (Settings → Biometric unlock) so they open the app with
   Face ID / Touch ID instead of typing their PIN (or, for the admin, email +

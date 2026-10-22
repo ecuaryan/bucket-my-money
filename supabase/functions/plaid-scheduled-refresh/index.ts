@@ -23,6 +23,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
 import { isCreditCardAccountType } from '../_shared/cashAccountTypes.ts'
+import { syncPendingCardPayments, type PendingSyncItem } from '../_shared/plaidPendingSync.ts'
 import {
   getBalances,
   isReconnectError,
@@ -132,7 +133,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: accounts, error: accountsError } = await admin
       .from('accounts')
-      .select('id, plaid_account_id, plaid_item_id, account_type')
+      .select('id, family_id, plaid_account_id, plaid_item_id, account_type')
       .in('plaid_item_id', claimed.map((i: { id: string }) => i.id))
       .eq('source', 'plaid')
       .not('plaid_account_id', 'is', null)
@@ -149,6 +150,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const nowIso = new Date().toISOString()
+    const pendingByFamily = new Map<string, PendingSyncItem[]>()
     await mapWithConcurrency(
       claimed,
       ITEM_CONCURRENCY,
@@ -188,6 +190,10 @@ Deno.serve(async (req: Request) => {
             .from('plaid_items')
             .update({ last_synced_at: nowIso })
             .eq('id', item.id)
+          const familyId = linked[0].family_id
+          const list = pendingByFamily.get(familyId) ?? []
+          list.push({ accessToken: item.access_token, plaidAccounts, linked })
+          pendingByFamily.set(familyId, list)
         } catch (err) {
           if (isReconnectError(err)) {
             await admin
@@ -201,6 +207,17 @@ Deno.serve(async (req: Request) => {
         }
       },
     )
+
+    // Net payments already in flight against card debt. Runs for every family
+    // that had an Item in this batch — even if its balance pull failed — so
+    // stale adjustments get cleared rather than left behind (never throws).
+    const familiesInBatch = new Set((accounts ?? []).map((a) => a.family_id))
+    for (const familyId of familiesInBatch) {
+      await syncPendingCardPayments(admin, {
+        familyId,
+        items: pendingByFamily.get(familyId) ?? [],
+      })
+    }
 
     itemsProcessed += claimed.length
     if (claimed.length < limit) break // drained the due set

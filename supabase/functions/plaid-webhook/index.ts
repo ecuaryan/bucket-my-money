@@ -24,6 +24,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
+import { syncPendingCardPayments } from '../_shared/plaidPendingSync.ts'
 import {
   classifyPlaidWebhook,
   getBalances,
@@ -122,7 +123,7 @@ Deno.serve(async (req: Request) => {
   if (action === 'refresh' && item.status !== 'detached') {
     const { data: accounts } = await admin
       .from('accounts')
-      .select('id, plaid_account_id')
+      .select('id, plaid_account_id, account_type')
       .eq('family_id', item.family_id)
       .eq('source', 'plaid')
       .eq('plaid_item_id', item.id)
@@ -156,6 +157,11 @@ Deno.serve(async (req: Request) => {
           .from('plaid_items')
           .update({ last_synced_at: nowIso, status: 'active' })
           .eq('id', item.id)
+        // Net payments already in flight against card debt (never throws).
+        await syncPendingCardPayments(admin, {
+          familyId: item.family_id,
+          items: [{ accessToken: item.access_token, plaidAccounts, linked }],
+        })
       } catch (err) {
         if (isReconnectError(err) && item.status === 'active') {
           await admin

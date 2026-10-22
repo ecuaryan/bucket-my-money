@@ -143,7 +143,10 @@ export type PlaidTransaction = {
   name: string
   merchant_name: string | null
   pending: boolean
-  personal_finance_category?: { primary?: string | null } | null
+  personal_finance_category?: {
+    primary?: string | null
+    detailed?: string | null
+  } | null
 }
 
 // ---------------------------------------------------------------------
@@ -286,6 +289,31 @@ export async function getTransactions(
       end_date: params.endDate,
       options: {
         account_ids: [accountId],
+        count: params.count,
+        include_personal_finance_category: true,
+      },
+    },
+  )
+  return result.transactions ?? []
+}
+
+/**
+ * Recent transactions across ALL of an Item's accounts in one call — used to
+ * spot payments in flight (pending). Same endpoint and billing posture as
+ * getTransactions: covered by the Transactions subscription; never
+ * /transactions/refresh.
+ */
+export async function getItemTransactions(
+  accessToken: string,
+  params: { startDate: string; endDate: string; count: number },
+): Promise<PlaidTransaction[]> {
+  const result = await plaidPost<{ transactions: PlaidTransaction[] }>(
+    '/transactions/get',
+    {
+      access_token: accessToken,
+      start_date: params.startDate,
+      end_date: params.endDate,
+      options: {
         count: params.count,
         include_personal_finance_category: true,
       },
