@@ -145,6 +145,20 @@ describe('fetchHistoryPage', () => {
     expect(mockSecondOrder).toHaveBeenCalledWith('id', { ascending: false })
   })
 
+  it('asks for the exact total with the first page only', async () => {
+    await fetchHistoryPage({ kind: 'all' }, null, 10)
+    expect(mockSelect).toHaveBeenLastCalledWith(expect.any(String), {
+      count: 'exact',
+    })
+
+    const cursor = {
+      created_at: '2026-06-01T00:00:00Z',
+      id: '00000000-0000-4000-8000-000000000001',
+    }
+    await fetchHistoryPage({ kind: 'all' }, cursor, 50)
+    expect(mockSelect).toHaveBeenLastCalledWith(expect.any(String), undefined)
+  })
+
   it('applies bucket filter', async () => {
     await fetchHistoryPage({ kind: 'bucket', bucketId: 'bucket-1' }, null, 10)
     expect(chain.or).toHaveBeenCalledWith(

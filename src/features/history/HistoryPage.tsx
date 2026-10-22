@@ -124,6 +124,9 @@ export default function HistoryPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
+  // Exact number of transactions matching the current filter (from the first
+  // page's response); null until known.
+  const [total, setTotal] = useState<number | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   // Transaction selection for summing: id -> amount snapshot. A Map instead
   // of deriving from `rows` so the selection — and its total — survives
@@ -199,6 +202,7 @@ export default function HistoryPage() {
 
     if (generation !== listGeneration.current) return
     if (!result.ok) return
+    if (result.total !== null) setTotal(result.total)
 
     let hasNewRows = false
     flushSync(() => {
@@ -245,6 +249,7 @@ export default function HistoryPage() {
     setLoadError(null)
     setLoadMoreError(null)
     setRows(null)
+    setTotal(null)
     setHasMore(true)
     setLoadingMore(false)
 
@@ -255,6 +260,7 @@ export default function HistoryPage() {
       return
     }
     setRows(result.rows)
+    setTotal(result.total)
     setHasMore(result.rows.length === INITIAL_PAGE_SIZE)
   }, [familyId, filterKey])
 
@@ -418,9 +424,7 @@ export default function HistoryPage() {
                 ? isGiveFilter
                   ? 'No gives or takes yet'
                   : 'No transactions yet'
-                : isGiveFilter
-                  ? `${rows.length}${hasMore ? '+' : ''} ${rows.length === 1 ? 'give or take' : 'gives & takes'}`
-                  : `${rows.length}${hasMore ? '+' : ''} ${rows.length === 1 ? 'transaction' : 'transactions'}`}
+                : historyCountLabel(total ?? rows.length, total === null && hasMore, isGiveFilter)}
           </p>
         </div>
         {rows !== null && rows.length > 0 ? (
@@ -1014,6 +1018,18 @@ function TxItem({
       </Sheet>
     </>
   )
+}
+
+/** "342 transactions" / "12 gives & takes"; a "+" only when the total is unknown. */
+function historyCountLabel(count: number, approximate: boolean, give: boolean): string {
+  const noun = give
+    ? count === 1
+      ? 'give or take'
+      : 'gives & takes'
+    : count === 1
+      ? 'transaction'
+      : 'transactions'
+  return `${count}${approximate ? '+' : ''} ${noun}`
 }
 
 function groupByDay(

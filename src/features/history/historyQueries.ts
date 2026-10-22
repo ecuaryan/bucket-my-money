@@ -43,7 +43,16 @@ const TX_SELECT =
   '*, from_bucket:buckets!from_bucket_id(name), to_bucket:buckets!to_bucket_id(name), from_member:family_members!from_member_id(name), to_member:family_members!to_member_id(name)'
 
 export type FetchHistoryPageResult =
-  | { ok: true; rows: HistoryTxRow[] }
+  | {
+      ok: true
+      rows: HistoryTxRow[]
+      /**
+       * Exact number of rows matching the filter. Only requested with the first
+       * page (the same round trip); null for older pages or if the server
+       * did not report it.
+       */
+      total: number | null
+    }
   | { ok: false; error: string }
 
 export type HistoryPageCursor = Pick<HistoryTxRow, 'created_at' | 'id'>
@@ -131,7 +140,7 @@ export async function fetchHistoryPage(
     return await withAuthLockRetry(async () => {
       let query = supabase
         .from(TX_FROM)
-        .select(TX_SELECT)
+        .select(TX_SELECT, before ? undefined : { count: 'exact' })
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .limit(limit)
@@ -145,11 +154,15 @@ export async function fetchHistoryPage(
           `from_bucket_id.eq.${activeFilter.bucketId},to_bucket_id.eq.${activeFilter.bucketId}`,
         )
       }
-      const { data, error } = await query
+      const { data, error, count } = await query
       if (error) {
         return { ok: false as const, error: formatLoadErrorMessage(error.message) }
       }
-      return { ok: true as const, rows: (data ?? []) as unknown as HistoryTxRow[] }
+      return {
+        ok: true as const,
+        rows: (data ?? []) as unknown as HistoryTxRow[],
+        total: typeof count === 'number' ? count : null,
+      }
     })
   } catch (error) {
     return {
