@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandLogo } from '@/components/BrandLogo'
 import BottomNav from '@/components/layout/BottomNav'
@@ -10,6 +10,7 @@ import {
   NAV_BUCKETS_LABEL,
 } from '@/lib/brand'
 import { useAuth } from '@/lib/auth'
+import { TOAST_GAP_PX } from '@/lib/toastDismiss'
 import { useScrollToTopOnPathname } from '@/hooks/useScrollToTopOnPathname'
 import {
   GiveRecipientsProvider,
@@ -59,6 +60,26 @@ function AppShellLayout() {
   useScrollToTopOnPathname()
   const auth = useAuth()
   const [signingOut, setSigningOut] = useState(false)
+  const headerRef = useRef<HTMLElement | null>(null)
+
+  // Tell the toast host where the header ends so toasts sit right under it.
+  useEffect(() => {
+    const header = headerRef.current
+    if (!header) return
+    const root = document.documentElement
+    const apply = () =>
+      root.style.setProperty(
+        '--toast-top',
+        `${header.offsetHeight + TOAST_GAP_PX}px`,
+      )
+    apply()
+    const observer = new ResizeObserver(apply)
+    observer.observe(header)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--toast-top')
+    }
+  }, [])
 
   const member = auth.status === 'signedIn' ? auth.member : null
   const memberDisplayName =
@@ -95,6 +116,7 @@ function AppShellLayout() {
   return (
     <div className="flex min-h-svh flex-col bg-black text-zinc-300">
       <header
+        ref={headerRef}
         className="sticky top-0 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur"
         style={{ zIndex: APP_CHROME_Z_INDEX }}
       >
@@ -132,7 +154,10 @@ function AppShellLayout() {
       </header>
 
       <main
-        className={'mx-auto w-full max-w-md flex-1 px-4 pt-6 ' + NAV_CENTER_MAIN_PB}
+        className={
+          'toast-push-target mx-auto w-full max-w-md flex-1 px-4 pt-6 ' +
+          NAV_CENTER_MAIN_PB
+        }
       >
         <Outlet />
       </main>

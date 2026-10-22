@@ -179,9 +179,18 @@ html {
     animation: fade-in 200ms ease both;
   }
 
+  /* The toast sits in the gap under the app header and the page content slides
+     down to make room (see `--toast-push`, set by ToastProvider), so it never
+     covers anything. `--toast-top` is set by AppShell from the real header
+     height; outside the shell (sign-in screens) the fallback floats it as before. */
   .toast-viewport {
-    top: calc(5rem + env(safe-area-inset-top, 0px));
+    top: var(--toast-top, calc(5rem + env(safe-area-inset-top, 0px)));
     filter: drop-shadow(0 8px 24px rgb(0 0 0 / 0.45));
+  }
+
+  .toast-push-target {
+    position: relative;
+    top: var(--toast-push, 0px);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -190,11 +199,17 @@ html {
        swipe-to-dismiss drag sets. backwards still primes the from-state so
        there is no entrance flash. */
     .toast-panel {
-      animation: toast-in 180ms ease backwards;
+      animation: toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
     }
 
     .toast-panel-exit {
-      animation: toast-out 160ms ease both;
+      animation: toast-out 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    /* Page content eases down as the toast arrives and back up as it leaves,
+       in step with the panel's own motion. */
+    .toast-push-target {
+      transition: top 220ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     /* Money-move toast entrance: the amount springs into place, then the
