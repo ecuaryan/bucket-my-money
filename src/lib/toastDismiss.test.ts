@@ -3,6 +3,7 @@ import {
   TOAST_AUTO_SUCCESS_MAX_CHARS,
   toastDismissMode,
   toastPushPx,
+  toastStickyInsetPx,
 } from '@/lib/toastDismiss'
 
 describe('toastDismissMode', () => {
@@ -30,5 +31,12 @@ describe('toastPushPx', () => {
 
   it('never pushes upward', () => {
     expect(toastPushPx(0)).toBe(0)
+  })
+})
+
+describe('toastStickyInsetPx', () => {
+  it('pins sticky headings just below the toast', () => {
+    // toast sits TOAST_GAP below the header; headings clear it by 8px more.
+    expect(toastStickyInsetPx(52)).toBe(52 + 12 + 8)
   })
 })
