@@ -112,6 +112,14 @@ with `isLinkedAccount()` in `src/lib/accounts.ts`.
   configured self-healingly by the sweep (`/item/webhook/update`,
   stamped in `plaid_items.webhook_configured_at`). The 6h sweep remains
   the quiet-period safety net.
+- **Transaction details** (Bank tab → tap a transaction): `plaid-transactions-list`
+  returns, besides label/date/amount, a `details` object built by
+  `_shared/plaidTransactionDetails.ts` — the bank's raw statement text
+  (`include_original_description`), category (`personal_finance_category`),
+  counterparty, payment channel, location, authorized vs posted date, check
+  number, reference/payee/payer/method/reason, non-USD currency. Only fields the
+  bank actually returned are included, nothing is persisted, and rows with
+  nothing extra aren't expandable. SimpleFIN rows carry no `details` yet.
 - **Pending card payments**: after every balance refresh (on-demand,
   sweep, webhook) `_shared/plaidPendingSync.ts` pulls one
   `/transactions/get` per Item and nets payments already in flight against
