@@ -521,6 +521,32 @@ export type Database = {
           },
         ]
       }
+      member_bank_order: {
+        Row: {
+          display_order: number
+          institution_key: string
+          member_id: string
+        }
+        Insert: {
+          display_order: number
+          institution_key: string
+          member_id: string
+        }
+        Update: {
+          display_order?: number
+          institution_key?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_bank_order_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_bucket_groups: {
         Row: {
           created_at: string
@@ -1408,6 +1434,7 @@ export type Database = {
         Returns: string
       }
       run_due_auto_organizes: { Args: { p_as_of?: string }; Returns: number }
+      save_bank_order: { Args: { p_keys: string[] }; Returns: undefined }
       save_bucket_layout: { Args: { p_layout: Json }; Returns: undefined }
       transaction_visible_to_caller: {
         Args: { p_transaction_id: string }
