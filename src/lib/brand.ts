@@ -1502,3 +1502,40 @@ export function adminLinkedAccountsMemberGate(
 ): string {
   return `Only ${householdAdminLabel(adminName)} can link bank accounts and manage household settings here. Ask them to connect an account if Buckets is not showing balances yet.`
 }
+
+// --- Bucket groups (visual, per-person sections on the Buckets tab) ---
+
+export const BUCKET_GROUP_NEW_LABEL = 'New group'
+export const BUCKET_GROUP_UNNAMED = 'Unnamed group'
+export const BUCKET_GROUP_UNGROUPED = 'Ungrouped'
+export const BUCKET_GROUP_NAME_LABEL = 'Group name (optional)'
+export const BUCKET_GROUP_NAME_PLACEHOLDER = 'Cruise, Kids, Ryan…'
+export const BUCKET_GROUP_CREATE_TITLE = 'New group'
+export const BUCKET_GROUP_CREATE_HINT =
+  'Groups just organize your buckets on your own Buckets tab. Nobody else sees them, and no money moves. Drag buckets in afterwards.'
+export const BUCKET_GROUP_RENAME_TITLE = 'Rename group'
+
+export function bucketGroupDeleteTitle(name: string | null): string {
+  return name ? `Delete group “${name}”?` : 'Delete this group?'
+}
+
+export function bucketGroupDeleteIntro(bucketCount: number): string {
+  if (bucketCount === 0) return 'This group is empty, so nothing else changes.'
+  return `The ${bucketCount === 1 ? '1 bucket' : `${bucketCount} buckets`} inside will stay exactly as they are and move to Ungrouped.`
+}
+
+export const BUCKET_GROUP_DELETE_WHAT_HAPPENS = [
+  'Only the group label is removed.',
+  'Your buckets and their balances are not touched.',
+  'No money moves and History is unchanged.',
+] as const
+export const BUCKET_GROUP_EMPTY_HINT = 'Empty — drag a bucket here'
+
+/** Group heading summary: "3 buckets · $400" (amount omitted when nothing is in it). */
+export function bucketGroupSummary(
+  bucketCount: number,
+  formattedTotal: string | null,
+): string {
+  const count = `${bucketCount} ${bucketCount === 1 ? 'bucket' : 'buckets'}`
+  return formattedTotal ? `${count} · ${formattedTotal}` : count
+}

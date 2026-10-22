@@ -14,6 +14,8 @@ type Props = {
   onMoveUp: () => void
   onMoveDown: () => void
   onDelete: () => void
+  /** Only for buckets inside a group. */
+  onRemoveFromGroup?: () => void
 }
 
 /**
@@ -32,6 +34,7 @@ export default function BucketActionsMenu({
   onMoveUp,
   onMoveDown,
   onDelete,
+  onRemoveFromGroup,
 }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
@@ -112,6 +115,11 @@ export default function BucketActionsMenu({
           <MenuItem onClick={fire(onMoveDown)} disabled={isLast}>
             Move down
           </MenuItem>
+          {onRemoveFromGroup && (
+            <MenuItem onClick={fire(onRemoveFromGroup)}>
+              Remove from group
+            </MenuItem>
+          )}
           {canManageStructure && (
             <>
               <div className="my-1 h-px bg-zinc-800" />

@@ -364,6 +364,14 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
 - **Buckets tab bucket visibility:** admin and member see family-pool + adult-owned buckets
   only (not children's buckets). Each adult orders that list independently via
   `member_bucket_order`. Children see only their own buckets.
+- **Bucket groups (v1.15):** each person can visually group their Buckets tab
+  (e.g. Cruise, Kids) — names optional, empty groups allowed, groups collapse
+  (state saved) and reorder like buckets. Per-member only (`member_bucket_groups`,
+  `member_bucket_order.group_id`); never affects balances, History, or anyone
+  else's view. An `is_ungrouped` row stores where the implicit **Ungrouped**
+  section sits; new groups are appended at the bottom (next to the New group button). Deleting a group only ungroups its
+  buckets. Writes go through `create/rename/delete_bucket_group`,
+  `set_bucket_group_collapsed`, and `save_bucket_layout`.
 - **Biometric (passkey) fast path:** any member can enroll a **WebAuthn passkey**
   on their **own device** (Settings → Biometric unlock) so they open the app with
   Face ID / Touch ID instead of typing their PIN (or, for the admin, email +

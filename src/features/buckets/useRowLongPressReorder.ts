@@ -1,5 +1,11 @@
 /** Row long-press reorder: pointer handlers + manual drag session (grip uses dnd-kit). */
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import {
@@ -7,9 +13,11 @@ import {
   clearReorderTouchLock,
   setReorderTouchLock,
 } from '@/features/buckets/bucketReorderTouchLock'
+import { isHeaderId } from '@/lib/bucketGroups'
 import {
   ROW_LONG_PRESS_MS,
   autoScrollSpeed,
+  blockIndexAt,
   clampPointerYForRowDrag,
   closestRowCenterIndex,
   reorderedIdsForDrag,
@@ -30,6 +38,8 @@ type ManualDrag = {
   rowHeight: number
   listBounds: ListBounds
   overIndex: number
+  /** Group drags only: per-group-block extents (see blockShiftY). */
+  blockExtents?: number[]
 }
 
 type PressState = {
@@ -75,6 +85,36 @@ function getRowRects(
     const rect = li.getBoundingClientRect()
     return { top: rect.top, bottom: rect.bottom }
   })
+}
+
+type BlockSnapshot = {
+  ids: string[]
+  /** Block tops relative to the list top. */
+  tops: number[]
+  extents: number[]
+}
+
+/**
+ * Group blocks (a header plus the rows under it) as they rest, measured when a
+ * group drag arms. Hit-testing and displacement use this snapshot, not live rects.
+ */
+function getBlockSnapshot(listEl: HTMLUListElement | null): BlockSnapshot | null {
+  if (!listEl) return null
+  const listTop = listEl.getBoundingClientRect().top
+  const ids: string[] = []
+  const tops: number[] = []
+  let lastBottom = 0
+  for (const li of Array.from(listEl.querySelectorAll(':scope > li'))) {
+    const rect = li.getBoundingClientRect()
+    if (li.hasAttribute('data-group-header')) {
+      ids.push(li.getAttribute('data-flip-id') ?? '')
+      tops.push(rect.top - listTop)
+    }
+    lastBottom = rect.bottom - listTop
+  }
+  if (ids.length === 0) return null
+  const extents = tops.map((top, i) => (tops[i + 1] ?? lastBottom) - top)
+  return { ids, tops, extents }
 }
 
 function capturePointer(node: EventTarget, pointerId: number) {
@@ -129,9 +169,15 @@ function attachDocumentTouchTracking(handlers: TouchTracking): () => void {
 
 type Args = {
   listRef: RefObject<HTMLUListElement | null>
+  /** Ids of the rows currently in the DOM, top to bottom (buckets and group headers). */
   bucketIds: string[]
+  /** A short tap on a row (bucket → Move money, group header → toggle). */
   onMoveMoney: (id: string) => void
-  onDragReorder: (orderedIds: string[]) => void
+  /** A finished drag: the new row order, the dragged row, and the row it landed on. */
+  onDragReorder: (orderedIds: string[], dragId: string, overId: string) => void
+  /** Called when a drag arms/ends so the parent can reshape the list (e.g. collapse groups). */
+  onDragArmed?: (dragId: string) => void
+  onDragEnded?: () => void
   notifyDragStarted: () => void
   disabled?: boolean
 }
@@ -141,6 +187,8 @@ export function useRowLongPressReorder({
   bucketIds,
   onMoveMoney,
   onDragReorder,
+  onDragArmed,
+  onDragEnded,
   notifyDragStarted,
   disabled = false,
 }: Args) {
@@ -157,10 +205,19 @@ export function useRowLongPressReorder({
   const lastClientYRef = useRef(0)
   // Resting row centers (offsets from list top), snapshotted when the drag arms.
   const rowCentersRef = useRef<number[]>([])
+  // Set while a whole group is being dragged (instead of rowCentersRef).
+  const blockRef = useRef<BlockSnapshot | null>(null)
 
   useEffect(() => {
     manualDragRef.current = manualDrag
   }, [manualDrag])
+
+  // Latest props for release handlers, which can outlive the render that bound them
+  // (the parent may reshape the row list mid-drag).
+  const latestRef = useRef({ bucketIds, onDragReorder, onMoveMoney, onDragArmed, onDragEnded })
+  useEffect(() => {
+    latestRef.current = { bucketIds, onDragReorder, onMoveMoney, onDragArmed, onDragEnded }
+  })
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -203,6 +260,12 @@ export function useRowLongPressReorder({
           bounds,
         )
         // Hit-test the ghost center against the resting snapshot (not live rects).
+        const block = blockRef.current
+        if (block) {
+          // Group drag: the slot is whichever group block the pointer is over.
+          const overIndex = blockIndexAt(block.tops, block.extents, nextY - bounds.top)
+          return { ...prev, clientY: nextY, listBounds: bounds, overIndex }
+        }
         const centerOffset =
           rowDragCenterY({
             clientY: nextY,
@@ -223,17 +286,21 @@ export function useRowLongPressReorder({
     const drag = manualDragRef.current
     if (!drag) return
 
-    const next = reorderedIdsForDrag(bucketIds, drag.bucketId, drag.overIndex)
-    if (next) onDragReorder(next)
-  }, [bucketIds, onDragReorder])
+    const { onDragReorder: commit } = latestRef.current
+    const ids = blockRef.current?.ids ?? latestRef.current.bucketIds
+    const next = reorderedIdsForDrag(ids, drag.bucketId, drag.overIndex)
+    if (next) commit(next, drag.bucketId, ids[drag.overIndex])
+  }, [])
 
   const endManualDragSession = useCallback(() => {
     commitManualDrag()
     stopAutoScroll()
     setManualDrag(null)
     manualDragRef.current = null
+    blockRef.current = null
     resetPress()
     clearReorderTouchLock()
+    latestRef.current.onDragEnded?.()
   }, [commitManualDrag, resetPress, stopAutoScroll])
 
   // Single guarded release path shared by touch and pointer end events.
@@ -258,7 +325,7 @@ export function useRowLongPressReorder({
           dragCommitted: false,
         })
       ) {
-        onMoveMoney(press.bucketId)
+        latestRef.current.onMoveMoney(press.bucketId)
       }
 
       const rowEl = press?.rowEl ?? null
@@ -267,7 +334,7 @@ export function useRowLongPressReorder({
       clearReorderTouchLock()
       releasePointer(rowEl, pointerId)
     },
-    [endManualDragSession, onMoveMoney, resetPress],
+    [endManualDragSession, resetPress],
   )
 
   const cancelPress = useCallback(() => {
@@ -305,6 +372,10 @@ export function useRowLongPressReorder({
       )
       lastClientYRef.current = clientY
       // Snapshot resting row centers once; reused for all hit-tests this drag.
+      const block = isHeaderId(press.bucketId)
+        ? getBlockSnapshot(listRef.current)
+        : null
+      blockRef.current = block
       const centers = rowCenterOffsets(
         getRowRects(listRef.current),
         listBounds.top,
@@ -316,7 +387,9 @@ export function useRowLongPressReorder({
           grabOffsetY: rowMetrics.grabOffsetY,
           rowHeight: rowMetrics.rowHeight,
         }) - listBounds.top
-      const overIndex = closestRowCenterIndex(centers, centerOffset)
+      const overIndex = block
+        ? block.ids.indexOf(press.bucketId)
+        : closestRowCenterIndex(centers, centerOffset)
       const next: ManualDrag = {
         bucketId: press.bucketId,
         pointerId: press.pointerId,
@@ -325,10 +398,12 @@ export function useRowLongPressReorder({
         rowHeight: rowMetrics.rowHeight,
         listBounds,
         overIndex,
+        blockExtents: block?.extents,
       }
       manualDragRef.current = next
       setManualDrag(next)
       setPendingBucketId(null)
+      latestRef.current.onDragArmed?.(press.bucketId)
     },
     [listRef, notifyDragStarted, cancelPress],
   )
@@ -390,7 +465,7 @@ export function useRowLongPressReorder({
   )
 
   const getRowHandlers = useCallback(
-    (bucketId: string) => ({
+    (bucketId: string, immediate = false) => ({
       onPointerDown: (e: ReactPointerEvent) => {
         if (disabled || e.button !== 0 || pressRef.current) return
 
@@ -444,7 +519,7 @@ export function useRowLongPressReorder({
           const press = pressRef.current
           if (!press || press.bucketId !== bucketId) return
           armManualDrag(press)
-        }, ROW_LONG_PRESS_MS)
+        }, immediate ? 0 : ROW_LONG_PRESS_MS)
       },
 
       onPointerMove: (e: ReactPointerEvent) => {
@@ -512,6 +587,7 @@ export function useRowLongPressReorder({
         }
       : null,
     manualDragOverIndex: manualDrag?.overIndex ?? null,
+    manualBlockExtents: manualDrag?.blockExtents ?? null,
     getRowHandlers,
   }
 }
