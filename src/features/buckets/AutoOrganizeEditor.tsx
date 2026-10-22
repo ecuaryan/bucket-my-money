@@ -23,7 +23,8 @@ import {
   AUTO_ORGANIZE_NOTHING_TO_MOVE_NOW_LABEL,
   AUTO_ORGANIZE_ONCE_MONTHLY_DAY_LABEL,
   AUTO_ORGANIZE_ONCE_MONTHLY_LAST_DAY_HINT,
-  AUTO_ORGANIZE_TWICE_MONTHLY_ON_LABEL,
+  AUTO_ORGANIZE_TWICE_FIRST_DAY_LABEL,
+  AUTO_ORGANIZE_TWICE_SECOND_DAY_LABEL,
   AUTO_ORGANIZE_SAVE_LABEL,
   AUTO_ORGANIZE_SAVED_TOAST,
   AUTO_ORGANIZE_SAVE_REQUIRES_AMOUNT_HINT,
@@ -67,18 +68,21 @@ import { formatErrorMessage } from '@/lib/errorMessage'
 import { toast } from '@/lib/toast'
 import {
   AUTO_ORGANIZE_ONCE_MONTHLY_DAY_OPTIONS,
-  AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS,
   applyFrequencySelection,
   daysOfMonthFromSchedule,
   formatEditorNextRunSummary,
+  formatTwiceMonthlyHint,
   frequencySelectionFromCadence,
   isIntervalFrequencySelection,
   isManualFrequencySelection,
   monthlyScheduleFromDays,
   normalizeMonthlyCadence,
-  twiceMonthlyPresetFromDays,
+  twiceDaysAfterFirstChange,
+  twiceFirstDayOptions,
+  twiceSecondDayOptions,
   type AutoOrganizeCadence,
-  type MonthlyPresetId,
+  type MonthlyMode,
+  type TwiceMonthlyDays,
   formatShortIsoDateLabel,
   localDateIsoInTimeZone,
   tomorrowIsoInTimeZone,
@@ -118,7 +122,8 @@ type EditorSnapshot = {
   name: string
   familyTimezone: string
   cadence: AutoOrganizeCadence
-  monthlyPreset: MonthlyPresetId
+  monthlyMode: MonthlyMode
+  twiceDays: TwiceMonthlyDays
   monthlyOnceDay: number
   bucketDrafts: BucketDraft[]
   destinationBucketId: string | null
@@ -207,7 +212,8 @@ function buildSnapshot(
   name: string,
   familyTimezone: string,
   cadence: AutoOrganizeCadence,
-  monthlyPreset: MonthlyPresetId,
+  monthlyMode: MonthlyMode,
+  twiceDays: TwiceMonthlyDays,
   monthlyOnceDay: number,
   bucketDrafts: BucketDraft[],
   destinationBucketId: string | null,
@@ -217,7 +223,8 @@ function buildSnapshot(
     name,
     familyTimezone,
     cadence,
-    monthlyPreset,
+    monthlyMode,
+    twiceDays,
     monthlyOnceDay,
     bucketDrafts,
     destinationBucketId,
@@ -250,8 +257,12 @@ export default function AutoOrganizeEditor({
   const [cadence, setCadence] = useState<AutoOrganizeCadence>(() =>
     defaultCadenceForKind(kind, browserTimezone),
   )
-  const [monthlyPreset, setMonthlyPreset] =
-    useState<MonthlyPresetId>('first-and-fifteenth')
+  const [monthlyMode, setMonthlyMode] = useState<MonthlyMode>('twice')
+  // First day + the day it follows (+15). The second stays editable.
+  const [twiceDays, setTwiceDays] = useState<TwiceMonthlyDays>({
+    first: 1,
+    second: 16,
+  })
   const [monthlyOnceDay, setMonthlyOnceDay] = useState(1)
   const [bucketDrafts, setBucketDrafts] = useState<BucketDraft[]>(() =>
     bucketDraftsFromBuckets(buckets, undefined),
@@ -314,11 +325,6 @@ export default function AutoOrganizeEditor({
         cadenceFromInitial(initialSnap, effectiveKindForInit, nextTimezone),
       )
       const schedule = monthlyScheduleFromDays(nextCadence.daysOfMonth)
-      const nextPreset =
-        nextCadence.autoOrganizeType === 'monthly' &&
-        nextCadence.daysOfMonth?.length === 2
-          ? twiceMonthlyPresetFromDays(nextCadence.daysOfMonth)
-          : schedule.preset
       const nextName = initialSnap?.name ?? ''
       const nextBuckets = bucketDraftsFromBuckets(bucketsSnap, initialSnap?.lines)
       const nextDest =
@@ -328,7 +334,8 @@ export default function AutoOrganizeEditor({
       setFamilyTimezone(nextTimezone)
       setName(nextName)
       setCadence(nextCadence)
-      setMonthlyPreset(nextPreset)
+      setMonthlyMode(schedule.mode)
+      setTwiceDays(schedule.twice)
       setMonthlyOnceDay(schedule.onceDay)
       setBucketDrafts(nextBuckets)
       setDestinationBucketId(nextDest)
@@ -340,7 +347,8 @@ export default function AutoOrganizeEditor({
             nextName,
             nextTimezone,
             nextCadence,
-            nextPreset,
+            schedule.mode,
+            schedule.twice,
             schedule.onceDay,
             nextBuckets,
             nextDest,
@@ -409,7 +417,7 @@ export default function AutoOrganizeEditor({
 
   const frequencySelection = frequencySelectionFromCadence(
     cadence,
-    monthlyPreset,
+    monthlyMode,
   )
   const isManual = isManualFrequencySelection(frequencySelection)
 
@@ -488,8 +496,9 @@ export default function AutoOrganizeEditor({
             intervalCount: null,
             intervalUnit: null,
             daysOfMonth: daysOfMonthFromSchedule(
-              frequencySelection === 'monthly-once' ? 'once' : monthlyPreset,
+              frequencySelection === 'monthly-once' ? 'once' : 'twice',
               monthlyOnceDay,
+              twiceDays,
             ),
           }
 
@@ -500,7 +509,7 @@ export default function AutoOrganizeEditor({
     isManual,
     frequencySelection,
     cadence,
-    monthlyPreset,
+    twiceDays,
     monthlyOnceDay,
     familyTimezone,
     initial?.occupiedRunOnDates,
@@ -510,11 +519,11 @@ export default function AutoOrganizeEditor({
     const next = applyFrequencySelection(
       selection,
       cadence,
-      monthlyPreset,
+      monthlyMode,
       tomorrowIso,
     )
     setCadence(next.cadence)
-    setMonthlyPreset(next.monthlyPreset)
+    setMonthlyMode(next.monthlyMode)
   }
 
   function setIntervalStartDate(value: string) {
@@ -563,7 +572,8 @@ export default function AutoOrganizeEditor({
         name,
         familyTimezone,
         cadence,
-        monthlyPreset,
+        monthlyMode,
+        twiceDays,
         monthlyOnceDay,
         bucketDrafts,
         destinationBucketId,
@@ -610,8 +620,9 @@ export default function AutoOrganizeEditor({
         ? normalizeMonthlyCadence({
             ...cadence,
             daysOfMonth: daysOfMonthFromSchedule(
-              monthlyPreset,
+              monthlyMode,
               monthlyOnceDay,
+              twiceDays,
             ),
           })
         : cadence
@@ -822,42 +833,69 @@ export default function AutoOrganizeEditor({
               ) : null}
             </div>
           ) : (
-            <div className={scheduleRowGridClassName}>
-              <label className="block min-w-0">
-                <FieldLabel>{AUTO_ORGANIZE_FREQUENCY_LABEL}</FieldLabel>
-                <select
-                  value={frequencySelection}
-                  onChange={(e) =>
-                    setFrequencySelection(
-                      e.target.value as AutoOrganizeFrequencySelection,
-                    )
-                  }
-                  className={fieldInputClassName}
-                >
-                  {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block min-w-0">
-                <FieldLabel>{AUTO_ORGANIZE_TWICE_MONTHLY_ON_LABEL}</FieldLabel>
-                <select
-                  value={monthlyPreset}
-                  onChange={(e) =>
-                    setMonthlyPreset(e.target.value as MonthlyPresetId)
-                  }
-                  className={fieldInputClassName}
-                >
-                  {AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS.map((preset) => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div>
+              <div className={scheduleRowGridClassName}>
+                <label className="block min-w-0">
+                  <FieldLabel>{AUTO_ORGANIZE_FREQUENCY_LABEL}</FieldLabel>
+                  <select
+                    value={frequencySelection}
+                    onChange={(e) =>
+                      setFrequencySelection(
+                        e.target.value as AutoOrganizeFrequencySelection,
+                      )
+                    }
+                    className={fieldInputClassName}
+                  >
+                    {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block min-w-0">
+                  <FieldLabel>{AUTO_ORGANIZE_TWICE_FIRST_DAY_LABEL}</FieldLabel>
+                  <select
+                    value={twiceDays.first}
+                    onChange={(e) =>
+                      setTwiceDays((prev) =>
+                        twiceDaysAfterFirstChange(prev, Number(e.target.value)),
+                      )
+                    }
+                    className={fieldInputClassName}
+                  >
+                    {twiceFirstDayOptions(twiceDays.first).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className={scheduleRowGridClassName + ' mt-3'}>
+                <label className="block min-w-0">
+                  <FieldLabel>{AUTO_ORGANIZE_TWICE_SECOND_DAY_LABEL}</FieldLabel>
+                  <select
+                    value={twiceDays.second}
+                    onChange={(e) =>
+                      setTwiceDays((prev) => ({
+                        ...prev,
+                        second: Number(e.target.value),
+                      }))
+                    }
+                    className={fieldInputClassName}
+                  >
+                    {twiceSecondDayOptions(twiceDays.first).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="self-end pb-2 text-xs text-zinc-500">
+                  {formatTwiceMonthlyHint(twiceDays)}
+                </p>
+              </div>
             </div>
           )}
 

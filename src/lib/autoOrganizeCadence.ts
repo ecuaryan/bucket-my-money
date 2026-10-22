@@ -24,14 +24,14 @@ export function isIntervalFrequencySelection(
 
 export function frequencySelectionFromCadence(
   cadence: AutoOrganizeCadence,
-  monthlyPreset: MonthlyPresetId,
+  monthlyMode: MonthlyMode,
 ): AutoOrganizeFrequencySelection {
   if (cadence.autoOrganizeType === 'manual') {
     return 'manual-only'
   }
 
   if (cadence.autoOrganizeType === 'monthly') {
-    return monthlyPreset === 'once' ? 'monthly-once' : 'monthly-twice'
+    return monthlyMode === 'once' ? 'monthly-once' : 'monthly-twice'
   }
 
   const count = cadence.intervalCount ?? 2
@@ -49,9 +49,9 @@ export function frequencySelectionFromCadence(
 export function applyFrequencySelection(
   selection: AutoOrganizeFrequencySelection,
   prev: AutoOrganizeCadence,
-  monthlyPreset: MonthlyPresetId,
+  monthlyMode: MonthlyMode,
   todayIso: string,
-): { cadence: AutoOrganizeCadence; monthlyPreset: MonthlyPresetId } {
+): { cadence: AutoOrganizeCadence; monthlyMode: MonthlyMode } {
   if (selection === 'manual-only') {
     return {
       cadence: {
@@ -62,22 +62,21 @@ export function applyFrequencySelection(
         intervalUnit: null,
         daysOfMonth: null,
       },
-      monthlyPreset,
+      monthlyMode,
     }
   }
 
   if (selection === 'monthly-once') {
     return {
       cadence: { ...prev, autoOrganizeType: 'monthly' },
-      monthlyPreset: 'once',
+      monthlyMode: 'once',
     }
   }
 
   if (selection === 'monthly-twice') {
     return {
       cadence: { ...prev, autoOrganizeType: 'monthly' },
-      monthlyPreset:
-        monthlyPreset === 'once' ? 'first-and-fifteenth' : monthlyPreset,
+      monthlyMode: 'twice',
     }
   }
 
@@ -90,48 +89,92 @@ export function applyFrequencySelection(
       intervalCount: Number(count),
       intervalUnit: unit as 'week' | 'month',
     },
-    monthlyPreset,
+    monthlyMode,
   }
 }
 
-export type MonthlyPresetId =
-  | 'first-and-fifteenth'
-  | 'first-and-sixteenth'
-  | 'second-and-sixteenth'
-  | 'seventh-and-twenty-second'
-  | 'fifteenth-and-last'
-  | 'sixteenth-and-last'
-  | 'once'
+/** Monthly schedules: one day a month, or two. */
+export type MonthlyMode = 'once' | 'twice'
 
-export const AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS: {
-  id: Exclude<MonthlyPresetId, 'once'>
-  label: string
-  daysOfMonth: number[]
-}[] = [
-  { id: 'first-and-fifteenth', label: '1st & 15th', daysOfMonth: [1, 15] },
-  { id: 'second-and-sixteenth', label: '2nd & 16th', daysOfMonth: [2, 16] },
-  { id: 'first-and-sixteenth', label: '1st & 16th', daysOfMonth: [1, 16] },
-  {
-    id: 'seventh-and-twenty-second',
-    label: '7th & 22nd',
-    daysOfMonth: [7, 22],
-  },
-  { id: 'fifteenth-and-last', label: '15th & last day', daysOfMonth: [15, 0] },
-  {
-    id: 'sixteenth-and-last',
-    label: '16th & last day',
-    daysOfMonth: [16, 0],
-  },
-]
+/** The two days of a twice-a-month schedule (0 = last day of month). */
+export type TwiceMonthlyDays = { first: number; second: number }
 
-export function twiceMonthlyPresetFromDays(
-  days: number[] | null | undefined,
-): Exclude<MonthlyPresetId, 'once'> {
-  const key = daysKey(days)
-  const match = AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS.find(
-    (preset) => daysKey(preset.daysOfMonth) === key,
+/** The first day is picked from the early part of the month (1st–16th). */
+export const AUTO_ORGANIZE_TWICE_FIRST_DAY_MAX = 16
+
+/** Days between the two runs when the second day follows the first. */
+export const AUTO_ORGANIZE_TWICE_GAP_DAYS = 15
+
+/**
+ * The second day that follows a first day: 15 days later (7th → 22nd). Past the
+ * 28th it becomes the last day — 29–31 aren't offered, the same rule as once a
+ * month (so the 14th/15th/16th pair with the last day).
+ */
+export function defaultSecondDay(firstDay: number): number {
+  const second = firstDay + AUTO_ORGANIZE_TWICE_GAP_DAYS
+  return second > AUTO_ORGANIZE_ONCE_MONTHLY_MAX_DAY ? 0 : second
+}
+
+/** Order days with the last day (0) after every numbered day. */
+function dayRank(day: number): number {
+  return day === 0 ? 99 : day
+}
+
+/**
+ * Valid pair for saving/picking: first before second (last day counts as latest),
+ * second never beyond the 28th except as the last day.
+ */
+export function normalizeTwiceDays(days: TwiceMonthlyDays): TwiceMonthlyDays {
+  const first = Math.min(
+    Math.max(Math.trunc(days.first) || 1, 1),
+    AUTO_ORGANIZE_ONCE_MONTHLY_MAX_DAY - 1,
   )
-  return match?.id ?? 'first-and-fifteenth'
+  const second = normalizeOnceMonthlyDay(days.second)
+  return dayRank(second) > first ? { first, second } : { first, second: defaultSecondDay(first) }
+}
+
+/**
+ * Day pair after the user picks a new first day. The second day keeps following
+ * the first (+15) unless they had already chosen their own.
+ */
+export function twiceDaysAfterFirstChange(
+  prev: TwiceMonthlyDays,
+  nextFirst: number,
+): TwiceMonthlyDays {
+  const wasFollowing = prev.second === defaultSecondDay(prev.first)
+  return normalizeTwiceDays({
+    first: nextFirst,
+    second: wasFollowing ? defaultSecondDay(nextFirst) : prev.second,
+  })
+}
+
+function dayOption(day: number): { value: number; label: string } {
+  return { value: day, label: day === 0 ? 'Last day of month' : formatDayOfMonth(day) }
+}
+
+/** First-day choices: 1st–16th (plus a saved value outside that range, so it still shows). */
+export function twiceFirstDayOptions(
+  current?: number,
+): { value: number; label: string }[] {
+  const days = Array.from({ length: AUTO_ORGANIZE_TWICE_FIRST_DAY_MAX }, (_, i) => i + 1)
+  if (current && current > AUTO_ORGANIZE_TWICE_FIRST_DAY_MAX && current < AUTO_ORGANIZE_ONCE_MONTHLY_MAX_DAY) {
+    days.push(current)
+  }
+  return days.map(dayOption)
+}
+
+/** Second-day choices: every day after the first through the 28th, then the last day. */
+export function twiceSecondDayOptions(firstDay: number): { value: number; label: string }[] {
+  const days: number[] = []
+  for (let d = firstDay + 1; d <= AUTO_ORGANIZE_ONCE_MONTHLY_MAX_DAY; d++) days.push(d)
+  days.push(0)
+  return days.map(dayOption)
+}
+
+/** "Runs on the 7th and 22nd of every month." (the last day reads "the last day"). */
+export function formatTwiceMonthlyHint(days: TwiceMonthlyDays): string {
+  const phrase = (day: number) => (day === 0 ? 'the last day' : `the ${formatDayOfMonth(day)}`)
+  return `Runs on ${phrase(days.first)} and ${phrase(days.second)} of every month.`
 }
 
 export function formatTwiceMonthlyDayLabels(days: number[]): string {
@@ -140,9 +183,6 @@ export function formatTwiceMonthlyDayLabels(days: number[]): string {
     .map(formatDayOfMonth)
     .join(' & ')
 }
-
-/** @deprecated use AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS */
-export const AUTO_ORGANIZE_MONTHLY_PRESETS = AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS
 
 export type AutoOrganizeCadence = {
   autoOrganizeType: AutoOrganizeType
@@ -211,63 +251,47 @@ export const AUTO_ORGANIZE_ONCE_MONTHLY_DAY_OPTIONS: {
   { value: 0, label: 'Last day of month' },
 ]
 
-function daysKey(days: number[] | null | undefined): string {
-  if (!days?.length) return ''
-  return [...days]
-    .sort((a, b) => (a === 0 ? 99 : a) - (b === 0 ? 99 : b))
-    .join(',')
+export type MonthlySchedule = {
+  mode: MonthlyMode
+  /** Day for "once a month" (0 = last day). */
+  onceDay: number
+  /** Days for "twice a month". */
+  twice: TwiceMonthlyDays
 }
 
-export function monthlyScheduleFromDays(days: number[] | null | undefined): {
-  preset: MonthlyPresetId
-  onceDay: number
-} {
-  const key = daysKey(days)
-  const twice = AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS.find(
-    (preset) => daysKey(preset.daysOfMonth) === key,
-  )
-  if (twice) return { preset: twice.id, onceDay: 1 }
+/** Read saved `days_of_month` back into the editor's once/twice state. */
+export function monthlyScheduleFromDays(
+  days: number[] | null | undefined,
+): MonthlySchedule {
+  const fallbackTwice: TwiceMonthlyDays = { first: 1, second: defaultSecondDay(1) }
   if (days?.length === 2) {
-    return { preset: twiceMonthlyPresetFromDays(days), onceDay: 1 }
+    const [first, second] = [...days].sort((a, b) => dayRank(a) - dayRank(b))
+    return { mode: 'twice', onceDay: 1, twice: normalizeTwiceDays({ first, second }) }
   }
   if (days?.length === 1) {
-    return { preset: 'once', onceDay: normalizeOnceMonthlyDay(days[0]) }
+    return { mode: 'once', onceDay: normalizeOnceMonthlyDay(days[0]), twice: fallbackTwice }
   }
-  return { preset: 'first-and-fifteenth', onceDay: 1 }
-}
-
-/** @deprecated use monthlyScheduleFromDays */
-export function monthlyPresetFromDays(
-  days: number[] | null | undefined,
-): MonthlyPresetId {
-  return monthlyScheduleFromDays(days).preset
+  return { mode: 'twice', onceDay: 1, twice: fallbackTwice }
 }
 
 export function daysOfMonthFromSchedule(
-  preset: MonthlyPresetId,
+  mode: MonthlyMode,
   onceDay: number,
+  twice: TwiceMonthlyDays,
 ): number[] {
-  if (preset === 'once') return [normalizeOnceMonthlyDay(onceDay)]
-  return (
-    AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS.find((item) => item.id === preset)
-      ?.daysOfMonth ?? [1, 15]
-  )
-}
-
-/** @deprecated use daysOfMonthFromSchedule */
-export function daysOfMonthFromPreset(id: MonthlyPresetId): number[] {
-  return daysOfMonthFromSchedule(id, 0)
+  if (mode === 'once') return [normalizeOnceMonthlyDay(onceDay)]
+  const { first, second } = normalizeTwiceDays(twice)
+  return [first, second]
 }
 
 export function normalizeMonthlyCadence(
   cadence: AutoOrganizeCadence,
 ): AutoOrganizeCadence {
   if (cadence.autoOrganizeType !== 'monthly') return cadence
-  const { preset, onceDay } = monthlyScheduleFromDays(cadence.daysOfMonth)
-  if (preset !== 'once') return cadence
+  const { mode, onceDay, twice } = monthlyScheduleFromDays(cadence.daysOfMonth)
   return {
     ...cadence,
-    daysOfMonth: daysOfMonthFromSchedule('once', onceDay),
+    daysOfMonth: daysOfMonthFromSchedule(mode, onceDay, twice),
   }
 }
 
@@ -277,25 +301,12 @@ export function formatCadenceSummary(cadence: AutoOrganizeCadence): string {
   }
 
   if (cadence.autoOrganizeType === 'monthly') {
-    const { preset, onceDay } = monthlyScheduleFromDays(cadence.daysOfMonth)
-    if (preset === 'once') {
-      return `Once a month · ${formatDayOfMonth(onceDay)}`
-    }
     const days = cadence.daysOfMonth ?? []
-    const twice = AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS.find(
-      (item) => item.id === preset,
-    )
-    if (twice && daysKey(days) === daysKey(twice.daysOfMonth)) {
-      return `Twice a month · ${twice.label}`
-    }
-    if (days.length === 2) {
-      return `Twice a month · ${formatTwiceMonthlyDayLabels(days)}`
-    }
-    if (twice) return `Twice a month · ${twice.label}`
     if (days.length === 0) return 'Monthly'
-    const labels = [...days].sort((a, b) => a - b).map(formatDayOfMonth)
-    if (labels.length === 1) return `Once a month · ${labels[0]}`
-    return `Twice a month · ${labels.join(' & ')}`
+    if (days.length === 1) {
+      return `Once a month · ${formatDayOfMonth(normalizeOnceMonthlyDay(days[0]))}`
+    }
+    return `Twice a month · ${formatTwiceMonthlyDayLabels(days)}`
   }
 
   if (cadence.autoOrganizeType === 'interval') {

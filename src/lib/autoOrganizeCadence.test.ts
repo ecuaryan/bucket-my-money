@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   AUTO_ORGANIZE_ONCE_MONTHLY_DAY_OPTIONS,
   AUTO_ORGANIZE_ONCE_MONTHLY_MAX_DAY,
-  AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS,
   applyFrequencySelection,
   daysOfMonthFromSchedule,
   formatCadenceSummary,
@@ -21,7 +20,12 @@ import {
   monthlyScheduleFromDays,
   normalizeMonthlyCadence,
   normalizeOnceMonthlyDay,
-  twiceMonthlyPresetFromDays,
+  defaultSecondDay,
+  formatTwiceMonthlyHint,
+  normalizeTwiceDays,
+  twiceDaysAfterFirstChange,
+  twiceFirstDayOptions,
+  twiceSecondDayOptions,
   validateIntervalStartDate,
   maxIntervalStartDateIso,
 } from '@/lib/autoOrganizeCadence'
@@ -55,51 +59,110 @@ describe('AUTO_ORGANIZE_ONCE_MONTHLY_DAY_OPTIONS', () => {
   })
 })
 
-describe('AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS', () => {
-  it('covers typical semi-monthly pay schedules', () => {
-    expect(AUTO_ORGANIZE_TWICE_MONTHLY_PRESETS.map((preset) => preset.label)).toEqual([
-      '1st & 15th',
-      '2nd & 16th',
-      '1st & 16th',
-      '7th & 22nd',
-      '15th & last day',
-      '16th & last day',
-    ])
+describe('twice-a-month days', () => {
+  it('defaults the second day to 15 days after the first', () => {
+    expect(defaultSecondDay(1)).toBe(16)
+    expect(defaultSecondDay(5)).toBe(20)
+    expect(defaultSecondDay(7)).toBe(22)
+    expect(defaultSecondDay(13)).toBe(28)
+  })
+
+  it('turns past-the-28th into the last day (29–31 are never offered)', () => {
+    expect(defaultSecondDay(14)).toBe(0)
+    expect(defaultSecondDay(15)).toBe(0)
+    expect(defaultSecondDay(16)).toBe(0)
+  })
+
+  it('reproduces the former presets that are 15 days apart', () => {
+    expect(defaultSecondDay(1)).toBe(16) // 1st & 16th
+    expect(defaultSecondDay(7)).toBe(22) // 7th & 22nd
+    expect(defaultSecondDay(15)).toBe(0) // 15th & last day
+    expect(defaultSecondDay(16)).toBe(0) // 16th & last day
+  })
+
+  it('offers 1st–16th for the first day (plus a saved value outside that)', () => {
+    expect(twiceFirstDayOptions().map((o) => o.value)).toEqual(
+      Array.from({ length: 16 }, (_, i) => i + 1),
+    )
+    expect(twiceFirstDayOptions(20).map((o) => o.value).at(-1)).toBe(20)
+  })
+
+  it('offers every later day through the 28th, then the last day, for the second', () => {
+    const options = twiceSecondDayOptions(26)
+    expect(options.map((o) => o.value)).toEqual([27, 28, 0])
+    expect(options.at(-1)?.label).toBe('Last day of month')
+  })
+
+  it('moves the second day with the first until the user picks their own', () => {
+    // Following: 7th & 22nd → move first to the 5th → 5th & 20th.
+    expect(twiceDaysAfterFirstChange({ first: 7, second: 22 }, 5)).toEqual({
+      first: 5,
+      second: 20,
+    })
+    // Not following (1st & 15th is 14 apart): the chosen second day stays.
+    expect(twiceDaysAfterFirstChange({ first: 1, second: 15 }, 3)).toEqual({
+      first: 3,
+      second: 15,
+    })
+    // …unless it would no longer come after the first day.
+    expect(twiceDaysAfterFirstChange({ first: 1, second: 5 }, 8)).toEqual({
+      first: 8,
+      second: 23,
+    })
+  })
+
+  it('normalizes a pair: first before second, last day is latest', () => {
+    expect(normalizeTwiceDays({ first: 7, second: 22 })).toEqual({ first: 7, second: 22 })
+    expect(normalizeTwiceDays({ first: 16, second: 0 })).toEqual({ first: 16, second: 0 })
+    expect(normalizeTwiceDays({ first: 10, second: 10 })).toEqual({ first: 10, second: 25 })
+    expect(normalizeTwiceDays({ first: 20, second: 31 })).toEqual({ first: 20, second: 0 })
+  })
+
+  it('writes a plain-language hint', () => {
+    expect(formatTwiceMonthlyHint({ first: 7, second: 22 })).toBe(
+      'Runs on the 7th and the 22nd of every month.',
+    )
+    expect(formatTwiceMonthlyHint({ first: 16, second: 0 })).toBe(
+      'Runs on the 16th and the last day of every month.',
+    )
   })
 })
 
 describe('monthlyScheduleFromDays', () => {
   it('loads legacy day 31 as once-a-month last day', () => {
-    expect(monthlyScheduleFromDays([31])).toEqual({
-      preset: 'once',
-      onceDay: 0,
-    })
+    expect(monthlyScheduleFromDays([31])).toMatchObject({ mode: 'once', onceDay: 0 })
   })
 
-  it('loads twice-monthly presets by days', () => {
-    expect(monthlyScheduleFromDays([2, 16])).toEqual({
-      preset: 'second-and-sixteenth',
-      onceDay: 1,
+  it('loads any saved pair back as first/second day — including the old presets', () => {
+    expect(monthlyScheduleFromDays([2, 16]).twice).toEqual({ first: 2, second: 16 })
+    expect(monthlyScheduleFromDays([7, 22])).toMatchObject({
+      mode: 'twice',
+      twice: { first: 7, second: 22 },
     })
+    expect(monthlyScheduleFromDays([15, 0]).twice).toEqual({ first: 15, second: 0 })
+    // Order in the database doesn't matter; the last day (0) sorts last.
+    expect(monthlyScheduleFromDays([0, 16]).twice).toEqual({ first: 16, second: 0 })
+    // A custom pair is kept, not reset to 1st & 15th.
+    expect(monthlyScheduleFromDays([5, 20]).twice).toEqual({ first: 5, second: 20 })
   })
-})
 
-describe('twiceMonthlyPresetFromDays', () => {
-  it('maps saved days to preset ids', () => {
-    expect(twiceMonthlyPresetFromDays([1, 16])).toBe('first-and-sixteenth')
-    expect(twiceMonthlyPresetFromDays([7, 22])).toBe('seventh-and-twenty-second')
-    expect(twiceMonthlyPresetFromDays([16, 0])).toBe('sixteenth-and-last')
+  it('defaults to twice a month, 1st & 16th, when nothing is saved', () => {
+    expect(monthlyScheduleFromDays(null)).toMatchObject({
+      mode: 'twice',
+      twice: { first: 1, second: 16 },
+    })
   })
 })
 
 describe('daysOfMonthFromSchedule', () => {
   it('persists normalized once-a-month days', () => {
-    expect(daysOfMonthFromSchedule('once', 31)).toEqual([0])
-    expect(daysOfMonthFromSchedule('once', 15)).toEqual([15])
+    expect(daysOfMonthFromSchedule('once', 31, { first: 1, second: 16 })).toEqual([0])
+    expect(daysOfMonthFromSchedule('once', 15, { first: 1, second: 16 })).toEqual([15])
   })
 
-  it('persists twice-monthly preset days', () => {
-    expect(daysOfMonthFromSchedule('second-and-sixteenth', 0)).toEqual([2, 16])
+  it('persists the chosen twice-monthly pair (any pair, not just presets)', () => {
+    expect(daysOfMonthFromSchedule('twice', 1, { first: 5, second: 20 })).toEqual([5, 20])
+    expect(daysOfMonthFromSchedule('twice', 1, { first: 16, second: 0 })).toEqual([16, 0])
   })
 })
 
@@ -268,6 +331,32 @@ describe('formatEditorSaveScheduleSummary', () => {
 })
 
 describe('computeNextRunOn', () => {
+  const twice = (daysOfMonth: number[]) => ({
+    autoOrganizeType: 'monthly' as const,
+    startDate: null,
+    intervalCount: null,
+    intervalUnit: null,
+    daysOfMonth,
+  })
+
+  it('finds the next run for a custom twice-a-month pair', () => {
+    const tz = 'America/Boise'
+    expect(computeNextRunOn(twice([5, 20]), tz, new Date('2026-10-22T18:00:00Z'))).toBe('2026-11-05')
+    expect(computeNextRunOn(twice([5, 20]), tz, new Date('2026-11-05T18:00:00Z'))).toBe('2026-11-05')
+    expect(computeNextRunOn(twice([5, 20]), tz, new Date('2026-11-06T18:00:00Z'))).toBe('2026-11-20')
+    // Pair order in storage doesn't matter.
+    expect(computeNextRunOn(twice([20, 5]), tz, new Date('2026-11-06T18:00:00Z'))).toBe('2026-11-20')
+  })
+
+  it('runs the second day on the real last day of a short month', () => {
+    const tz = 'America/Boise'
+    // 16th & last day, mid-February → the 28th (not a non-existent 30th/31st).
+    expect(computeNextRunOn(twice([16, 0]), tz, new Date('2026-02-17T18:00:00Z'))).toBe('2026-02-28')
+    expect(computeNextRunOn(twice([16, 0]), tz, new Date('2026-03-17T18:00:00Z'))).toBe('2026-03-31')
+    // A 28th second day exists in every month.
+    expect(computeNextRunOn(twice([13, 28]), tz, new Date('2026-02-14T18:00:00Z'))).toBe('2026-02-28')
+  })
+
   it('returns the start date for a weekly interval (matches editor summary)', () => {
     const cadence = {
       autoOrganizeType: 'interval' as const,
@@ -417,7 +506,7 @@ describe('frequencySelectionFromCadence', () => {
           intervalUnit: null,
           daysOfMonth: null,
         },
-        'first-and-fifteenth',
+        'twice',
       ),
     ).toBe('manual-only')
   })
@@ -432,7 +521,7 @@ describe('frequencySelectionFromCadence', () => {
           intervalUnit: 'week',
           daysOfMonth: null,
         },
-        'first-and-fifteenth',
+        'twice',
       ),
     ).toBe('2-week')
 
@@ -465,7 +554,7 @@ describe('applyFrequencySelection', () => {
       applyFrequencySelection(
         'manual-only',
         base,
-        'first-and-fifteenth',
+        'twice',
         '2026-06-11',
       ),
     ).toEqual({
@@ -476,7 +565,7 @@ describe('applyFrequencySelection', () => {
         intervalUnit: null,
         daysOfMonth: null,
       },
-      monthlyPreset: 'first-and-fifteenth',
+      monthlyMode: 'twice',
     })
   })
 
@@ -493,7 +582,7 @@ describe('applyFrequencySelection', () => {
       applyFrequencySelection(
         '2-week',
         base,
-        'first-and-fifteenth',
+        'twice',
         '2026-06-11',
       ),
     ).toEqual({
@@ -504,7 +593,7 @@ describe('applyFrequencySelection', () => {
         intervalUnit: 'week',
         daysOfMonth: [1, 15],
       },
-      monthlyPreset: 'first-and-fifteenth',
+      monthlyMode: 'twice',
     })
   })
 })
