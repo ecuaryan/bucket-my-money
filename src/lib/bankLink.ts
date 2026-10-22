@@ -25,6 +25,9 @@ export type RefreshBalancesResult = {
   errors: string[]
 }
 
+/** Extra per-transaction detail (Plaid). Single definition lives with the Edge mapper. */
+export type { BankTransactionDetails } from '../../supabase/functions/_shared/plaidTransactionDetails'
+
 export type BankTransactionRow = {
   id: string
   date: string
@@ -34,6 +37,8 @@ export type BankTransactionRow = {
   status: 'posted' | 'pending'
   type: string
   category: string | null
+  /** Optional extras; absent for providers/banks that don't supply them. */
+  details?: import('../../supabase/functions/_shared/plaidTransactionDetails').BankTransactionDetails
 }
 
 export type FetchBankTransactionsResult = {

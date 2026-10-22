@@ -146,6 +146,26 @@ export type PlaidTransaction = {
   personal_finance_category?: {
     primary?: string | null
     detailed?: string | null
+    confidence_level?: string | null
+  } | null
+  // Optional extras (see plaidTransactionDetails.ts) — banks fill some, not all.
+  authorized_date?: string | null
+  original_description?: string | null
+  payment_channel?: string | null
+  iso_currency_code?: string | null
+  check_number?: string | null
+  counterparties?: Array<{ name?: string | null; type?: string | null }> | null
+  location?: {
+    city?: string | null
+    region?: string | null
+    country?: string | null
+  } | null
+  payment_meta?: {
+    reference_number?: string | null
+    payee?: string | null
+    payer?: string | null
+    payment_method?: string | null
+    reason?: string | null
   } | null
 }
 
@@ -291,6 +311,8 @@ export async function getTransactions(
         account_ids: [accountId],
         count: params.count,
         include_personal_finance_category: true,
+        // The bank's raw statement text — often says more than the merchant name.
+        include_original_description: true,
       },
     },
   )

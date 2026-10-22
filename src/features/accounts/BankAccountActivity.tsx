@@ -11,6 +11,7 @@ import {
   BANK_ACTIVITY_RECONNECT_MEMBER,
   BANK_ACTIVITY_RETRY,
   BANK_ACTIVITY_SCOPE,
+  bankTxnDetailsToggleLabel,
   LOADING_STATUS_LABEL,
   TELLER_SUNSET_ACTIVITY_NOTE,
 } from '@/lib/brand'
@@ -21,6 +22,7 @@ import {
   BankLinkReconnectError,
   type BankTransactionRow,
 } from '@/lib/bankLink'
+import { transactionDetailRows } from '@/lib/bankTransactionDetails'
 import {
   canFetchBankActivity,
   fetchBankTransactionsFor,
@@ -53,6 +55,8 @@ export default function BankAccountActivity({
   const isAdmin = member?.role === 'admin'
   const [attempted, setAttempted] = useState(false)
   const [rows, setRows] = useState<BankTransactionRow[] | null>(null)
+  // Which transaction's details are open (one at a time keeps the list calm).
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // A reconnect error is terminal until the bank is re-linked — a retry can't
@@ -89,6 +93,7 @@ export default function BankAccountActivity({
     if (!panelOpen) {
       setAttempted(false)
       setRows(null)
+      setExpandedId(null)
       setError(null)
       setNeedsReconnect(false)
       setLoading(false)
@@ -156,35 +161,90 @@ export default function BankAccountActivity({
               )}
             </div>
           ) : rows && rows.length > 0 ? (
-            <ScrollFade className="max-h-52" scrollClassName="px-0.5">
+            <ScrollFade
+              className={expandedId ? 'max-h-80' : 'max-h-52'}
+              scrollClassName="px-0.5"
+            >
               {/* py-1: keep the first/last row ring off the scroll viewport's
                   overflow-hidden edges, which would clip them flush. */}
               <ul className="space-y-1.5 py-1">
-                {rows.map((txn) => (
-                  <li
-                    key={txn.id}
-                    className="flex items-start justify-between gap-3 rounded-xl bg-zinc-950/60 px-3 py-2 ring-1 ring-zinc-800/80"
-                  >
-                    <div className="min-w-0">
-                      <p className="break-words text-sm leading-snug text-zinc-200">
-                        {txn.label}
+                {rows.map((txn) => {
+                  const detailRows = transactionDetailRows(txn, formatBankDate)
+                  const expandable = detailRows.length > 0
+                  const open = expandedId === txn.id
+                  const summary = (
+                    <>
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 break-words text-sm leading-snug text-zinc-200">
+                          <span>{txn.label}</span>
+                          {expandable ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              aria-hidden="true"
+                              className={
+                                'h-3.5 w-3.5 shrink-0 text-zinc-500 motion-safe:transition-transform motion-safe:duration-200 ' +
+                                (open ? 'rotate-180' : '')
+                              }
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          ) : null}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {formatBankDate(txn.date)}
+                          {txn.status === 'pending'
+                            ? ` · ${BANK_ACTIVITY_PENDING}`
+                            : ''}
+                        </p>
+                      </div>
+                      <p
+                        className={`shrink-0 text-sm font-medium tabular-nums ${
+                          txn.amount >= 0 ? 'text-emerald-300' : 'text-zinc-300'
+                        }`}
+                      >
+                        {formatSignedMoney(txn.amount, formatMoney)}
                       </p>
-                      <p className="text-xs text-zinc-500">
-                        {formatBankDate(txn.date)}
-                        {txn.status === 'pending'
-                          ? ` · ${BANK_ACTIVITY_PENDING}`
-                          : ''}
-                      </p>
-                    </div>
-                    <p
-                      className={`shrink-0 text-sm font-medium tabular-nums ${
-                        txn.amount >= 0 ? 'text-emerald-300' : 'text-zinc-300'
-                      }`}
+                    </>
+                  )
+                  return (
+                    <li
+                      key={txn.id}
+                      className="rounded-xl bg-zinc-950/60 ring-1 ring-zinc-800/80"
                     >
-                      {formatSignedMoney(txn.amount, formatMoney)}
-                    </p>
-                  </li>
-                ))}
+                      {expandable ? (
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-label={bankTxnDetailsToggleLabel(txn.label, open)}
+                          onClick={() => setExpandedId(open ? null : txn.id)}
+                          className="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                        >
+                          {summary}
+                        </button>
+                      ) : (
+                        <div className="flex items-start justify-between gap-3 px-3 py-2">
+                          {summary}
+                        </div>
+                      )}
+                      {open ? (
+                        <dl className="fade-in-enter space-y-1 border-t border-zinc-800/80 px-3 py-2 text-xs">
+                          {detailRows.map((r) => (
+                            <div key={r.key} className="flex gap-3">
+                              <dt className="w-20 shrink-0 text-zinc-500">{r.label}</dt>
+                              <dd className="min-w-0 break-words text-zinc-300">{r.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      ) : null}
+                    </li>
+                  )
+                })}
               </ul>
             </ScrollFade>
           ) : attempted ? (

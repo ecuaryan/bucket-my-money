@@ -1554,3 +1554,25 @@ export function bucketGroupSummary(
 }
 export const BUCKET_GROUPS_COLLAPSE_ALL = 'Collapse all'
 export const BUCKET_GROUPS_EXPAND_ALL = 'Expand all'
+
+// --- Bank activity: transaction details (tap a row) ---
+export const BANK_TXN_DETAIL_LABELS = {
+  description: 'Description',
+  category: 'Category',
+  counterparty: 'With',
+  paymentChannel: 'Paid',
+  location: 'Where',
+  authorized: 'Authorized',
+  posted: 'Posted',
+  checkNumber: 'Check #',
+  reference: 'Reference',
+  payee: 'Payee',
+  payer: 'Payer',
+  paymentMethod: 'Method',
+  reason: 'Reason',
+  currency: 'Currency',
+} as const
+
+export function bankTxnDetailsToggleLabel(label: string, open: boolean): string {
+  return `${open ? 'Hide' : 'Show'} details for ${label}`
+}

@@ -20,6 +20,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
 import { handleCors, jsonResponse } from '../_shared/http.ts'
 import { requireCallerMember } from '../_shared/callerMember.ts'
+import { mapPlaidTransactionDetails } from '../_shared/plaidTransactionDetails.ts'
 import {
   getTransactions,
   isReconnectError,
@@ -131,17 +132,21 @@ Deno.serve(async (req: Request) => {
     })
 
     const transactions = raw
-      .map((txn) => ({
-        id: txn.transaction_id,
-        date: txn.date,
-        // Plaid: positive = outflow. App: positive = inflow. Flip.
-        amount: -txn.amount,
-        description: txn.name ?? '',
-        label: transactionLabel(txn),
-        status: txn.pending ? 'pending' : 'posted',
-        type: '',
-        category: txn.personal_finance_category?.primary ?? null,
-      }))
+      .map((txn) => {
+        const label = transactionLabel(txn)
+        return {
+          id: txn.transaction_id,
+          date: txn.date,
+          // Plaid: positive = outflow. App: positive = inflow. Flip.
+          amount: -txn.amount,
+          description: txn.name ?? '',
+          label,
+          status: txn.pending ? 'pending' : 'posted',
+          type: '',
+          category: txn.personal_finance_category?.primary ?? null,
+          details: mapPlaidTransactionDetails(txn, label),
+        }
+      })
       .sort((a, b) => {
         const byDate = b.date.localeCompare(a.date)
         if (byDate !== 0) return byDate
