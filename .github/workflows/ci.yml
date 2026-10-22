@@ -129,7 +129,8 @@ jobs:
 
       - name: Start Supabase
         if: needs.changes.outputs.run_db != 'false'
-        run: supabase start --exclude "${{ env.SUPABASE_CI_EXCLUDE }}"
+        # Retries with backoff: image pulls are intermittently rate-limited.
+        run: scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}"
 
       - name: Database RLS tests
         if: needs.changes.outputs.run_db != 'false'
@@ -187,7 +188,8 @@ jobs:
 
       - name: Start Supabase
         if: needs.changes.outputs.run_e2e != 'false'
-        run: supabase start --exclude "${{ env.SUPABASE_CI_EXCLUDE }}"
+        # Retries with backoff: image pulls are intermittently rate-limited.
+        run: scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}"
 
       - name: E2E smoke tests
         if: needs.changes.outputs.run_e2e != 'false'

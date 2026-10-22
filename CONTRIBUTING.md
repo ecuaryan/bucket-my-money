@@ -157,6 +157,7 @@ Every push to `main` and every pull request runs [`.github/workflows/ci.yml`](./
 - A lightweight `detect changed scope` job classifies the git diff ([`scripts/ciChangedScope.mjs`](./scripts/ciChangedScope.mjs)). When uncertain, both expensive jobs run (fail-safe). Skipped jobs still **report success** so required checks pass.
 - **Playwright:** browsers live in Actions cache; `install --with-deps` runs only on cache miss (not every job).
 - **Supabase in CI:** `supabase start --exclude …` omits Studio, Storage, Inbucket, Edge runtime, and logging sidecars — enough for db tests and smoke e2e (Postgres, Auth, REST, Realtime). Docker image caching is intentionally **not** used; Supabase upstream found it slower than fresh pulls.
+- **Flaky image pulls:** `supabase start` goes through [`scripts/ci-supabase-start.sh`](./scripts/ci-supabase-start.sh), which retries up to 4 times with a growing backoff (and cleans up half-started containers between tries). The registry intermittently answers `toomanyrequests`, which used to fail a job before any test ran; a re-run is only needed if all four attempts fail.
 
 **Typical wall-clock:** docs-only PR ~1 min; UI-only PR ~3 min; schema/RPC PR ~3 min (db + e2e run in parallel).
 
