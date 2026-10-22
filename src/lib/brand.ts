@@ -757,8 +757,21 @@ export function floatShortWithCardsHint(overAmountLabel: string): string {
 }
 
 /** Hero subtext clause appended after the cash summary, e.g. "· $1,200 owed on cards". */
-export function floatCardsSubtextClause(cardDebtLabel: string): string {
-  return `· ${cardDebtLabel} owed on cards`
+export function floatCardsSubtextClause(
+  cardDebtLabel: string,
+  pendingPaymentLabel?: string,
+): string {
+  return pendingPaymentLabel
+    ? `· ${cardDebtLabel} owed on cards after pending ${pendingPaymentLabel} payment`
+    : `· ${cardDebtLabel} owed on cards`
+}
+
+/**
+ * Bank tab note under a card whose balance still shows a payment that is
+ * already on its way (docs/CREDIT_CARDS.md § Pending payments).
+ */
+export function bankCardPendingPaymentNote(amountLabel: string): string {
+  return `A ${amountLabel} payment is in progress — counted as paid in your balance.`
 }
 
 /** Unbucketed hero: linked-balance refresh control when no prior sync time exists. */

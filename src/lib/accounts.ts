@@ -111,10 +111,28 @@ export function sumCashBalance(accounts: Account[]): number {
     .reduce((sum, a) => sum + Number(a.current_balance), 0)
 }
 
+/**
+ * Part of a card's debt that a payment already in flight covers (derived by the
+ * Plaid sync; 0 otherwise). Mirrors Postgres `card_effective_debt`.
+ */
+export function cardPendingPayment(
+  a: Pick<Account, 'current_balance' | 'pending_payment_credit'>,
+): number {
+  const balance = Number(a.current_balance)
+  return Math.min(Number(a.pending_payment_credit ?? 0), Math.max(balance, 0))
+}
+
+/** Card debt after netting payments already in flight (what the ledger subtracts). */
 export function sumCardDebt(accounts: Account[]): number {
   return accounts
     .filter(isCreditCardAccount)
-    .reduce((sum, a) => sum + Number(a.current_balance), 0)
+    .reduce((sum, a) => sum + Number(a.current_balance) - cardPendingPayment(a), 0)
+}
+
+export function sumCardPendingPayments(accounts: Account[]): number {
+  return accounts
+    .filter(isCreditCardAccount)
+    .reduce((sum, a) => sum + cardPendingPayment(a), 0)
 }
 
 /** Most recent sync time across cash accounts (ISO), or null if none synced. */

@@ -109,6 +109,62 @@ History snapshots (they record Unbucketed, which is simply net now).
   amounts and the form can't enter them) — enter 0 if the bank owes you;
   simplicity over a rarely-used negative-entry UI.
 
+## Pending payments (Plaid)
+
+**The problem.** Cash and card balances come from independent feeds. When you
+pay a card from checking, the bank may already have taken the money out (a
+pending debit) while the card still reports the old balance until the payment
+posts — usually 1–3 business days. For that window the payment is subtracted
+twice: Unbucketed dips, sometimes red.
+
+**What we can and can't see.** Every bank/issuer pair behaves differently
+(some banks fold pending debits into the balance, some don't; some issuers show
+a pending payment on the card, some only once it posts), and we can't test
+against banks we don't have. So the fix uses only signals Plaid provides for
+every bank, and it **does nothing whenever the evidence is ambiguous** — the
+result is then the same temporary dip as before, never a new wrong number.
+
+**How it works** (`supabase/functions/_shared/pendingCardPayments.ts`, synced
+by `plaidPendingSync.ts` after every Plaid balance refresh):
+
+1. Per Item we pull ~10 days of transactions once (`/transactions/get`, covered
+   by the Transactions subscription; never `/transactions/refresh`) and store
+   the signals per account in `plaid_account_signals` (service-role only):
+   pending card-payment debits on cash accounts (Plaid category
+   `LOAN_PAYMENTS_CREDIT_CARD_PAYMENT`), pending/posted credits on cards, and
+   each cash account's `current` vs `available`.
+2. Per family we combine all signals (checking and card can be on different
+   Items) and decide, per card, how much of its debt an in-flight payment
+   already covers → `accounts.pending_payment_credit`.
+3. The ledger functions subtract `card_effective_debt(balance, pending)` —
+   `member_float`, and the breakdown's `card_debt` (plus `card_pending_payments`
+   for the hero subtext). `0` = the original math exactly.
+
+**When a payment is netted** — all must hold:
+
+- the cash account's balance already includes its pending debits (its
+  `available` equals `current` while a debit is pending; if `available` is
+  lower by the pending amount, `current` leaves it out, so there's no overlap);
+- a pending card-payment debit exists on it;
+- **strict (default):** the card also shows a pending credit of the same amount
+  (both sides agree the payment is in flight), and exactly one card matches;
+- **standard:** a cash-side-only payment is also netted if exactly one card can
+  be the target (exact-debt match preferred). Optimistic if the bank's balance
+  turns out not to include the pending debit — opt in with the Edge Function
+  secret `PLAID_PENDING_NETTING=standard`.
+- not if the card already posted a matching credit, never more than the card
+  owes, and signals older than 12h are ignored (a failed sync can't leave a
+  stuck adjustment). `PLAID_PENDING_NETTING=off` is the kill switch (resets
+  every credit to 0 on the next refresh).
+
+**Limits to be honest about.** Plaid's transaction data lags its live balance
+(transactions arrive when Plaid next pulls from the bank; balances are fetched
+live), so right after you pay the dip can show for a while before the pending
+debit appears in the data. Banks that report neither a usable `available` nor
+a pending payment get no adjustment. SimpleFIN and manual cards are never
+adjusted. The Bank tab and the hero subtext say when a payment is being
+counted as paid.
+
 ## Staged plan (shipped as one PR)
 
 1. **Sync + classification.** `is_credit_card_account_type` (SQL + TS +

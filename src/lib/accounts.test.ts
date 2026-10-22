@@ -7,7 +7,9 @@ import {
   isFamilyPoolAccount,
   isManualAccount,
   latestCashSyncAt,
+  cardPendingPayment,
   sumCardDebt,
+  sumCardPendingPayments,
   sumCashBalance,
 } from '@/lib/accounts'
 import type { Database } from '@/types/database'
@@ -77,6 +79,31 @@ describe('sumCardDebt', () => {
       account({ current_balance: -45, account_type: 'credit_card' }),
     ])
     expect(total).toBe(-45)
+  })
+})
+
+describe('pending card payments', () => {
+  const card = (balance: number, pending: number) =>
+    account({
+      current_balance: balance,
+      account_type: 'credit_card',
+      pending_payment_credit: pending,
+    })
+
+  it('nets a payment already in flight from the debt the ledger subtracts', () => {
+    expect(sumCardDebt([card(1200, 300)])).toBe(900)
+    expect(sumCardPendingPayments([card(1200, 300)])).toBe(300)
+  })
+
+  it('never nets more than is owed, and leaves a credit balance alone', () => {
+    expect(cardPendingPayment(card(400, 900))).toBe(400)
+    expect(sumCardDebt([card(400, 900)])).toBe(0)
+    expect(sumCardDebt([card(-45, 100)])).toBe(-45)
+  })
+
+  it('is a no-op with no pending credit (default)', () => {
+    expect(sumCardDebt([card(1200, 0)])).toBe(1200)
+    expect(sumCardPendingPayments([card(1200, 0)])).toBe(0)
   })
 })
 

@@ -3,8 +3,13 @@ import {
   ACCOUNT_CARD_OWED_SUFFIX,
   BANK_ACCOUNT_MEMBER_FALLBACK,
   BANK_ACCOUNT_SHARED_TAG,
+  bankCardPendingPaymentNote,
 } from '@/lib/brand'
-import { bankAccountOwnerTag, isCreditCardAccount } from '@/lib/accounts'
+import {
+  bankAccountOwnerTag,
+  cardPendingPayment,
+  isCreditCardAccount,
+} from '@/lib/accounts'
 import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database'
@@ -318,6 +323,11 @@ export default function BankAccountsTab({
                       </span>
                     )}
                   </button>
+                  {isCreditCardAccount(a) && cardPendingPayment(a) > 0 ? (
+                    <p className="mt-1 pl-6 text-xs text-zinc-500">
+                      {bankCardPendingPaymentNote(formatMoney(cardPendingPayment(a)))}
+                    </p>
+                  ) : null}
                   <div id={activityPanelId}>
                     <BankAccountActivity
                       accountId={a.id}

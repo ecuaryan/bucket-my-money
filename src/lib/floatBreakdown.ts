@@ -193,7 +193,12 @@ export function formatFloatCashSubtext(
 
   const cardsClause =
     breakdown.cardDebt > 0
-      ? ` ${floatCardsSubtextClause(formatMoney(breakdown.cardDebt))}`
+      ? ` ${floatCardsSubtextClause(
+          formatMoney(breakdown.cardDebt),
+          breakdown.cardPendingPayments > 0
+            ? formatMoney(breakdown.cardPendingPayments)
+            : undefined,
+        )}`
       : ''
 
   if (breakdown.bankCash > 0 && breakdown.manualCash > 0) {
