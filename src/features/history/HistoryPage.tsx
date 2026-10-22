@@ -414,28 +414,21 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold">History</h1>
-          <p className="mt-0.5 text-xs text-zinc-400">
-            {rows === null
-              ? LOADING_STATUS_LABEL
-              : rows.length === 0
-                ? isGiveFilter
-                  ? 'No gives or takes yet'
-                  : 'No transactions yet'
-                : historyCountLabel(total ?? rows.length, total === null && hasMore, isGiveFilter)}
-          </p>
-        </div>
-        {rows !== null && rows.length > 0 ? (
-          <button
-            type="button"
-            onClick={selectMode ? exitSelectMode : enterSelectMode}
-            className="shrink-0 px-2 py-2 text-sm font-semibold text-emerald-300 transition active:opacity-60"
-          >
-            {selectMode ? 'Cancel' : 'Select'}
-          </button>
-        ) : null}
+      <header>
+        <h1 className="text-lg font-semibold">History</h1>
+        <p className="mt-0.5 text-xs text-zinc-400">
+          {rows === null
+            ? LOADING_STATUS_LABEL
+            : rows.length === 0
+              ? isGiveFilter
+                ? 'No gives or takes yet'
+                : 'No transactions yet'
+              : historyCountLabel(
+                  total ?? rows.length,
+                  total === null && hasMore,
+                  isGiveFilter,
+                )}
+        </p>
       </header>
 
       {/* Keep the filter as a skeleton until its options are settled, so it
@@ -475,15 +468,43 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div ref={daysRef} className="space-y-5">
+          {/* One Select for the whole list. A zero-height sticky wrapper at the
+              start of the list sits on the first day label at rest and pins
+              level with the pinned label while scrolling — independent of the
+              labels themselves, so it never disappears while one label hands
+              off to the next. */}
+          {rows !== null && rows.length > 0 ? (
+            <div className="sticky-below-header pointer-events-none z-20 mb-0 h-0">
+              <div className="absolute inset-x-0 top-0 flex h-[34px] items-center justify-end">
+                <button
+                  type="button"
+                  onClick={selectMode ? exitSelectMode : enterSelectMode}
+                  // Quiet at rest (an occasional utility); green only while in
+                  // select mode, so the mode — and the way out — stays obvious.
+                  className={
+                    'pointer-events-auto -mr-1 rounded-md px-2 py-1.5 text-sm transition active:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
+                    (selectMode
+                      ? 'font-semibold text-emerald-300'
+                      : 'font-medium text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300')
+                  }
+                >
+                  {selectMode ? 'Cancel' : 'Select'}
+                </button>
+              </div>
+            </div>
+          ) : null}
           {grouped.map((group) => (
             <section key={group.key} aria-label={group.label}>
               {/* Pins under the app header while this day's rows scroll by, so
                   the date is always visible; the next day's label takes over. */}
-              <h2
+              <div
                 data-day-heading=""
-                className="sticky-below-header z-10 -mx-4 mb-2 border-b border-transparent bg-black/90 px-5 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 backdrop-blur transition-[border-color,box-shadow] duration-150 data-[stuck=true]:border-zinc-800 data-[stuck=true]:shadow-[0_6px_10px_-6px_rgb(0_0_0/0.9)]">
-                {group.label}
-              </h2>
+                className="sticky-below-header z-10 -mx-4 mb-2 flex items-center justify-between gap-3 border-b border-transparent bg-black/90 px-5 py-1 backdrop-blur transition-[border-color,box-shadow] duration-150 data-[stuck=true]:border-zinc-800 data-[stuck=true]:shadow-[0_6px_10px_-6px_rgb(0_0_0/0.9)]"
+              >
+                <h2 className="py-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  {group.label}
+                </h2>
+              </div>
               <ul className="flex flex-col gap-2">
                 {group.rows.map((row) => (
                   <HistoryRowShell

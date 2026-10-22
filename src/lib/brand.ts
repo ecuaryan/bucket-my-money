@@ -1552,3 +1552,5 @@ export function bucketGroupSummary(
   const count = `${bucketCount} ${bucketCount === 1 ? 'bucket' : 'buckets'}`
   return formattedTotal ? `${count} · ${formattedTotal}` : count
 }
+export const BUCKET_GROUPS_COLLAPSE_ALL = 'Collapse all'
+export const BUCKET_GROUPS_EXPAND_ALL = 'Expand all'

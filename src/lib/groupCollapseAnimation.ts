@@ -5,16 +5,18 @@
  */
 export const GROUP_COLLAPSE_MS = 200
 
-export type GroupAnimation = { key: string; dir: 'open' | 'close' }
+/** One or more groups animating together (a single toggle, or collapse/expand all). */
+export type GroupAnimation = { keys: readonly string[]; dir: 'open' | 'close' }
 
 export function animateGroupRows(
   list: HTMLElement,
-  key: string,
+  keys: readonly string[],
   dir: GroupAnimation['dir'],
 ): void {
+  const animating = new Set(keys)
   const rows = list.querySelectorAll<HTMLElement>(':scope > li[data-section-key]')
   rows.forEach((el) => {
-    if (el.dataset.sectionKey !== key) return
+    if (!animating.has(el.dataset.sectionKey ?? '')) return
     // A fast re-toggle can leave a fill-forwards close animation behind.
     el.getAnimations().forEach((a) => a.cancel())
 
