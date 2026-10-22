@@ -12,8 +12,6 @@ on:
 
 permissions:
   contents: read
-  # ghcr.io pulls for the Supabase Postgres image (see scripts/ci-supabase-start.sh).
-  packages: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -129,17 +127,10 @@ jobs:
         if: needs.changes.outputs.run_db != 'false'
         run: npm ci
 
-      # Authenticated pulls from ghcr.io have their own rate limit; anonymous
-      # pulls share a per-IP one that can be exhausted for hours.
-      - name: Log in to ghcr.io
-        if: needs.changes.outputs.run_db != 'false'
-        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Start Supabase
         if: needs.changes.outputs.run_db != 'false'
-        # Retries with backoff: image pulls are intermittently rate-limited.
+        # Image pulls are intermittently rate-limited: this script lets the CLI
+        # fall back across registries and retries with backoff.
         run: scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}"
 
       - name: Database RLS tests
@@ -196,17 +187,10 @@ jobs:
         if: needs.changes.outputs.run_e2e != 'false' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
 
-      # Authenticated pulls from ghcr.io have their own rate limit; anonymous
-      # pulls share a per-IP one that can be exhausted for hours.
-      - name: Log in to ghcr.io
-        if: needs.changes.outputs.run_e2e != 'false'
-        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Start Supabase
         if: needs.changes.outputs.run_e2e != 'false'
-        # Retries with backoff: image pulls are intermittently rate-limited.
+        # Image pulls are intermittently rate-limited: this script lets the CLI
+        # fall back across registries and retries with backoff.
         run: scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}"
 
       - name: E2E smoke tests
