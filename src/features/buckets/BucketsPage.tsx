@@ -71,6 +71,40 @@ import {
 } from '@/lib/bucketsPageOptimistic'
 import { toast } from '@/lib/toast'
 import {
+  EMPTY_GROUP_LAYOUT,
+  UNGROUPED_KEY,
+  applyLayoutOrder,
+  buildSections,
+  createBucketGroup,
+  deleteBucketGroup,
+  hasRealGroups,
+  isHiddenSection,
+  layoutFromVisibleOrder,
+  moveSection,
+  moveSectionByHeaders,
+  normalizeGroupName,
+  orderFromSections,
+  renameBucketGroup,
+  sameOrder,
+  saveBucketLayout,
+  type BucketGroupLayout,
+  type LayoutOrder,
+} from '@/lib/bucketGroups'
+import {
+  BucketGroupDeleteSheet,
+  BucketGroupNameSheet,
+} from '@/features/buckets/BucketGroupSheets'
+import { BUCKET_GROUP_NEW_LABEL } from '@/lib/brand'
+import {
+  GROUP_COLLAPSE_MS,
+  type GroupAnimation,
+} from '@/lib/groupCollapseAnimation'
+import { prefersReducedMotion } from '@/lib/motion'
+import {
+  readCollapsedGroupKeys,
+  writeCollapsedGroupKeys,
+} from '@/lib/bucketGroupCollapse'
+import {
   deleteBucket,
   BUCKET_NAME_MAX_LENGTH,
   humaniseBucketWriteError,
@@ -239,6 +273,44 @@ export default function BucketsPage() {
   const loadGeneration = useRef(0)
   const { listRef, prepareFlip } = useFlipList(buckets)
 
+  const [groupLayout, setGroupLayout] =
+    useState<BucketGroupLayout>(EMPTY_GROUP_LAYOUT)
+  const [groupSheet, setGroupSheet] = useState<
+    { mode: 'create' } | { mode: 'rename'; key: string } | null
+  >(null)
+  const [groupDeleteKey, setGroupDeleteKey] = useState<string | null>(null)
+  const grouped = hasRealGroups(groupLayout)
+  // Collapsed groups are a per-device preference (localStorage), not DB state.
+  const [collapsedKeys, setCollapsedKeys] = useState<ReadonlySet<string>>(
+    () => (memberId ? readCollapsedGroupKeys(memberId) : new Set<string>()),
+  )
+  const [collapseMemberId, setCollapseMemberId] = useState(memberId)
+  if (collapseMemberId !== memberId) {
+    setCollapseMemberId(memberId)
+    setCollapsedKeys(memberId ? readCollapsedGroupKeys(memberId) : new Set())
+  }
+  const updateCollapsedKeys = (
+    update: (prev: ReadonlySet<string>) => Set<string>,
+  ) => {
+    const next = update(collapsedKeys)
+    setCollapsedKeys(next)
+    if (memberId) writeCollapsedGroupKeys(memberId, next)
+  }
+  const [groupAnimation, setGroupAnimation] = useState<GroupAnimation | null>(
+    null,
+  )
+  const groupAnimationTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  )
+  const sections = useMemo(
+    () => buildSections(buckets ?? [], groupLayout, collapsedKeys),
+    [buckets, groupLayout, collapsedKeys],
+  )
+  const visibleSections = useMemo(
+    () => sections.filter((s) => !isHiddenSection(s, grouped)),
+    [sections, grouped],
+  )
+
   const loadData = useCallback(async () => {
     if (!familyId || !memberId) return
     const generation = ++loadGeneration.current
@@ -248,11 +320,13 @@ export default function BucketsPage() {
       const data = await loadBucketsPage()
       if (generation !== loadGeneration.current) return
       setBuckets(data.buckets)
+      if (data.groupLayout) setGroupLayout(data.groupLayout)
       setAccounts(data.accounts)
       setBalanceBreakdown(data.breakdown)
       setBalanceUsesFallback(data.usedFallback)
       setHouseholdAdminName(data.householdAdminName)
       writeBucketsPageCache(familyId, memberId, {
+        groupLayout: data.groupLayout,
         buckets: data.buckets,
         accounts: data.accounts,
         breakdown: data.breakdown,
@@ -315,6 +389,7 @@ export default function BucketsPage() {
     loadGeneration.current += 1
     if (!familyId || !memberId) {
       setBuckets(null)
+      setGroupLayout(EMPTY_GROUP_LAYOUT)
       setAccounts(null)
       setBalanceBreakdown(null)
       setHouseholdAdminName(null)
@@ -325,6 +400,7 @@ export default function BucketsPage() {
     const cached = readBucketsPageCache(familyId, memberId)
     if (cached) {
       setBuckets(cached.buckets)
+      if (cached.groupLayout) setGroupLayout(cached.groupLayout)
       setAccounts(cached.accounts)
       setBalanceBreakdown(cached.breakdown)
       setBalanceUsesFallback(cached.balanceUsesFallback)
@@ -367,6 +443,11 @@ export default function BucketsPage() {
       specs.push({
         event: '*' as const,
         table: 'member_bucket_order',
+        filter: `member_id=eq.${memberId}`,
+      })
+      specs.push({
+        event: '*' as const,
+        table: 'member_bucket_groups',
         filter: `member_id=eq.${memberId}`,
       })
     }
@@ -545,7 +626,61 @@ export default function BucketsPage() {
     }
   }
 
+  /** Optimistically apply + persist a full group layout; revert on failure. */
+  async function commitLayout(order: LayoutOrder, expandKeys: string[] = []) {
+    if (!buckets) return
+    prepareFlip()
+    const snapshot = { buckets, layout: groupLayout }
+    const applied = applyLayoutOrder(buckets, groupLayout, order)
+    setBuckets(applied.buckets)
+    setGroupLayout(applied.layout)
+    if (expandKeys.length > 0) {
+      updateCollapsedKeys((prev) => {
+        const next = new Set(prev)
+        expandKeys.forEach((key) => next.delete(key))
+        return next
+      })
+    }
+    try {
+      await saveBucketLayout(order)
+      void loadData()
+    } catch (e) {
+      setBuckets(snapshot.buckets)
+      setGroupLayout(snapshot.layout)
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   async function handleReorder(id: string, direction: 'up' | 'down') {
+    if (grouped) {
+      // Within the bucket's section; at an edge it hops into the neighbour section.
+      const order = orderFromSections(sections)
+      const si = order.findIndex((o) => o.bucketIds.includes(id))
+      if (si < 0) return
+      const next = order.map((o) => ({ ...o, bucketIds: [...o.bucketIds] }))
+      const ids = next[si].bucketIds
+      const bi = ids.indexOf(id)
+      if (direction === 'up') {
+        if (bi > 0) {
+          ;[ids[bi - 1], ids[bi]] = [ids[bi], ids[bi - 1]]
+        } else if (si > 0) {
+          ids.splice(bi, 1)
+          next[si - 1].bucketIds.push(id)
+        } else return
+      } else if (bi < ids.length - 1) {
+        ;[ids[bi + 1], ids[bi]] = [ids[bi], ids[bi + 1]]
+      } else if (si < next.length - 1) {
+        ids.splice(bi, 1)
+        next[si + 1].bucketIds.unshift(id)
+      } else return
+      const target = next.find((o) => o.bucketIds.includes(id))
+      const expand =
+        target && sections.find((s) => s.key === target.key)?.collapsed
+          ? [target.key]
+          : []
+      await commitLayout(next, expand)
+      return
+    }
     prepareFlip()
     const snapshot = buckets
     setBuckets((prev) => (prev ? swapBucketOrder(prev, id, direction) : prev))
@@ -558,16 +693,125 @@ export default function BucketsPage() {
     }
   }
 
-  async function handleDragReorder(orderedIds: string[]) {
+  async function handleDragReorder(orderedRowIds: string[]) {
+    if (grouped) {
+      const { order, expandKeys } = layoutFromVisibleOrder(
+        sections,
+        orderedRowIds,
+      )
+      if (sameOrder(order, orderFromSections(sections)) && expandKeys.length === 0) {
+        return
+      }
+      await commitLayout(order, expandKeys)
+      return
+    }
     const snapshot = buckets
-    setBuckets((prev) => (prev ? reorderBucketList(prev, orderedIds) : prev))
+    setBuckets((prev) => (prev ? reorderBucketList(prev, orderedRowIds) : prev))
     try {
-      await reorderBuckets(orderedIds)
+      await reorderBuckets(orderedRowIds)
       void loadData()
     } catch (e) {
       setBuckets(snapshot)
       toast.error(e instanceof Error ? e.message : String(e))
     }
+  }
+
+  async function handleGroupDragReorder(activeHeaderId: string, overHeaderId: string) {
+    const current = orderFromSections(sections)
+    await commitLayout(moveSectionByHeaders(current, activeHeaderId, overHeaderId))
+  }
+
+  async function handleMoveGroup(key: string, direction: 'up' | 'down') {
+    // Step over a hidden (empty) Ungrouped so one tap always moves on screen.
+    const keys = visibleSections.map((s) => s.key)
+    const target = keys[keys.indexOf(key) + (direction === 'up' ? -1 : 1)]
+    if (!target) return
+    const current = orderFromSections(sections)
+    const next = moveSection(
+      current,
+      key,
+      current.findIndex((o) => o.key === target),
+    )
+    if (next === current) return
+    await commitLayout(next)
+  }
+
+  /** Take a bucket out of its group (it joins Ungrouped, which reappears). */
+  async function handleRemoveFromGroup(bucketId: string) {
+    const order = orderFromSections(sections).map((o) => ({
+      ...o,
+      bucketIds: o.bucketIds.filter((id) => id !== bucketId),
+    }))
+    const ungrouped = order.find((o) => o.key === UNGROUPED_KEY)
+    if (!ungrouped) return
+    ungrouped.bucketIds.push(bucketId)
+    await commitLayout(order, collapsedKeys.has(UNGROUPED_KEY) ? [UNGROUPED_KEY] : [])
+  }
+
+  function handleToggleGroupCollapsed(key: string) {
+    const collapsing = !collapsedKeys.has(key)
+    clearTimeout(groupAnimationTimer.current)
+    if (prefersReducedMotion()) {
+      setGroupAnimation(null)
+    } else {
+      setGroupAnimation({ key, dir: collapsing ? 'close' : 'open' })
+      groupAnimationTimer.current = setTimeout(
+        () => setGroupAnimation(null),
+        GROUP_COLLAPSE_MS + 30,
+      )
+    }
+    updateCollapsedKeys((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(key)) next.add(key)
+      return next
+    })
+  }
+
+  async function submitGroupName(name: string) {
+    if (!groupSheet) return
+    const normalized = normalizeGroupName(name)
+    if (groupSheet.mode === 'create') {
+      await createBucketGroup(normalized)
+    } else {
+      await renameBucketGroup(groupSheet.key, normalized)
+    }
+    setGroupSheet(null)
+    prepareFlip()
+    await loadData()
+  }
+
+  /** Empty groups go straight away (nothing to explain); others ask first. */
+  async function requestDeleteGroup(key: string) {
+    const section = sections.find((sec) => sec.key === key)
+    if (section && section.buckets.length > 0) {
+      setGroupDeleteKey(key)
+      return
+    }
+    prepareFlip()
+    const snapshot = groupLayout
+    setGroupLayout((prev) => {
+      const groups = prev.groups.filter((g) => g.id !== key)
+      return {
+        ...prev,
+        // Last real group gone → plain list again (server drops the Ungrouped row too).
+        groups: groups.some((g) => !g.isUngrouped) ? groups : [],
+      }
+    })
+    try {
+      await deleteBucketGroup(key)
+      void loadData()
+    } catch (e) {
+      setGroupLayout(snapshot)
+      toast.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function confirmDeleteGroup() {
+    if (!groupDeleteKey) return
+    prepareFlip()
+    await deleteBucketGroup(groupDeleteKey)
+    setGroupDeleteKey(null)
+    await loadData()
   }
 
   async function handleRefreshBalances() {
@@ -919,14 +1163,14 @@ export default function BucketsPage() {
         hidden={showBucketsPageTabs ? activeTab !== 'buckets' : undefined}
       >
       <ReorderHintProvider
-        reorderable={buckets.length >= 2 && renamingId === null}
+        reorderable={(buckets.length >= 2 || grouped) && renamingId === null}
       >
       <section aria-label="Buckets">
         <header
           className={
-            showBucketsPageTabs
+            (showBucketsPageTabs
               ? 'mb-3 flex justify-end'
-              : 'mb-3 flex items-baseline justify-between gap-3'
+              : 'mb-3 flex items-baseline justify-between gap-3')
           }
         >
           <h2
@@ -936,7 +1180,7 @@ export default function BucketsPage() {
           >
             Buckets
           </h2>
-          <span className="text-right text-xs text-zinc-400">
+          <span className="text-right text-xs text-zinc-500">
             {formatBucketsHeaderSubtitle(
               buckets.length,
               balanceBreakdown.bucketAllocated,
@@ -958,7 +1202,10 @@ export default function BucketsPage() {
           </div>
         ) : (
           <SortableBucketList
-            buckets={buckets}
+            sections={visibleSections}
+            onRemoveFromGroup={(id) => void handleRemoveFromGroup(id)}
+            grouped={grouped}
+            groupAnimation={groupAnimation}
             listRef={listRef}
             renamingId={renamingId}
             renameValue={renameValue}
@@ -975,6 +1222,11 @@ export default function BucketsPage() {
             onMoveDown={(id) => void handleReorder(id, 'down')}
             onDelete={requestDeleteBucket}
             onDragReorder={(ids) => void handleDragReorder(ids)}
+            onGroupDragReorder={(a, o) => void handleGroupDragReorder(a, o)}
+            onToggleGroupCollapsed={handleToggleGroupCollapsed}
+            onRenameGroup={(key) => setGroupSheet({ mode: 'rename', key })}
+            onDeleteGroup={(key) => void requestDeleteGroup(key)}
+            onMoveGroup={(key, dir) => void handleMoveGroup(key, dir)}
           />
         )}
         {canCreateBuckets && (
@@ -1014,6 +1266,18 @@ export default function BucketsPage() {
               <p className="mt-2 text-xs text-red-300">{createError}</p>
             )}
           </>
+        )}
+        {buckets.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setGroupSheet({ mode: 'create' })}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-zinc-400 transition hover:bg-zinc-800/60 hover:text-zinc-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+          >
+            <span aria-hidden="true" className="text-base leading-none">
+              +
+            </span>
+            {BUCKET_GROUP_NEW_LABEL}
+          </button>
         )}
       </section>
       </ReorderHintProvider>
@@ -1100,6 +1364,31 @@ export default function BucketsPage() {
         }}
       />
 
+      {groupSheet && (
+        <BucketGroupNameSheet
+          mode={groupSheet.mode}
+          initialName={
+            groupSheet.mode === 'rename'
+              ? (groupLayout.groups.find((g) => g.id === groupSheet.key)?.name ??
+                '')
+              : ''
+          }
+          onClose={() => setGroupSheet(null)}
+          onSubmit={submitGroupName}
+        />
+      )}
+      {groupDeleteKey && (
+        <BucketGroupDeleteSheet
+          name={
+            groupLayout.groups.find((g) => g.id === groupDeleteKey)?.name ?? null
+          }
+          bucketCount={
+            sections.find((sec) => sec.key === groupDeleteKey)?.buckets.length ?? 0
+          }
+          onClose={() => setGroupDeleteKey(null)}
+          onConfirm={confirmDeleteGroup}
+        />
+      )}
       {notesBucket && (
         <BucketNotesSheet
           bucket={notesBucket}

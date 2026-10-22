@@ -5,6 +5,8 @@ import {
   ROW_PRESS_CANCEL_MOVE_PX,
   ROW_TAP_MOVE_MAX_PX,
   autoScrollSpeed,
+  blockIndexAt,
+  blockShiftY,
   clampClientY,
   clampPointerYForRowDrag,
   closestRowCenterIndex,
@@ -274,5 +276,32 @@ describe('clampClientY', () => {
     expect(clampClientY(50, bounds)).toBe(100)
     expect(clampClientY(250, bounds)).toBe(200)
     expect(clampClientY(150, bounds)).toBe(150)
+  })
+})
+
+
+describe('group block drag math', () => {
+  // Blocks at 0, 100, 150 with extents 100, 50, 80.
+  const tops = [0, 100, 150]
+  const extents = [100, 50, 80]
+
+  it('finds the block under a y and clamps to the ends', () => {
+    expect(blockIndexAt(tops, extents, 10)).toBe(0)
+    expect(blockIndexAt(tops, extents, 120)).toBe(1)
+    expect(blockIndexAt(tops, extents, 999)).toBe(2)
+    expect(blockIndexAt([], [], 5)).toBe(-1)
+  })
+
+  it('moves the dragged block by the extents it passes', () => {
+    expect(blockShiftY(0, 0, 2, extents)).toBe(130)
+    expect(blockShiftY(1, 0, 2, extents)).toBe(-100)
+    expect(blockShiftY(2, 0, 2, extents)).toBe(-100)
+    expect(blockShiftY(2, 2, 0, extents)).toBe(-150)
+    expect(blockShiftY(0, 2, 0, extents)).toBe(80)
+    expect(blockShiftY(1, 2, 0, extents)).toBe(80)
+  })
+
+  it('is a no-op when dropped on its own slot', () => {
+    expect(blockShiftY(1, 1, 1, extents)).toBe(0)
   })
 })

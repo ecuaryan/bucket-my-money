@@ -521,20 +521,58 @@ export type Database = {
           },
         ]
       }
+      member_bucket_groups: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_ungrouped: boolean
+          member_id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_ungrouped?: boolean
+          member_id: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_ungrouped?: boolean
+          member_id?: string
+          name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_bucket_groups_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_bucket_order: {
         Row: {
           bucket_id: string
           display_order: number
+          group_id: string | null
           member_id: string
         }
         Insert: {
           bucket_id: string
           display_order: number
+          group_id?: string | null
           member_id: string
         }
         Update: {
           bucket_id?: string
           display_order?: number
+          group_id?: string | null
           member_id?: string
         }
         Relationships: [
@@ -543,6 +581,13 @@ export type Database = {
             columns: ["bucket_id"]
             isOneToOne: false
             referencedRelation: "buckets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_bucket_order_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "member_bucket_groups"
             referencedColumns: ["id"]
           },
           {
@@ -1263,7 +1308,9 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: number
       }
+      create_bucket_group: { Args: { p_name: string }; Returns: string }
       delete_bucket: { Args: { p_bucket_id: string }; Returns: undefined }
+      delete_bucket_group: { Args: { p_group_id: string }; Returns: undefined }
       delete_manual_account: {
         Args: { p_account_id: string }
         Returns: undefined
@@ -1330,6 +1377,10 @@ export type Database = {
           locked: boolean
         }[]
       }
+      rename_bucket_group: {
+        Args: { p_group_id: string; p_name: string }
+        Returns: undefined
+      }
       reorder_bucket: {
         Args: { p_bucket_id: string; p_direction: string }
         Returns: undefined
@@ -1357,6 +1408,7 @@ export type Database = {
         Returns: string
       }
       run_due_auto_organizes: { Args: { p_as_of?: string }; Returns: number }
+      save_bucket_layout: { Args: { p_layout: Json }; Returns: undefined }
       transaction_visible_to_caller: {
         Args: { p_transaction_id: string }
         Returns: boolean

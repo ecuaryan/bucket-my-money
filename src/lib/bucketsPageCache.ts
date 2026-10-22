@@ -1,4 +1,5 @@
 import type { BucketsBalanceBreakdown } from '@/lib/availableBalance'
+import type { BucketGroupLayout } from '@/lib/bucketGroups'
 import type { Database } from '@/types/database'
 
 type Bucket = Database['public']['Tables']['buckets']['Row']
@@ -10,6 +11,7 @@ export type BucketsPageCache = {
   breakdown: BucketsBalanceBreakdown
   balanceUsesFallback: boolean
   householdAdminName: string | null
+  groupLayout?: BucketGroupLayout
   savedAt: number
 }
 

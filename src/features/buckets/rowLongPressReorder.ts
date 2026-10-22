@@ -213,3 +213,46 @@ export function manualSortableShiftY(
 
   return 0
 }
+
+/**
+ * Whole-group drag: groups are blocks of differing heights. `tops` are block tops
+ * relative to the list, `extents` the distance from a block's top to the next
+ * block's top (so margins count; the last runs to the list bottom).
+ */
+export function blockIndexAt(
+  tops: number[],
+  extents: number[],
+  y: number,
+): number {
+  if (tops.length === 0) return -1
+  for (let i = 0; i < tops.length; i++) {
+    if (y < tops[i] + extents[i]) return i
+  }
+  return tops.length - 1
+}
+
+/**
+ * Vertical shift for block `index` while block `active` is dragged over slot
+ * `over` — the variable-height version of manualSortableShiftY. The active block
+ * moves to the drop slot; blocks it passes shift by its extent to open the gap.
+ */
+export function blockShiftY(
+  index: number,
+  active: number,
+  over: number,
+  extents: number[],
+): number {
+  if (active < 0 || over < 0 || active === over) return 0
+  if (index === active) {
+    let sum = 0
+    if (active < over) for (let k = active + 1; k <= over; k++) sum += extents[k]
+    else for (let k = over; k < active; k++) sum -= extents[k]
+    return sum
+  }
+  if (active < over) {
+    if (index > active && index <= over) return -extents[active]
+  } else if (index >= over && index < active) {
+    return extents[active]
+  }
+  return 0
+}

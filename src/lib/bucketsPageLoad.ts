@@ -7,6 +7,7 @@ import {
 import { withAuthLockRetry } from '@/lib/authLockError'
 import { fetchHouseholdAdminName } from '@/lib/householdAdmin'
 import { classifyMemberFetch, type MemberFetchOutcome } from '@/lib/memberFetch'
+import { fetchBucketGroupLayout, type BucketGroupLayout } from '@/lib/bucketGroups'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database'
 import type { Json } from '@/types/database'
@@ -21,6 +22,8 @@ export type BucketsPageData = {
   breakdown: BucketsBalanceBreakdown
   usedFallback: boolean
   householdAdminName: string | null
+  /** This member's bucket groups; absent on the sign-in bootstrap payload. */
+  groupLayout?: BucketGroupLayout
 }
 
 function parseBucketRows(raw: unknown): Bucket[] {
@@ -125,7 +128,7 @@ export async function fetchBucketsPageDataLegacy(): Promise<
   }
 }
 
-export async function loadBucketsPage(): Promise<BucketsPageData> {
+async function loadBucketsPageCore(): Promise<BucketsPageData> {
   return withAuthLockRetry(async () => {
     const fast = await fetchHomeRpc()
     if (fast) {
@@ -148,6 +151,14 @@ export async function loadBucketsPage(): Promise<BucketsPageData> {
     ])
     return { ...legacy, householdAdminName }
   })
+}
+
+export async function loadBucketsPage(): Promise<BucketsPageData> {
+  const [page, groupLayout] = await Promise.all([
+    loadBucketsPageCore(),
+    fetchBucketGroupLayout().catch(() => undefined),
+  ])
+  return { ...page, groupLayout }
 }
 
 export type HomeBootstrap = {
