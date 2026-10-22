@@ -62,22 +62,26 @@ function AppShellLayout() {
   const [signingOut, setSigningOut] = useState(false)
   const headerRef = useRef<HTMLElement | null>(null)
 
-  // Tell the toast host where the header ends so toasts sit right under it.
+  // Publish the header height: toasts sit right under it and sticky page
+  // headings (e.g. History's day labels) pin just below it.
   useEffect(() => {
     const header = headerRef.current
     if (!header) return
     const root = document.documentElement
-    const apply = () =>
+    const apply = () => {
+      root.style.setProperty('--app-header-h', `${header.offsetHeight}px`)
       root.style.setProperty(
         '--toast-top',
         `${header.offsetHeight + TOAST_GAP_PX}px`,
       )
+    }
     apply()
     const observer = new ResizeObserver(apply)
     observer.observe(header)
     return () => {
       observer.disconnect()
       root.style.removeProperty('--toast-top')
+      root.style.removeProperty('--app-header-h')
     }
   }, [])
 

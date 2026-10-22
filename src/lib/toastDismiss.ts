@@ -21,6 +21,14 @@ export const TOAST_GAP_PX = 12
 /** The page's own top padding (`pt-6` on AppShell's <main>) — counted in the gap below. */
 export const TOAST_MAIN_TOP_PAD_PX = 24
 
+/**
+ * Extra top offset for sticky page headings while a toast is showing, so they
+ * pin just below the toast instead of sliding underneath it.
+ */
+export function toastStickyInsetPx(panelHeight: number): number {
+  return panelHeight + TOAST_GAP_PX + 8
+}
+
 /** How far the page slides down for a toast of this height: equal space above and below. */
 export function toastPushPx(panelHeight: number): number {
   return Math.max(0, panelHeight + 2 * TOAST_GAP_PX - TOAST_MAIN_TOP_PAD_PX)

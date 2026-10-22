@@ -17,6 +17,7 @@ import {
   TOAST_AUTO_DISMISS_MS,
   TOAST_EXIT_MS,
   toastPushPx,
+  toastStickyInsetPx,
 } from '@/lib/toastDismiss'
 import { pausableTimeout, type PausableTimeout } from '@/lib/pausableTimeout'
 import {
@@ -161,13 +162,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     const panel = panelRef.current
     if (!item || leaving || !panel) {
       root.style.setProperty('--toast-push', '0px')
+      root.style.setProperty('--toast-inset', '0px')
       return
     }
-    const apply = () =>
+    const apply = () => {
       root.style.setProperty(
         '--toast-push',
         `${toastPushPx(panel.offsetHeight)}px`,
       )
+      root.style.setProperty(
+        '--toast-inset',
+        `${toastStickyInsetPx(panel.offsetHeight)}px`,
+      )
+    }
     apply()
     const observer = new ResizeObserver(apply)
     observer.observe(panel)
@@ -176,6 +183,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   useEffect(
     () => () => {
       document.documentElement.style.removeProperty('--toast-push')
+      document.documentElement.style.removeProperty('--toast-inset')
     },
     [],
   )

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { flushSync } from 'react-dom'
+import { useStuckHeadings } from '@/hooks/useStuckHeadings'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { usePostgresChanges } from '@/hooks/usePostgresChanges'
@@ -328,6 +329,8 @@ export default function HistoryPage() {
   )
 
   const grouped = useMemo(() => groupByDay(rows ?? []), [rows])
+  const daysRef = useRef<HTMLDivElement | null>(null)
+  useStuckHeadings(daysRef, '[data-day-heading]', [grouped])
 
   const selectedCount = selectedAmounts.size
   const selectedTotal = useMemo(() => {
@@ -467,10 +470,14 @@ export default function HistoryPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div ref={daysRef} className="space-y-5">
           {grouped.map((group) => (
             <section key={group.key} aria-label={group.label}>
-              <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              {/* Pins under the app header while this day's rows scroll by, so
+                  the date is always visible; the next day's label takes over. */}
+              <h2
+                data-day-heading=""
+                className="sticky-below-header z-10 -mx-4 mb-2 border-b border-transparent bg-black/90 px-5 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 backdrop-blur transition-[border-color,box-shadow] duration-150 data-[stuck=true]:border-zinc-800 data-[stuck=true]:shadow-[0_6px_10px_-6px_rgb(0_0_0/0.9)]">
                 {group.label}
               </h2>
               <ul className="flex flex-col gap-2">

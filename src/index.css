@@ -193,6 +193,12 @@ html {
     top: var(--toast-push, 0px);
   }
 
+  /* Page headings that pin under the app header (and under a visible toast). */
+  .sticky-below-header {
+    position: sticky;
+    top: calc(var(--app-header-h, 3.5rem) + var(--toast-inset, 0px));
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     /* `backwards`, not `both`: a forwards fill would keep the animation
        owning `transform` after it ends, overriding the inline translateX the
@@ -208,7 +214,8 @@ html {
 
     /* Page content eases down as the toast arrives and back up as it leaves,
        in step with the panel's own motion. */
-    .toast-push-target {
+    .toast-push-target,
+    .sticky-below-header {
       transition: top 220ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
