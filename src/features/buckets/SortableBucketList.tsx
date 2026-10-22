@@ -153,14 +153,14 @@ export default function SortableBucketList({
     () =>
       groupAnimation?.dir === 'close'
         ? sectionsProp.map((s) =>
-            s.key === groupAnimation.key ? { ...s, collapsed: false } : s,
+            groupAnimation.keys.includes(s.key) ? { ...s, collapsed: false } : s,
           )
         : sectionsProp,
     [sectionsProp, groupAnimation],
   )
   useLayoutEffect(() => {
     if (!groupAnimation || !listRef.current) return
-    animateGroupRows(listRef.current, groupAnimation.key, groupAnimation.dir)
+    animateGroupRows(listRef.current, groupAnimation.keys, groupAnimation.dir)
   }, [groupAnimation, listRef])
   const buckets = useMemo(() => sections.flatMap((s) => s.buckets), [sections])
   const dragEnabled = (buckets.length >= 2 || grouped) && renamingId === null

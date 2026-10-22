@@ -33,3 +33,38 @@ export function writeCollapsedGroupKeys(
     // Private mode / quota — state just won't persist.
   }
 }
+
+export type CollapseAllPlan = {
+  /** What the control does right now: collapse everything, or expand everything. */
+  action: 'collapse' | 'expand'
+  /** Sections whose rows will animate (the ones that actually change state). */
+  animateKeys: string[]
+  /** The new full collapsed set (keys of groups no longer shown are left alone). */
+  next: Set<string>
+}
+
+/**
+ * "Collapse all" while anything is expanded; once everything is collapsed the
+ * same control becomes "Expand all". `sectionKeys` are the sections currently
+ * on screen.
+ */
+export function planCollapseAll(
+  sectionKeys: readonly string[],
+  collapsed: ReadonlySet<string>,
+): CollapseAllPlan | null {
+  if (sectionKeys.length === 0) return null
+  const expanded = sectionKeys.filter((k) => !collapsed.has(k))
+  if (expanded.length > 0) {
+    return {
+      action: 'collapse',
+      animateKeys: expanded,
+      next: new Set([...collapsed, ...sectionKeys]),
+    }
+  }
+  const shown = new Set(sectionKeys)
+  return {
+    action: 'expand',
+    animateKeys: [...sectionKeys],
+    next: new Set([...collapsed].filter((k) => !shown.has(k))),
+  }
+}

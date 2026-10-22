@@ -94,13 +94,18 @@ import {
   BucketGroupDeleteSheet,
   BucketGroupNameSheet,
 } from '@/features/buckets/BucketGroupSheets'
-import { BUCKET_GROUP_NEW_LABEL } from '@/lib/brand'
+import {
+  BUCKET_GROUPS_COLLAPSE_ALL,
+  BUCKET_GROUPS_EXPAND_ALL,
+  BUCKET_GROUP_NEW_LABEL,
+} from '@/lib/brand'
 import {
   GROUP_COLLAPSE_MS,
   type GroupAnimation,
 } from '@/lib/groupCollapseAnimation'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
+  planCollapseAll,
   readCollapsedGroupKeys,
   writeCollapsedGroupKeys,
 } from '@/lib/bucketGroupCollapse'
@@ -309,6 +314,18 @@ export default function BucketsPage() {
   const visibleSections = useMemo(
     () => sections.filter((s) => !isHiddenSection(s, grouped)),
     [sections, grouped],
+  )
+  // "Collapse all" while anything is open, "Expand all" once everything is closed.
+  // Only worth a control when there are at least two sections to act on.
+  const collapseAllPlan = useMemo(
+    () =>
+      grouped && visibleSections.length >= 2
+        ? planCollapseAll(
+            visibleSections.map((s) => s.key),
+            collapsedKeys,
+          )
+        : null,
+    [grouped, visibleSections, collapsedKeys],
   )
 
   const loadData = useCallback(async () => {
@@ -748,23 +765,37 @@ export default function BucketsPage() {
     await commitLayout(order, collapsedKeys.has(UNGROUPED_KEY) ? [UNGROUPED_KEY] : [])
   }
 
+  /** Animate the given groups opening/closing, then clear the animation state. */
+  function playGroupAnimation(keys: string[], dir: 'open' | 'close') {
+    clearTimeout(groupAnimationTimer.current)
+    if (prefersReducedMotion() || keys.length === 0) {
+      setGroupAnimation(null)
+      return
+    }
+    setGroupAnimation({ keys, dir })
+    groupAnimationTimer.current = setTimeout(
+      () => setGroupAnimation(null),
+      GROUP_COLLAPSE_MS + 30,
+    )
+  }
+
   function handleToggleGroupCollapsed(key: string) {
     const collapsing = !collapsedKeys.has(key)
-    clearTimeout(groupAnimationTimer.current)
-    if (prefersReducedMotion()) {
-      setGroupAnimation(null)
-    } else {
-      setGroupAnimation({ key, dir: collapsing ? 'close' : 'open' })
-      groupAnimationTimer.current = setTimeout(
-        () => setGroupAnimation(null),
-        GROUP_COLLAPSE_MS + 30,
-      )
-    }
+    playGroupAnimation([key], collapsing ? 'close' : 'open')
     updateCollapsedKeys((prev) => {
       const next = new Set(prev)
       if (!next.delete(key)) next.add(key)
       return next
     })
+  }
+
+  function handleCollapseAll() {
+    if (!collapseAllPlan) return
+    playGroupAnimation(
+      collapseAllPlan.animateKeys,
+      collapseAllPlan.action === 'collapse' ? 'close' : 'open',
+    )
+    updateCollapsedKeys(() => collapseAllPlan.next)
   }
 
   async function submitGroupName(name: string) {
@@ -1169,7 +1200,7 @@ export default function BucketsPage() {
         <header
           className={
             (showBucketsPageTabs
-              ? 'mb-3 flex justify-end'
+              ? 'mb-3 flex items-center justify-end'
               : 'mb-3 flex items-baseline justify-between gap-3')
           }
         >
@@ -1180,6 +1211,17 @@ export default function BucketsPage() {
           >
             Buckets
           </h2>
+          {collapseAllPlan ? (
+            <button
+              type="button"
+              onClick={handleCollapseAll}
+              className="-my-1.5 mr-auto ml-1 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-800/60 hover:text-zinc-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+            >
+              {collapseAllPlan.action === 'collapse'
+                ? BUCKET_GROUPS_COLLAPSE_ALL
+                : BUCKET_GROUPS_EXPAND_ALL}
+            </button>
+          ) : null}
           <span className="text-right text-xs text-zinc-500">
             {formatBucketsHeaderSubtitle(
               buckets.length,
