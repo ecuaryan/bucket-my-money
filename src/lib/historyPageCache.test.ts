@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearAllHistoryPageCaches,
+  readHistoryBucketsCache,
   readHistoryPageCache,
+  writeHistoryBucketsCache,
   writeHistoryPageCache,
 } from '@/lib/historyPageCache'
 import { applyHistoryHeadRefresh, type HistoryTxRow } from '@/features/history/historyQueries'
@@ -81,5 +83,44 @@ describe('a transfer made while you were away', () => {
     const applied = applyHistoryHeadRefresh([NEWER, OLDER], [NEWER, OLDER])
     expect(applied.newlyArrivedIds).toEqual([])
     expect(applied.rows.some((r) => r.justArrived)).toBe(false)
+  })
+})
+
+describe('history filter (bucket list) cache', () => {
+  const groceries = { id: 'b1', name: 'Groceries', display_order: 1, created_at: '2026-10-01T00:00:00Z' }
+  const gas = { id: 'b2', name: 'Gas', display_order: 2, created_at: '2026-10-02T00:00:00Z' }
+
+  it('round-trips the bucket list in order', () => {
+    writeHistoryBucketsCache('fam', 'me', [groceries, gas])
+    expect(readHistoryBucketsCache('fam', 'me')?.map((b) => b.name)).toEqual(['Groceries', 'Gas'])
+  })
+
+  it('is private to one member (a kid sees fewer buckets)', () => {
+    writeHistoryBucketsCache('fam', 'me', [groceries, gas])
+    expect(readHistoryBucketsCache('fam', 'a-kid')).toBeNull()
+    expect(readHistoryBucketsCache('other-fam', 'me')).toBeNull()
+  })
+
+  it('expires after five minutes', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-23T12:00:00Z'))
+    writeHistoryBucketsCache('fam', 'me', [groceries])
+    vi.setSystemTime(new Date('2026-10-23T12:05:01Z'))
+    expect(readHistoryBucketsCache('fam', 'me')).toBeNull()
+  })
+
+  it('keeps an empty list (a household with no buckets yet) and ignores junk', () => {
+    writeHistoryBucketsCache('fam', 'me', [])
+    expect(readHistoryBucketsCache('fam', 'me')).toEqual([])
+    sessionStorage.setItem('bucketmymoney:history:buckets:fam:me', '{not json')
+    expect(readHistoryBucketsCache('fam', 'me')).toBeNull()
+  })
+
+  it('is cleared on sign-out together with the rows cache', () => {
+    writeHistoryBucketsCache('fam', 'me', [groceries])
+    writeHistoryPageCache('fam', 'me', 'all', { rows: [NEWER], total: 1, hasMore: false })
+    clearAllHistoryPageCaches()
+    expect(readHistoryBucketsCache('fam', 'me')).toBeNull()
+    expect(readHistoryPageCache('fam', 'me', 'all')).toBeNull()
   })
 })

@@ -60,6 +60,53 @@ export function writeHistoryPageCache(
   }
 }
 
+/** The filter dropdown's bucket list: per member, not per filter. */
+export type HistoryBucketOption = {
+  id: string
+  name: string
+  display_order: number
+  created_at: string
+}
+
+type HistoryBucketsCache = { buckets: HistoryBucketOption[]; savedAt: number }
+
+// Starts with CACHE_PREFIX, so clearAllHistoryPageCaches() removes it on sign-out.
+function bucketsKey(familyId: string, memberId: string): string {
+  return `${CACHE_PREFIX}buckets:${familyId}:${memberId}`
+}
+
+export function readHistoryBucketsCache(
+  familyId: string,
+  memberId: string,
+): HistoryBucketOption[] | null {
+  const key = bucketsKey(familyId, memberId)
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as HistoryBucketsCache
+    if (Date.now() - parsed.savedAt > MAX_AGE_MS) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+    return Array.isArray(parsed.buckets) ? parsed.buckets : null
+  } catch {
+    return null
+  }
+}
+
+export function writeHistoryBucketsCache(
+  familyId: string,
+  memberId: string,
+  buckets: HistoryBucketOption[],
+): void {
+  try {
+    const payload: HistoryBucketsCache = { buckets, savedAt: Date.now() }
+    sessionStorage.setItem(bucketsKey(familyId, memberId), JSON.stringify(payload))
+  } catch {
+    // Quota or private mode — ignore.
+  }
+}
+
 export function clearAllHistoryPageCaches(): void {
   try {
     const keys: string[] = []

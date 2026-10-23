@@ -56,7 +56,9 @@ import {
   type HistoryDisplayRow,
 } from '@/features/history/historyQueries'
 import {
+  readHistoryBucketsCache,
   readHistoryPageCache,
+  writeHistoryBucketsCache,
   writeHistoryPageCache,
 } from '@/lib/historyPageCache'
 import { HISTORY_ROW_ARRIVED_CLEAR_MS } from '@/features/history/historyRowExpand'
@@ -125,7 +127,13 @@ export default function HistoryPage() {
   usePeekTarget((rows?.length ?? 0) > 0)
   const { formatMoney, hidden, hasPeekTarget } = useHideAmounts()
   const sheetOpen = useSheetBackdropOpen()
-  const [buckets, setBuckets] = useState<Bucket[] | null>(null)
+  // The filter's bucket list: shown instantly from the last visit while a fresh
+  // copy loads (see loadBuckets), so the filter bar never waits on the network.
+  const [buckets, setBuckets] = useState<Bucket[] | null>(() => {
+    const m = auth.status === 'signedIn' ? auth.member : null
+    return m ? readHistoryBucketsCache(m.family_id, m.id) : null
+  })
+  const bucketsRequestedRef = useRef(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
@@ -248,22 +256,33 @@ export default function HistoryPage() {
     }, REALTIME_REFRESH_DEBOUNCE_MS)
   }, [refreshHead])
 
-  const loadBuckets = useCallback(async () => {
-    try {
-      await withAuthLockRetry(async () => {
-        const { data, error } = await supabase
-          .from('buckets')
-          .select('id, name, display_order, created_at')
-          .order('display_order', { ascending: true })
-          .order('created_at', { ascending: true })
-        // Non-fatal: settle to a (possibly empty) list either way so the filter
-        // resolves out of its skeleton and just renders without bucket options.
-        setBuckets(error ? [] : (data ?? []))
-      })
-    } catch {
-      setBuckets([])
-    }
-  }, [])
+  const loadBuckets = useCallback(
+    async (cacheFamilyId: string, cacheMemberId: string | null) => {
+      try {
+        await withAuthLockRetry(async () => {
+          const { data, error } = await supabase
+            .from('buckets')
+            .select('id, name, display_order, created_at')
+            .order('display_order', { ascending: true })
+            .order('created_at', { ascending: true })
+          if (error) {
+            // Non-fatal: settle to a (possibly empty) list so the filter
+            // resolves out of its skeleton; keep a cached list if we have one.
+            setBuckets((prev) => prev ?? [])
+            return
+          }
+          const fresh = data ?? []
+          setBuckets(fresh)
+          if (cacheMemberId) {
+            writeHistoryBucketsCache(cacheFamilyId, cacheMemberId, fresh)
+          }
+        })
+      } catch {
+        setBuckets((prev) => prev ?? [])
+      }
+    },
+    [],
+  )
 
   const loadInitialHistory = useCallback(async () => {
     if (!familyId) return
@@ -367,11 +386,14 @@ export default function HistoryPage() {
   // active we need the names right away so the filter chip doesn't flash a
   // "Deleted bucket" placeholder.
   const needsBucketsImmediately = filter.kind === 'bucket'
+  // A cached list (from the last visit) already fills the filter, but we still
+  // refresh it once per visit so renamed/added/deleted buckets show up.
   useEffect(() => {
-    if (!familyId || buckets !== null) return
+    if (!familyId || bucketsRequestedRef.current) return
     if (!needsBucketsImmediately && rows === null) return
-    void loadBuckets()
-  }, [familyId, buckets, needsBucketsImmediately, rows, loadBuckets])
+    bucketsRequestedRef.current = true
+    void loadBuckets(familyId, memberId)
+  }, [familyId, memberId, needsBucketsImmediately, rows, loadBuckets])
 
   useEffect(() => {
     if (filter.kind !== 'give' || !giveReady || showGiveFilter) return
