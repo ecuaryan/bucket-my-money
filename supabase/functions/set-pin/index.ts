@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
   const admin = serviceClient()
   const { data: member, error: memberError } = await admin
     .from('family_members')
-    .select('id, family_id, user_id')
+    .select('id, family_id, user_id, is_account_owner')
     .eq('id', memberId)
     .eq('family_id', auth.familyId)
     .maybeSingle()
@@ -48,6 +48,16 @@ Deno.serve(async (req: Request) => {
   }
   if (!member.user_id) {
     return jsonResponse({ error: 'Member has no login yet' }, 400)
+  }
+
+  // The owner's PIN signs in as their real email account, so only the owner
+  // may change it (same rule as remove-member / clear-own-pin). Co-admins can
+  // still unlock a locked owner via clear-pin-lockout.
+  if (member.is_account_owner && member.id !== auth.memberId) {
+    return jsonResponse(
+      { error: 'Only the account owner can change their own PIN' },
+      403,
+    )
   }
 
   // Sign the member out everywhere before changing their PIN. We delete their

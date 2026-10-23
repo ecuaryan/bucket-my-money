@@ -581,13 +581,16 @@ export default function MembersSection({
                     Unlock
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => openPinSheet(m)}
-                  className="rounded-lg border border-zinc-700 px-2 py-1 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
-                >
-                  {m.pin_set_at ? 'Reset PIN' : 'Set PIN'}
-                </button>
+                {/* Only the owner changes the owner's PIN (set-pin enforces it too). */}
+                {(!m.is_account_owner || m.id === selfMemberId) && (
+                  <button
+                    type="button"
+                    onClick={() => openPinSheet(m)}
+                    className="rounded-lg border border-zinc-700 px-2 py-1 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
+                  >
+                    {m.pin_set_at ? 'Reset PIN' : 'Set PIN'}
+                  </button>
+                )}
                 {!m.is_account_owner && m.id !== selfMemberId && (
                   <button
                     type="button"
