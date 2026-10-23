@@ -140,9 +140,13 @@ describe('RPC surface hardening', () => {
 
     // The pre-auth wrappers stay executable for service_role (the Edge
     // Functions call check_pre_auth_rate_limit with the service key).
+    // A fresh /64 per run (2001:db8::/32 is the documentation range): rate_limit
+    // tests use up the pin-login budget on addresses in 198.51.100.0/24 in the
+    // same minute, and a random pick from that range occasionally collided.
+    const hextet = () => Math.floor(Math.random() * 0xffff).toString(16)
     const preAuth = await svc.rpc('check_pre_auth_rate_limit', {
       p_endpoint: 'pin-login',
-      p_ip: `198.51.100.${Math.floor(Math.random() * 254) + 1}`,
+      p_ip: `2001:db8:${hextet()}:${hextet()}::1`,
     })
     expect(preAuth.error).toBeNull()
     expect(preAuth.data).toBe(true)
