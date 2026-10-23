@@ -470,6 +470,7 @@ export default function FamilyLoginPage() {
               autoFocus={!biometricSlot}
               aria-label="4-digit PIN"
               value={pin}
+              error={Boolean(pinError)}
               onChange={onPinChange}
               placeholder="····"
               className="block w-full rounded-xl border-0 bg-zinc-950 px-4 py-4 text-center text-2xl tracking-[0.5em] text-zinc-300 ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-600 focus:outline focus:outline-2 focus:outline-emerald-400"

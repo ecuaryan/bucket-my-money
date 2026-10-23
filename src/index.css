@@ -215,6 +215,20 @@ html {
       animation: page-fade-in 160ms ease-out backwards;
     }
 
+    /* Real content replaces a loading skeleton: ease in rather than snap.
+       Opacity only. Skipped when the page opened from cache (no skeleton). */
+    .content-fade-enter {
+      animation: page-fade-in 200ms ease-out backwards;
+    }
+
+    /* Buttons dip slightly while pressed. `scale` is its own property, so it
+       composes with any transform a button already has, and Tailwind's
+       `transition` utility already animates it. Tabs animate their own pill;
+       disabled buttons do nothing. */
+    button:not(:disabled):not([role='tab']):active {
+      scale: 0.97;
+    }
+
     @keyframes page-fade-in {
       from {
         opacity: 0;

@@ -33,6 +33,7 @@ import {
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import HistoryPageSkeleton from '@/components/HistoryPageSkeleton'
+import { useContentFade } from '@/hooks/useContentFade'
 import { ClearableInput } from '@/components/ui/ClearableInput'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Sheet } from '@/components/ui/Sheet'
@@ -124,6 +125,12 @@ export default function HistoryPage() {
   const filter = useMemo(() => filterForKey(filterKey), [filterKey])
 
   const [rows, setRows] = useState<TxRow[] | null>(null)
+  // Opened from cache: the list appears at once, so it never fades (the cache is
+  // applied just after first paint, which a slow device could mistake for a
+  // skeleton that was seen).
+  const [openedFromCache, setOpenedFromCache] = useState(false)
+  const skeletonFade = useContentFade(rows === null)
+  const rowsFade = openedFromCache ? undefined : skeletonFade
   // Only offer Peek when there are actually amounts on screen.
   usePeekTarget((rows?.length ?? 0) > 0)
   const { formatMoney, hidden, hasPeekTarget } = useHideAmounts()
@@ -306,6 +313,7 @@ export default function HistoryPage() {
     freshKeyRef.current = null
     if (cached) {
       // Instant return: what you last saw, while the fresh page loads behind it.
+      setOpenedFromCache(true)
       setRows(cached.rows)
       setTotal(cached.total)
       setHasMore(cached.hasMore)
@@ -544,7 +552,12 @@ export default function HistoryPage() {
       {rows === null ? (
         <HistoryPageSkeleton />
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center">
+        <div
+          className={
+            'rounded-2xl border border-dashed border-zinc-700 p-6 text-center ' +
+            (rowsFade ?? '')
+          }
+        >
           <p className="text-sm font-medium text-zinc-300">
             {isGiveFilter
               ? 'No gives or takes yet'
@@ -561,7 +574,7 @@ export default function HistoryPage() {
           </p>
         </div>
       ) : (
-        <div ref={daysRef} className="space-y-5">
+        <div ref={daysRef} className={'space-y-5 ' + (rowsFade ?? '')}>
           {/* One Select for the whole list. A zero-height sticky wrapper at the
               start of the list sits on the first day label at rest and pins
               level with the pinned label while scrolling — independent of the
