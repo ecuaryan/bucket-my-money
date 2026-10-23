@@ -107,6 +107,11 @@ Entry point for AI coding agents (and humans) working in this repo.
   → **Deploy Supabase** or Supabase → **Database → Migrations** (a failed
   deploy also opens a `Deploy Supabase failed on main` issue). Manual
   `link` / `db push` is emergency fallback only ([CONTRIBUTING § Deploying backend changes](./CONTRIBUTING.md#deploying-backend-changes)).
+  **`FAST_DEPLOY`** (Actions variable, off by default) makes merges deploy
+  without waiting for CI on `main`; check `gh variable list` before assuming the
+  deploy is CI-gated, and remind the owner to turn it off when the task is done
+  ([MAINTENANCE § Fast deploy](./docs/MAINTENANCE.md#fast-deploy-temporary-switch)).
+  Never flip it on your own.
 - **Auth sign-in routing.** Post-sign-out paths and email vs PIN preference
   live in [`src/lib/authNavigation.ts`](./src/lib/authNavigation.ts) and
   [`src/lib/signInPreference.ts`](./src/lib/signInPreference.ts). Use router
