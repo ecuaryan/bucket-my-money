@@ -49,7 +49,8 @@ jobs:
 
       - name: Warn that fast deploy is on
         if: github.event_name == 'push'
-        run: echo "::warning::FAST_DEPLOY is ON - deploying without waiting for CI on main. Turn it off when done:  gh variable delete FAST_DEPLOY"
+        run: |
+          echo "::warning::FAST_DEPLOY is ON - deploying without waiting for CI on main. Turn it off when done: gh variable delete FAST_DEPLOY"
 
       # A manual run skips the workflow_run gate, so check it ourselves: never
       # deploy a commit whose CI did not pass.
