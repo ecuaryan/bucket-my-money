@@ -1,5 +1,5 @@
 /**
- * Join-code text helpers. New codes are 12 characters (migration 104); older
+ * Join-code text helpers. New codes are 8 characters (migration 105); older
  * codes are 6-8. People type, paste, and share them in many shapes, so
  * everything funnels through `normalizeJoinCode` before it is compared or
  * stored, and `formatJoinCode` is display-only.
