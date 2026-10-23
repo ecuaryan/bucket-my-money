@@ -46,6 +46,14 @@ with `isLinkedAccount()` in `src/lib/accounts.ts`.
   credentials (stored server-side only). All reads are
   `GET {accessUrl}/accounts` with `balances-only=1`, `start-date`/`end-date`
   (unix seconds), `account=<id>`, `pending=1`.
+- **Host allow-list (new connections).** The server POSTs to the pasted claim
+  URL, so both the claim URL and the returned Access URL must be `https` on
+  `simplefin.org` or a subdomain (`beta-bridge.simplefin.org`, …): no other
+  host, explicit port, or embedded credentials in the claim URL
+  (`isSimpleFinUrl` in `_shared/simplefin.ts`, mirrored in
+  `src/lib/simplefinParse.ts`). It is **not** applied to already-stored Access
+  URLs, so existing connections keep refreshing. If SimpleFIN ever moves
+  domains, update the allow-list in both files.
 - **No account types.** SimpleFIN doesn't classify accounts, so the connect
   flow has a confirm step where the admin marks each account cash vs card.
   Cash rows store `account_type = 'cash'` (added to `is_cash_account_type`);
