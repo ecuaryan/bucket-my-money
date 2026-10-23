@@ -1378,6 +1378,7 @@ export type Database = {
         Returns: number
       }
       create_bucket_group: { Args: { p_name: string }; Returns: string }
+      debug_request_headers: { Args: never; Returns: Json }
       delete_bucket: { Args: { p_bucket_id: string }; Returns: undefined }
       delete_bucket_group: { Args: { p_group_id: string }; Returns: undefined }
       delete_manual_account: {
