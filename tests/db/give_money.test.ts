@@ -391,4 +391,76 @@ describe('give_money RPC', () => {
       ),
     ).toBe(60)
   })
+
+  it('does not let simultaneous gives from one child overdraw them', async () => {
+    const family = await createAdminFamily('give-race')
+    const sender = await addMember(family.familyId, 'child', 'Sender')
+    const recipients = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        addMember(family.familyId, 'child', `Kid ${i}`),
+      ),
+    )
+    const svc = serviceClient()
+
+    await svc.from('accounts').insert({
+      family_id: family.familyId,
+      owner_member_id: null,
+      teller_account_id: `test-${crypto.randomUUID()}`,
+      account_type: 'checking',
+      current_balance: 500,
+    })
+
+    const admin = await userClient(family.adminEmail, family.adminPassword)
+    await giveMoney(admin, { toMemberId: sender.memberId, amount: 50 })
+
+    // Different recipients, so nothing but the sender's own balance can
+    // serialize them. Every call spends the whole balance. The window is only
+    // a few ms over HTTP, so this is a best-effort sentinel; the lock itself
+    // was proven by holding one session's transaction open while a second one
+    // tried to spend the same balance (second now waits, then is rejected).
+    const clients = await Promise.all(
+      recipients.map(() => userClient(sender.email, sender.password)),
+    )
+    const results = await Promise.allSettled(
+      recipients.map((r, i) =>
+        giveMoney(clients[i], { toMemberId: r.memberId, amount: 50 }),
+      ),
+    )
+
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    for (const r of results) {
+      if (r.status === 'rejected') {
+        expect(r.reason?.message).toMatch(/insufficient float balance/)
+      }
+    }
+    expect(await getFloatBalance(clients[0])).toBe(0)
+  })
+
+  it('does not deadlock when two children give to each other at once', async () => {
+    const family = await createAdminFamily('give-crosswise')
+    const one = await addMember(family.familyId, 'child', 'One')
+    const two = await addMember(family.familyId, 'child', 'Two')
+    const svc = serviceClient()
+
+    await svc.from('accounts').insert({
+      family_id: family.familyId,
+      owner_member_id: null,
+      teller_account_id: `test-${crypto.randomUUID()}`,
+      account_type: 'checking',
+      current_balance: 500,
+    })
+
+    const admin = await userClient(family.adminEmail, family.adminPassword)
+    await giveMoney(admin, { toMemberId: one.memberId, amount: 40 })
+    await giveMoney(admin, { toMemberId: two.memberId, amount: 40 })
+
+    const clientOne = await userClient(one.email, one.password)
+    const clientTwo = await userClient(two.email, two.password)
+    const results = await Promise.allSettled([
+      giveMoney(clientOne, { toMemberId: two.memberId, amount: 10 }),
+      giveMoney(clientTwo, { toMemberId: one.memberId, amount: 10 }),
+    ])
+
+    expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled'])
+  })
 })
