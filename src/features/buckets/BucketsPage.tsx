@@ -566,6 +566,23 @@ export default function BucketsPage() {
     }
   }, [activeTab])
 
+  // Build the Auto-bucket content quietly once the page is idle, so the first
+  // switch to its tab finds it (and its rules) ready. Mounting it on the click
+  // meant mount work plus a loading-cards-to-real-cards height jump landed in
+  // the middle of the tab animation.
+  const canWarmAutoOrganize =
+    showAutoOrganizeTab && canSeeAutoOrganize && Boolean(familyId && memberId)
+  useEffect(() => {
+    if (autoOrganizePanelMounted || !canWarmAutoOrganize) return
+    const warm = () => setAutoOrganizePanelMounted(true)
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(warm, { timeout: 2000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const id = window.setTimeout(warm, 1000)
+    return () => window.clearTimeout(id)
+  }, [autoOrganizePanelMounted, canWarmAutoOrganize])
+
   // Tab content eases in only once the user has switched tabs (not on page open).
   const [tabSwitched, setTabSwitched] = useState(false)
   const panelMotion = tabSwitched ? 'tab-panel-enter' : undefined
