@@ -154,8 +154,10 @@ export default function HistoryPage() {
 
   // Bump when family or filter changes so stale async work cannot mutate state.
   const listGeneration = useRef(0)
-  // True once the current list has been (re)loaded from the server this visit.
-  const freshRef = useRef(false)
+  // The filter whose list was last (re)loaded from the server this visit. The
+  // cache is only written for that filter, so a filter switch can never save the
+  // previous filter's rows under the new filter's key.
+  const freshKeyRef = useRef<string | null>(null)
   const rowsRef = useRef<TxRow[] | null>(null)
   const realtimeRefreshTimer = useRef<
     ReturnType<typeof setTimeout> | undefined
@@ -238,7 +240,7 @@ export default function HistoryPage() {
     if (!result.ok) return
 
     let hasNewRows = false
-    freshRef.current = true
+    freshKeyRef.current = filterKey
     flushSync(() => {
       setRows((prev) => {
         if (!prev) return result.rows
@@ -300,7 +302,8 @@ export default function HistoryPage() {
     setLoadError(null)
     setLoadMoreError(null)
     setLoadingMore(false)
-    freshRef.current = false
+    setTotalSettled(false)
+    freshKeyRef.current = null
     if (cached) {
       // Instant return: what you last saw, while the fresh page loads behind it.
       setRows(cached.rows)
@@ -309,7 +312,6 @@ export default function HistoryPage() {
     } else {
       setRows(null)
       setTotal(null)
-      setTotalSettled(false)
       setHasMore(true)
     }
     refreshTotal(generation, activeFilter) // in parallel with the rows
@@ -324,7 +326,7 @@ export default function HistoryPage() {
       return
     }
 
-    freshRef.current = true
+    freshKeyRef.current = filterKey
     if (cached) {
       // New rows (e.g. a transfer made while you were away) animate in.
       let hasNewRows = false
@@ -346,7 +348,7 @@ export default function HistoryPage() {
   // Remember the first page for the next visit — only once it is fresh from the
   // server, so a cached copy can never renew its own lifetime.
   useEffect(() => {
-    if (!familyId || !memberId || rows === null || !freshRef.current) return
+    if (!familyId || !memberId || rows === null || freshKeyRef.current !== filterKey) return
     writeHistoryPageCache(familyId, memberId, filterKey, {
       rows: rows.slice(0, INITIAL_PAGE_SIZE).map(stripJustArrived),
       total,
