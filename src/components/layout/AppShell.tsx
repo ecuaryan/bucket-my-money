@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BrandLogo } from '@/components/BrandLogo'
 import BottomNav from '@/components/layout/BottomNav'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -108,6 +108,16 @@ function AppShellLayout() {
   )
   const navTabs = buildNavTabs(navFlags)
 
+  // The incoming page fades in (opacity only, no sliding) — but only after the
+  // user has navigated, never when the app first opens.
+  const { pathname } = useLocation()
+  const [prevPathname, setPrevPathname] = useState(pathname)
+  const [navigated, setNavigated] = useState(false)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname)
+    setNavigated(true)
+  }
+
   async function onSignOut() {
     setSigningOut(true)
     try {
@@ -158,9 +168,11 @@ function AppShellLayout() {
       </header>
 
       <main
+        key={pathname}
         className={
           'toast-push-target mx-auto w-full max-w-md flex-1 px-4 pt-6 ' +
-          NAV_CENTER_MAIN_PB
+          NAV_CENTER_MAIN_PB +
+          (navigated ? ' page-fade-enter' : '')
         }
       >
         <Outlet />
