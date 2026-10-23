@@ -73,6 +73,7 @@ import { takeOrphanMemberNotice } from '@/lib/pinAuth'
 import type { AuthLocationState } from '@/lib/authNavigation'
 import { postSignInPath } from '@/lib/authNavigation'
 import { isStaleJoinCodeError } from '@/lib/joinCodeError'
+import { normalizeJoinCode } from '@/lib/joinCode'
 import { setSignInPreference } from '@/lib/signInPreference'
 
 type LocationState = AuthLocationState
@@ -528,7 +529,7 @@ export default function FamilyLoginPage() {
             <input
               id="join-code"
               value={codeInput}
-              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+              onChange={(e) => setCodeInput(normalizeJoinCode(e.target.value))}
               placeholder="XXXXXX"
               autoComplete="off"
               autoCapitalize="characters"
@@ -549,7 +550,7 @@ export default function FamilyLoginPage() {
           )}
           <button
             type="submit"
-            disabled={binding || codeInput.trim().length < 6}
+            disabled={binding || codeInput.length < 6}
             className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50"
           >
             {binding ? 'Checking…' : 'Continue'}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { AuthShell } from '@/components/AuthShell'
 import { bindFamily } from '@/lib/familyDevice'
+import { formatJoinCode } from '@/lib/joinCode'
 import { validateJoinCode } from '@/lib/memberAuth'
 import { isStandaloneDisplay } from '@/lib/pwa'
 
@@ -96,7 +97,7 @@ export default function JoinPage() {
           and enter this code — on iPhone a link can't open an installed app.
         </p>
         <p className="mt-4 text-center font-mono text-3xl font-semibold tracking-widest text-zinc-200">
-          {codeFromUrl.toUpperCase()}
+          {formatJoinCode(codeFromUrl)}
         </p>
         <button
           type="button"

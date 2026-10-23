@@ -18,6 +18,7 @@ import {
   ADMIN_JOIN_CODE_TITLE,
 } from '@/lib/brand'
 import { formatLoadErrorMessage, withAuthLockRetry } from '@/lib/authLockError'
+import { formatJoinCode } from '@/lib/joinCode'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/lib/toast'
 
@@ -139,7 +140,7 @@ export default function FamilyJoinSection() {
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <div className="flex items-center justify-center gap-2 sm:justify-start">
             <p className="font-mono text-2xl font-semibold tracking-widest text-zinc-300">
-              {joinCode ?? '…'}
+              {joinCode ? formatJoinCode(joinCode) : '…'}
             </p>
             <button
               type="button"

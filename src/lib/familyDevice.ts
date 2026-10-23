@@ -1,5 +1,6 @@
 import { setLastPinMemberId } from '@/lib/lastPinMember'
 import { setSignInPreference } from '@/lib/signInPreference'
+import { normalizeJoinCode } from '@/lib/joinCode'
 
 const FAMILY_ID_KEY = 'bucketmymoney_family_id'
 const JOIN_CODE_KEY = 'bucketmymoney_join_code'
@@ -97,7 +98,7 @@ export function isPinBoundDevice(): boolean {
 
 export function bindFamily(familyId: string, joinCode: string): void {
   localStorage.setItem(FAMILY_ID_KEY, familyId)
-  localStorage.setItem(JOIN_CODE_KEY, joinCode.toUpperCase())
+  localStorage.setItem(JOIN_CODE_KEY, normalizeJoinCode(joinCode))
 }
 
 /** Persist household link + PIN sign-in prefs for this device (admin self-PIN, code rotation). */
