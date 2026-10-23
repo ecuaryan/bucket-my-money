@@ -11,6 +11,25 @@ export class SimpleFinSetupTokenError extends Error {
   }
 }
 
+/**
+ * True when `raw` is an https URL on simplefin.org or one of its subdomains
+ * (e.g. beta-bridge.simplefin.org). Parsed with URL — not a regex — so
+ * look-alikes like `simplefin.org.evil.com`, `simplefin.org@evil.com` and
+ * `evil.com\@simplefin.org` resolve to their real host and fail. Embedded
+ * credentials are allowed (an Access URL carries them); an explicit port is not.
+ */
+export function isSimpleFinUrl(raw: string): boolean {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return false
+  }
+  if (url.protocol !== 'https:' || url.port !== '') return false
+  const host = url.hostname.toLowerCase()
+  return host === 'simplefin.org' || host.endsWith('.simplefin.org')
+}
+
 /** Decode a Setup Token (base64 claim URL). Throws SimpleFinSetupTokenError. */
 export function decodeSetupToken(setupToken: string): string {
   const trimmed = (setupToken ?? '').trim()
@@ -28,7 +47,18 @@ export function decodeSetupToken(setupToken: string): string {
       'Setup Token did not decode to an https claim URL',
     )
   }
+  // The server POSTs to this URL, so only SimpleFIN's own hosts are allowed.
+  if (!isSimpleFinUrl(claimUrl) || hasCredentials(claimUrl)) {
+    throw new SimpleFinSetupTokenError(
+      'Setup Token did not decode to a SimpleFIN claim URL',
+    )
+  }
   return claimUrl
+}
+
+function hasCredentials(raw: string): boolean {
+  const url = new URL(raw)
+  return url.username !== '' || url.password !== ''
 }
 
 /** True when a pasted string looks like a valid SimpleFIN Setup Token. */
