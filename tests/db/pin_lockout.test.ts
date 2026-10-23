@@ -87,3 +87,103 @@ describe('record_pin_failure', () => {
     expect(memberCall.error).not.toBeNull()
   })
 })
+
+describe('reserve_pin_attempt', () => {
+  type Row = { attempts: number; locked: boolean }
+  const rowOf = (data: unknown): Row | undefined =>
+    (Array.isArray(data) ? data[0] : data) as Row | undefined
+
+  it('counts each attempt and locks on the last allowed one', async () => {
+    const family = await createAdminFamily('pin-reserve-seq')
+    const svc = serviceClient()
+
+    for (let i = 1; i <= 5; i++) {
+      const { data, error } = await svc.rpc('reserve_pin_attempt', {
+        p_member_id: family.adminMemberId,
+        p_max_attempts: 6,
+      })
+      expect(error).toBeNull()
+      expect(rowOf(data)).toEqual({ attempts: i, locked: false })
+    }
+
+    const last = await svc.rpc('reserve_pin_attempt', {
+      p_member_id: family.adminMemberId,
+      p_max_attempts: 6,
+    })
+    expect(rowOf(last.data)).toEqual({ attempts: 6, locked: true })
+
+    // Locked: nothing more can be reserved, so nothing more gets verified.
+    const after = await svc.rpc('reserve_pin_attempt', {
+      p_member_id: family.adminMemberId,
+      p_max_attempts: 6,
+    })
+    expect(after.error).toBeNull()
+    expect(rowOf(after.data)).toBeUndefined()
+  })
+
+  it('lets a burst of parallel guesses reserve at most the allowed attempts', async () => {
+    const family = await createAdminFamily('pin-reserve-burst')
+    const svc = serviceClient()
+
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        svc.rpc('reserve_pin_attempt', {
+          p_member_id: family.adminMemberId,
+          p_max_attempts: 6,
+        }),
+      ),
+    )
+
+    expect(results.every((r) => r.error === null)).toBe(true)
+    const reserved = results.filter((r) => rowOf(r.data) !== undefined)
+    expect(reserved).toHaveLength(6)
+    expect(reserved.filter((r) => rowOf(r.data)?.locked)).toHaveLength(1)
+
+    const { data: member } = await svc
+      .from('family_members')
+      .select('pin_failed_attempts, pin_locked')
+      .eq('id', family.adminMemberId)
+      .single()
+    expect(member).toEqual({ pin_failed_attempts: 6, pin_locked: true })
+  })
+
+  it('reserves nothing for a locked member or an unknown id', async () => {
+    const family = await createAdminFamily('pin-reserve-locked')
+    const svc = serviceClient()
+    await svc
+      .from('family_members')
+      .update({ pin_locked: true })
+      .eq('id', family.adminMemberId)
+
+    const locked = await svc.rpc('reserve_pin_attempt', {
+      p_member_id: family.adminMemberId,
+      p_max_attempts: 6,
+    })
+    expect(rowOf(locked.data)).toBeUndefined()
+
+    const unknown = await svc.rpc('reserve_pin_attempt', {
+      p_member_id: crypto.randomUUID(),
+      p_max_attempts: 6,
+    })
+    expect(unknown.error).toBeNull()
+    expect(rowOf(unknown.data)).toBeUndefined()
+  })
+
+  it('cannot be executed by anon or authenticated clients', async () => {
+    const family = await createAdminFamily('pin-reserve-privs')
+    const anon = anonClient()
+    const member = await userClient(family.adminEmail, family.adminPassword)
+
+    const anonCall = await anon.rpc('reserve_pin_attempt', {
+      p_member_id: family.adminMemberId,
+      p_max_attempts: 6,
+    })
+    expect(anonCall.error).not.toBeNull()
+
+    const memberCall = await member.rpc('reserve_pin_attempt', {
+      p_member_id: family.adminMemberId,
+      p_max_attempts: 6,
+    })
+    expect(memberCall.error).not.toBeNull()
+  })
+})

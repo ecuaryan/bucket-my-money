@@ -73,22 +73,29 @@ Deno.serve(async (req: Request) => {
     )
   }
 
+  // Reserve the attempt BEFORE verifying. One atomic UPDATE counts it and
+  // locks the member on the last allowed try, so a burst of parallel guesses
+  // cannot all slip past the `pin_locked` check above and get verified.
+  // No row back = locked or out of attempts. Fail closed on errors.
+  const { data: reservation, error: reserveError } = await admin.rpc(
+    'reserve_pin_attempt',
+    { p_member_id: member.id, p_max_attempts: MAX_PIN_ATTEMPTS },
+  )
+  if (reserveError) {
+    console.error('pin-login reserve attempt', reserveError)
+    return jsonResponse({ error: 'Login failed' }, 500)
+  }
+  const attempt = Array.isArray(reservation) ? reservation[0] : reservation
+  if (!attempt) {
+    return jsonResponse(
+      { error: 'PIN locked — ask your admin to unlock', locked: true },
+      403,
+    )
+  }
+
   const ok = await verifyPin(pin, member.pin_hash)
   if (!ok) {
-    // Atomic increment + lock check in a single UPDATE (the row lock
-    // serializes concurrent attempts). The old read-modify-write let
-    // parallel requests all read the same stale counter, so N simultaneous
-    // wrong guesses advanced the lockout by ~1 instead of N.
-    const { data: failure, error: failureError } = await admin.rpc(
-      'record_pin_failure',
-      { p_member_id: member.id, p_max_attempts: MAX_PIN_ATTEMPTS },
-    )
-    if (failureError) {
-      console.error('pin-login record failure', failureError)
-      return jsonResponse({ error: 'Wrong PIN' }, 401)
-    }
-    const row = Array.isArray(failure) ? failure[0] : failure
-    if (row?.locked) {
+    if (attempt.locked) {
       return jsonResponse(
         {
           error: 'Too many attempts — PIN locked. Ask your admin.',
