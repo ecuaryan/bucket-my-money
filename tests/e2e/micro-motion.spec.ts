@@ -42,6 +42,15 @@ test.describe('Skeleton to content fade', () => {
     await expect(page).toHaveURL(/\/history/)
     await expect(fadeTargets(page)).toHaveCount(1)
     data.slow = false
+    // Leave only once History has saved its cache (it does so after the slow
+    // first load settles); a slow CI machine can otherwise navigate away first.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Object.keys(sessionStorage).some((k) => k.startsWith('bucketmymoney:history:')),
+        ),
+      )
+      .toBe(true)
 
     // Away and back: History opens from its cache, no skeleton, so no fade.
     await nav.getByRole('link', { name: 'Buckets' }).click()
