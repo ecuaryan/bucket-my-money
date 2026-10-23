@@ -10,7 +10,7 @@
 // are read from the site's own JS bundle (the values every browser downloads);
 // set SUPABASE_URL and SUPABASE_KEY to override (e.g. for a local stack).
 //
-// Usage: node scripts/check-xff-rate-limit.mjs [--control] [--spoof-all] [--edge] [site-url]
+// Usage: node scripts/check-xff-rate-limit.mjs [--control | --two-network] [--spoof-all] [--edge] [site-url]
 //
 //   (default)   30 lookups, each with a different fake X-Forwarded-For.
 //               All 30 answered  -> the fake header works: the limit is bypassable.
@@ -22,23 +22,24 @@
 //               sb-forwarded-for, x-real-ip, true-client-ip). The hosted gateway
 //               rejects a faked cf-connecting-ip with HTTP 403, which this
 //               script reports as "unexpected".
-//   --debug-edge  Temporary: ask the validate-join-code edge function to echo the
-//               client-IP headers it receives and the address it would rate-limit
-//               on (plain request, then one with a fake X-Forwarded-For).
 //   --edge      Test the validate-join-code EDGE FUNCTION path
 //               (/functions/v1/validate-join-code) instead of the login_roster
 //               database RPC. It sits behind a different front door.
 //
-// To prove the limit is keyed per ADDRESS (not one bucket shared by everyone),
-// run --control from one network until it is limited, then immediately run it
-// from a different network (e.g. phone hotspot): the first requests there must
-// be answered, not refused.
+//   --two-network  Guided proof that the limit is keyed per ADDRESS, not one bucket
+//               shared by everyone. Part 1 uses up this network's budget, the
+//               script then tells you to switch networks (e.g. Wi-Fi -> phone
+//               hotspot with the phone's own Wi-Fi OFF), detects that your public
+//               address changed, and runs part 2 itself, inside the one-minute
+//               window. Use with --edge for the edge-function path.
+//               PASS = part 2 gets its own full budget even though part 1's was
+//               just used up.
 
 const args = process.argv.slice(2)
 const CONTROL = args.includes('--control')
 const SPOOF_ALL = args.includes('--spoof-all')
 const EDGE = args.includes('--edge')
-const DEBUG_EDGE = args.includes('--debug-edge')
+const TWO_NETWORK = args.includes('--two-network')
 const SITE = (args.find((a) => !a.startsWith('--')) ?? 'https://bucketmymoney.com').replace(/\/$/, '')
 const REQUESTS = 30
 const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
@@ -77,25 +78,115 @@ async function discoverPublicConfig() {
 const { url, key } = await discoverPublicConfig()
 console.log(`Target: ${url}`)
 
-if (DEBUG_EDGE) {
-  for (const [label, extra] of [
-    ['PLAIN request (no fake header)', {}],
-    ['FAKE request (x-forwarded-for: 203.0.113.7)', { 'x-forwarded-for': '203.0.113.7' }],
-  ]) {
-    const res = await fetch(`${url}/functions/v1/validate-join-code`, {
-      method: 'POST',
-      headers: { apikey: key, 'content-type': 'application/json', 'x-bmm-debug': '1', ...extra },
-      body: '{}',
-    })
-    const text = await res.text()
-    console.log(`\n--- ${label}: HTTP ${res.status}`)
-    try {
-      const data = JSON.parse(text)
-      console.log(`  chosen address (rate-limit key): ${data.chosen}`)
-      for (const [k, v] of Object.entries(data.headers ?? {})) console.log(`  ${k}: ${v}`)
-    } catch {
-      console.log(`  ${text.slice(0, 200)}`)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/** Send REQUESTS lookups; `control` = no fake header (all count against your real address). */
+async function runBatch({ control }) {
+  let accepted = 0
+  let limited = 0
+  let firstLimitedAt = null
+  const other = {}
+
+  for (let i = 1; i <= REQUESTS; i++) {
+    const code = Array.from({ length: 8 }, () => ALPHABET[rnd(ALPHABET.length)]).join('')
+    const headers = {
+      apikey: key,
+      'content-type': 'application/json',
+      ...(control ? {} : fakeHeaders(randomIp())),
     }
+    const res = EDGE
+      ? await fetch(`${url}/functions/v1/validate-join-code`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ code }),
+        })
+      : await fetch(`${url}/rest/v1/rpc/login_roster`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ p_code: code }),
+        })
+    const body = (await res.text()).trim()
+    const normal = EDGE
+      ? res.status === 404 && /invalid join code/i.test(body)
+      : res.status === 200 && body === 'null'
+    if (normal) {
+      accepted++ // looked up, no such family: the normal answer
+    } else if (res.status === 429 || /too many/i.test(body)) {
+      limited++
+      firstLimitedAt ??= i
+    } else {
+      const k = `HTTP ${res.status}: ${body.slice(0, 100)}`
+      other[k] = (other[k] ?? 0) + 1
+    }
+  }
+  return { accepted, limited, firstLimitedAt, other }
+}
+
+function printBatch({ accepted, limited, firstLimitedAt, other }) {
+  console.log(`Answered normally (not limited): ${accepted}`)
+  console.log(`Rate limited:                    ${limited}${firstLimitedAt ? ` (first at request ${firstLimitedAt})` : ''}`)
+  for (const [k, n] of Object.entries(other)) console.log(`Unexpected: ${n} x ${k}`)
+}
+
+/** This machine's public address as Cloudflare sees it (null while offline). */
+async function publicIp() {
+  try {
+    const res = await fetch('https://www.cloudflare.com/cdn-cgi/trace', { signal: AbortSignal.timeout(4000) })
+    return (await res.text()).match(/^ip=(.+)$/m)?.[1]?.trim() ?? null
+  } catch {
+    return null
+  }
+}
+
+if (TWO_NETWORK) {
+  const WINDOW_MS = 40_000 // part 2 must start while part 1's budget is still used up
+  const where = EDGE ? 'edge function (validate-join-code)' : 'database RPC (login_roster)'
+  console.log(`TWO-NETWORK CHECK: ${where}`)
+
+  const ipA = await publicIp()
+  console.log(`\nPART 1 - network A, address ${ipA ?? 'unknown'}: using up its budget...\n`)
+  const a = await runBatch({ control: true })
+  const aDoneAt = Date.now()
+  printBatch(a)
+  if (a.limited === 0 || Object.keys(a.other).length > 0) {
+    console.log('\nRESULT: part 1 did not hit the limit normally, so the test cannot continue. Paste the lines above to Claude.')
+    process.exit(1)
+  }
+
+  console.log(`\n>>> SWITCH NETWORKS NOW (e.g. Wi-Fi -> phone hotspot; keep the phone's own Wi-Fi OFF).`)
+  console.log(`>>> I will start part 2 automatically as soon as your public address changes. You have ${WINDOW_MS / 1000}s.\n`)
+
+  let ipB = null
+  while (Date.now() - aDoneAt < WINDOW_MS) {
+    await sleep(2000)
+    const cur = await publicIp()
+    const left = Math.max(0, Math.round((WINDOW_MS - (Date.now() - aDoneAt)) / 1000))
+    if (cur && cur !== ipA) {
+      ipB = cur
+      break
+    }
+    console.log(`   waiting... still ${cur ?? 'offline/switching'} (${left}s left)`)
+  }
+  if (!ipB) {
+    console.log('\nRESULT: your address did not change in time, and network A\'s budget has expired. Run it again and switch faster.')
+    process.exit(1)
+  }
+
+  await sleep(1500) // let the new connection settle
+  const sinceA = Math.round((Date.now() - aDoneAt) / 1000)
+  console.log(`\nPART 2 - network B, address ${ipB} (${sinceA}s after part 1): is its budget still full?\n`)
+  const b = await runBatch({ control: true })
+  printBatch(b)
+
+  console.log('')
+  if (Object.keys(b.other).length > 0) {
+    console.log('RESULT: inconclusive - unexpected responses above. Paste them to Claude.')
+  } else if (b.accepted >= 18 && b.firstLimitedAt >= 19) {
+    console.log(`RESULT: PASS - network B got its own full budget while network A was used up. The limit is per address (A ${ipA} / B ${ipB}).`)
+  } else if (b.accepted === 0) {
+    console.log(`RESULT: FAIL - network B was refused from its first request even though its address (${ipB}) differs from A (${ipA}). Budgets appear to be shared. Tell Claude.`)
+  } else {
+    console.log(`RESULT: unclear - network B answered ${b.accepted} before refusing (expected ~20). Paste this to Claude.`)
   }
   process.exit(0)
 }
@@ -106,47 +197,9 @@ console.log(
     : `Sending ${REQUESTS} invalid-code lookups${EDGE ? ' to the validate-join-code edge function' : ''}, each with ${SPOOF_ALL ? 'EVERY client-IP header faked' : 'a different fake X-Forwarded-For'}...\n`,
 )
 
-let accepted = 0
-let limited = 0
-let firstLimitedAt = null
-const other = {}
-
-for (let i = 1; i <= REQUESTS; i++) {
-  const code = Array.from({ length: 8 }, () => ALPHABET[rnd(ALPHABET.length)]).join('')
-  const headers = {
-    apikey: key,
-    'content-type': 'application/json',
-    ...(CONTROL ? {} : fakeHeaders(randomIp())),
-  }
-  const res = EDGE
-    ? await fetch(`${url}/functions/v1/validate-join-code`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ code }),
-      })
-    : await fetch(`${url}/rest/v1/rpc/login_roster`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ p_code: code }),
-      })
-  const body = (await res.text()).trim()
-  const normal = EDGE
-    ? res.status === 404 && /invalid join code/i.test(body)
-    : res.status === 200 && body === 'null'
-  if (normal) {
-    accepted++ // looked up, no such family: the normal answer
-  } else if (res.status === 429 || /too many/i.test(body)) {
-    limited++
-    firstLimitedAt ??= i
-  } else {
-    const k = `HTTP ${res.status}: ${body.slice(0, 100)}`
-    other[k] = (other[k] ?? 0) + 1
-  }
-}
-
-console.log(`Answered normally (not limited): ${accepted}`)
-console.log(`Rate limited:                    ${limited}${firstLimitedAt ? ` (first at request ${firstLimitedAt})` : ''}`)
-for (const [k, n] of Object.entries(other)) console.log(`Unexpected: ${n} x ${k}`)
+const batch = await runBatch({ control: CONTROL })
+printBatch(batch)
+const { limited, firstLimitedAt, other } = batch
 
 console.log('')
 if (Object.keys(other).length > 0) {

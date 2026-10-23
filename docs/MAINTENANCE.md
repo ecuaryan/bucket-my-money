@@ -151,6 +151,27 @@ Unset = the safe, gated behavior; the switch is `vars.FAST_DEPLOY` in the job
 `if:` of [`deploy-supabase.yml`](../.github/workflows/deploy-supabase.yml).
 Agents: never flip it on your own; the owner decides.
 
+### Verifying the pre-auth rate limit (hosted)
+
+Join-code lookups, PIN login, and passkey endpoints are limited per client
+address (`pre_auth_rate_limit` / `check_pre_auth_rate_limit`, keyed on an
+address the caller cannot choose: `cf-connecting-ip`, then `sb-forwarded-for`,
+then the **last** `x-forwarded-for` entry; IPv6 by /64; see migration 107 and
+`supabase/functions/_shared/clientIp.ts`). After touching that code, or if the
+hosting setup changes, prove it still holds with
+[`scripts/check-xff-rate-limit.mjs`](../scripts/check-xff-rate-limit.mjs)
+(read-only lookups of random invalid codes; it finds the public Supabase URL and
+key in the site's own bundle):
+
+| Command | Expected |
+| ------- | -------- |
+| `node scripts/check-xff-rate-limit.mjs` | ~20 answered, then refused (a faked `X-Forwarded-For` is ignored) |
+| `node scripts/check-xff-rate-limit.mjs --edge` | same, for the Edge Function path |
+| `node scripts/check-xff-rate-limit.mjs --two-network --edge` | **PASS**: guided; uses up this network's budget, tells you to switch networks (phone hotspot, phone Wi-Fi off), and checks the second address still gets its own full budget |
+
+Each run blocks your own address from that endpoint for about a minute, so wait
+a minute between runs. Last verified against production on 2026-10-23.
+
 ### Production Supabase deploy (one-time secrets)
 
 Create a GitHub **environment** named `production` and add:
