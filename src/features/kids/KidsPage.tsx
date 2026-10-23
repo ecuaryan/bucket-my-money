@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import KidsPageSkeleton from '@/components/KidsPageSkeleton'
@@ -6,6 +6,7 @@ import FundKidSheet from '@/features/kids/FundKidSheet'
 import ReturnKidSheet from '@/features/kids/ReturnKidSheet'
 import { LinkedKidRow, VirtualKidRow } from '@/features/kids/KidMoneyRow'
 import { useAuth } from '@/lib/auth'
+import { readKidsPageCache, writeKidsPageCache } from '@/lib/kidsPageCache'
 import { formatLoadErrorMessage, withAuthLockRetry } from '@/lib/authLockError'
 import {
   fetchBucketsBalanceBreakdown,
@@ -57,13 +58,26 @@ export default function KidsPage() {
   const familyId = member?.family_id ?? null
   const memberId = member?.id ?? null
 
-  const [children, setChildren] = useState<Member[] | null>(null)
-  const [accounts, setAccounts] = useState<Account[] | null>(null)
+  // What the tab showed last visit: rendered instantly while a fresh load runs.
+  const [cached] = useState(() =>
+    familyId && memberId ? readKidsPageCache(familyId, memberId) : null,
+  )
+  // While we are showing remembered data, a failed refresh stays quiet.
+  const servingCacheRef = useRef(cached !== null)
+
+  const [children, setChildren] = useState<Member[] | null>(
+    cached?.children ?? null,
+  )
+  const [accounts, setAccounts] = useState<Account[] | null>(
+    cached?.accounts ?? null,
+  )
   const [balanceBreakdown, setBalanceBreakdown] =
-    useState<BucketsBalanceBreakdown | null>(null)
-  const [linkedChildIds, setLinkedChildIds] = useState<Set<string> | null>(null)
+    useState<BucketsBalanceBreakdown | null>(cached?.balanceBreakdown ?? null)
+  const [linkedChildIds, setLinkedChildIds] = useState<Set<string> | null>(
+    cached ? new Set(cached.linkedChildIds) : null,
+  )
   const [householdAdminName, setHouseholdAdminName] = useState<string | null>(
-    null,
+    cached?.householdAdminName ?? null,
   )
   const [loadError, setLoadError] = useState<string | null>(null)
   const [fundKid, setFundKid] = useState<VirtualKidRowData | null>(null)
@@ -111,16 +125,29 @@ export default function KidsPage() {
           accounts: accountRows,
           buckets: bucketsRes.data ?? [],
         })
-        setChildren(childrenRes.data ?? [])
+        const kids = childrenRes.data ?? []
+        setChildren(kids)
         setAccounts(accountRows)
         setLinkedChildIds(linkedIds)
         setHouseholdAdminName(adminName)
         setBalanceBreakdown(breakdown)
+        servingCacheRef.current = false
+        if (familyId && memberId) {
+          writeKidsPageCache(familyId, memberId, {
+            children: kids,
+            accounts: accountRows,
+            balanceBreakdown: breakdown,
+            linkedChildIds: [...linkedIds],
+            householdAdminName: adminName,
+          })
+        }
       })
     } catch (e) {
+      // Remembered data is on screen: keep it rather than swap in an error panel.
+      if (servingCacheRef.current) return
       setLoadError(formatLoadErrorMessage(e, 'Could not load kids.'))
     }
-  }, [memberId, isAdult])
+  }, [familyId, memberId, isAdult])
 
   useEffect(() => {
     void loadData()
