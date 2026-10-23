@@ -3,6 +3,7 @@ import { notifyHouseholdRosterChanged } from '@/lib/householdRosterRefresh'
 import { getFreshAccessToken, refreshAccessToken } from '@/lib/sessionToken'
 import { supabase, supabaseUrl } from '@/lib/supabase'
 import { withTimeout } from '@/lib/timeout'
+import { normalizeJoinCode } from '@/lib/joinCode'
 
 const publishableKey = resolveSupabasePublishableKey(import.meta.env)
 
@@ -144,7 +145,7 @@ function delay(ms: number): Promise<void> {
 }
 
 export async function validateJoinCode(code: string): Promise<ValidateJoinResult> {
-  const p_code = code.trim().toUpperCase()
+  const p_code = normalizeJoinCode(code)
   for (let attempt = 1; ; attempt++) {
     // Reads only — runs on the always-on RPC layer instead of the
     // validate-join-code Edge Function. Same data, same anon exposure.
