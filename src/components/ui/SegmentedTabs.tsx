@@ -33,7 +33,12 @@ export function SegmentedTabs<T extends string>({
     if (!list) return
     const measure = () => {
       const el = list.querySelector<HTMLElement>(`[data-tab="${value}"]`)
-      if (el) setPill({ x: el.offsetLeft, width: el.offsetWidth })
+      if (!el) return
+      const next = { x: el.offsetLeft, width: el.offsetWidth }
+      // Skip no-op updates (the observer also fires once as it starts).
+      setPill((prev) =>
+        prev && prev.x === next.x && prev.width === next.width ? prev : next,
+      )
     }
     measure()
     const observer = new ResizeObserver(measure)
