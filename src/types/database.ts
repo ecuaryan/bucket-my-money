@@ -1378,7 +1378,6 @@ export type Database = {
         Returns: number
       }
       create_bucket_group: { Args: { p_name: string }; Returns: string }
-      debug_request_headers: { Args: never; Returns: Json }
       delete_bucket: { Args: { p_bucket_id: string }; Returns: undefined }
       delete_bucket_group: { Args: { p_group_id: string }; Returns: undefined }
       delete_manual_account: {
@@ -1439,6 +1438,8 @@ export type Database = {
         }
         Returns: string
       }
+      pre_auth_client_ip: { Args: { p_headers: Json }; Returns: string }
+      pre_auth_is_ip: { Args: { p_text: string }; Returns: boolean }
       pre_auth_rate_limit: { Args: { p_endpoint: string }; Returns: undefined }
       record_pin_failure: {
         Args: { p_max_attempts?: number; p_member_id: string }

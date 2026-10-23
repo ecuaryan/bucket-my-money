@@ -8,25 +8,19 @@
 // the rate_limit_rules table. Edge code never hardcodes limits; change
 // them in the DB.
 //
-// Keyed by endpoint + client IP so one abusive IP can't burn the whole
+// Keyed by endpoint + trusted client IP (IPv6 by /64) so one abusive IP can't burn the whole
 // login surface, while a household behind one NAT (Ryan's 7) stays far
 // below the limits under normal use. On a rate-limit DB error we fail
 // OPEN (log it): the per-member PIN lockout remains the primary brute
 // force control, and a rate-limit table hiccup must never become a full
 // login outage.
 
+import { pickClientIp } from './clientIp.ts'
 import { serviceClient } from './supabase.ts'
 
-/** Best-effort client IP: first hop of X-Forwarded-For, else X-Real-IP. */
+/** Trusted client IP (see clientIp.ts). Never the caller-chosen first XFF hop. */
 export function getClientIp(req: Request): string {
-  const xff = req.headers.get('x-forwarded-for')
-  if (xff) {
-    const first = xff.split(',')[0].trim()
-    if (first) return first
-  }
-  const xri = req.headers.get('x-real-ip')
-  if (xri && xri.trim()) return xri.trim()
-  return 'unknown'
+  return pickClientIp((name) => req.headers.get(name))
 }
 
 /**
