@@ -22,6 +22,9 @@
 //               sb-forwarded-for, x-real-ip, true-client-ip). The hosted gateway
 //               rejects a faked cf-connecting-ip with HTTP 403, which this
 //               script reports as "unexpected".
+//   --debug-edge  Temporary: ask the validate-join-code edge function to echo the
+//               client-IP headers it receives and the address it would rate-limit
+//               on (plain request, then one with a fake X-Forwarded-For).
 //   --edge      Test the validate-join-code EDGE FUNCTION path
 //               (/functions/v1/validate-join-code) instead of the login_roster
 //               database RPC. It sits behind a different front door.
@@ -35,6 +38,7 @@ const args = process.argv.slice(2)
 const CONTROL = args.includes('--control')
 const SPOOF_ALL = args.includes('--spoof-all')
 const EDGE = args.includes('--edge')
+const DEBUG_EDGE = args.includes('--debug-edge')
 const SITE = (args.find((a) => !a.startsWith('--')) ?? 'https://bucketmymoney.com').replace(/\/$/, '')
 const REQUESTS = 30
 const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
@@ -72,6 +76,29 @@ async function discoverPublicConfig() {
 
 const { url, key } = await discoverPublicConfig()
 console.log(`Target: ${url}`)
+
+if (DEBUG_EDGE) {
+  for (const [label, extra] of [
+    ['PLAIN request (no fake header)', {}],
+    ['FAKE request (x-forwarded-for: 203.0.113.7)', { 'x-forwarded-for': '203.0.113.7' }],
+  ]) {
+    const res = await fetch(`${url}/functions/v1/validate-join-code`, {
+      method: 'POST',
+      headers: { apikey: key, 'content-type': 'application/json', 'x-bmm-debug': '1', ...extra },
+      body: '{}',
+    })
+    const text = await res.text()
+    console.log(`\n--- ${label}: HTTP ${res.status}`)
+    try {
+      const data = JSON.parse(text)
+      console.log(`  chosen address (rate-limit key): ${data.chosen}`)
+      for (const [k, v] of Object.entries(data.headers ?? {})) console.log(`  ${k}: ${v}`)
+    } catch {
+      console.log(`  ${text.slice(0, 200)}`)
+    }
+  }
+  process.exit(0)
+}
 
 console.log(
   CONTROL

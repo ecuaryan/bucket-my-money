@@ -5,6 +5,7 @@ import { handleCors, jsonResponse } from '../_shared/http.ts'
 import { serviceClient } from '../_shared/supabase.ts'
 import {
   checkPreAuthRateLimit,
+  getClientIp,
   rateLimitResponse,
 } from '../_shared/rateLimit.ts'
 
@@ -15,6 +16,21 @@ Deno.serve(async (req: Request) => {
   if (cors) return cors
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405)
+  }
+
+  // TEMPORARY diagnostic (removed by the follow-up fix): `x-bmm-debug: 1` echoes
+  // back the caller's OWN client-IP-related request headers and the address the
+  // rate limit would key on, so we can see what the hosted Edge Function path
+  // actually receives (it sits behind a different front door than PostgREST).
+  if (req.headers.get('x-bmm-debug') === '1') {
+    return jsonResponse({
+      chosen: getClientIp(req),
+      headers: Object.fromEntries(
+        [...req.headers].filter(([k]) =>
+          /forward|real-ip|^cf-|^via$|^true-client|^x-envoy|^sb-|^x-sb|^x-supabase|host|proto/i.test(k),
+        ),
+      ),
+    })
   }
 
   // Distributed pre-auth rate limit (migration 93, budget in
