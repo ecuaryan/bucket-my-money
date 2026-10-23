@@ -5,8 +5,12 @@
  */
 import qrcode from 'qrcode-generator'
 
-/** Quiet zone around the symbol, in modules (the QR spec asks for 4). */
-const QUIET_ZONE = 4
+/**
+ * White margin around the symbol, in modules. The QR spec asks for 4, but the
+ * image is shown on a dark card and phone scanners read 2 reliably (a strict
+ * decoder already reads 1); a bigger margin only shrinks the code on screen.
+ */
+const QUIET_ZONE = 2
 
 export type QrMatrix = {
   /** Modules per side (without the quiet zone). */

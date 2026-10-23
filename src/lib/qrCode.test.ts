@@ -54,14 +54,40 @@ describe('qrSvgDataUrl', () => {
     expect(svg).not.toContain('ABC') // the code is encoded as modules, not text
   })
 
-  it('draws a white quiet zone of 4 modules around the symbol', () => {
+  it('draws a white quiet zone of 2 modules around the symbol', () => {
     const text = 'https://bucketmymoney.com/join?code=39S27X82A6G7'
     const { size } = qrMatrix(text)
     const svg = svgFromDataUrl(qrSvgDataUrl(text))
-    expect(svg).toContain(`viewBox="0 0 ${size + 8} ${size + 8}"`)
+    expect(svg).toContain(`viewBox="0 0 ${size + 4} ${size + 4}"`)
     const starts = [...svg.matchAll(/M(\d+) (\d+)h/g)].map((m) => [Number(m[1]), Number(m[2])])
-    expect(Math.min(...starts.map(([x]) => x))).toBeGreaterThanOrEqual(4)
-    expect(Math.min(...starts.map(([, y]) => y))).toBeGreaterThanOrEqual(4)
+    expect(Math.min(...starts.map(([x]) => x))).toBeGreaterThanOrEqual(2)
+    expect(Math.min(...starts.map(([, y]) => y))).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('on the dark app background', () => {
+  it('still decodes when the white card sits on a dark surround', () => {
+    const link = 'https://bucketmymoney.com/join?code=39S27X82A6G7'
+    const { data, width } = rasterize(svgFromDataUrl(qrSvgDataUrl(link)))
+    const border = 40
+    const w = width + border * 2
+    const padded = new Uint8ClampedArray(w * w * 4)
+    for (let i = 0; i < w * w; i++) {
+      padded[i * 4] = 24
+      padded[i * 4 + 1] = 24
+      padded[i * 4 + 2] = 27
+      padded[i * 4 + 3] = 255
+    }
+    for (let y = 0; y < width; y++) {
+      for (let x = 0; x < width; x++) {
+        const from = (y * width + x) * 4
+        const to = ((y + border) * w + x + border) * 4
+        padded[to] = data[from]
+        padded[to + 1] = data[from + 1]
+        padded[to + 2] = data[from + 2]
+      }
+    }
+    expect(jsQR(padded, w, w)?.data).toBe(link)
   })
 })
 

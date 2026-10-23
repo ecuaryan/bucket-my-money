@@ -153,7 +153,7 @@ export default function FamilyJoinSection() {
                 alt={ADMIN_JOIN_CODE_QR_ALT}
                 width={180}
                 height={180}
-                className="rounded-lg bg-white p-2"
+                className="rounded-lg"
               />
             )}
           </div>
