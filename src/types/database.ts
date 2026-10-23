@@ -1458,6 +1458,13 @@ export type Database = {
         Args: { p_ordered_bucket_ids: string[] }
         Returns: undefined
       }
+      reserve_pin_attempt: {
+        Args: { p_max_attempts?: number; p_member_id: string }
+        Returns: {
+          attempts: number
+          locked: boolean
+        }[]
+      }
       return_from_child: {
         Args: { p_amount: number; p_from_child_id: string; p_note?: string }
         Returns: string

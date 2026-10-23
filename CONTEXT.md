@@ -349,7 +349,9 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   signs you out on every **other** device (revoked on save via
   `signOut({ scope: 'others' })`); the device where you save stays signed in.
   Other devices drop on the next refresh or activity — JWTs can linger until expiry.
-- **Lockout:** 6 failed PIN attempts → locked until admin clears.
+- **Lockout:** 6 failed PIN attempts → locked until admin clears. Each attempt is reserved atomically *before* the PIN is verified
+  (`reserve_pin_attempt`, migration 102), so a burst of parallel guesses can verify
+  at most 6 PINs between unlocks. A correct PIN resets the counter.
 - **Join code rotation:** admin can rotate; only affects **new** device binds.
 - **Sessions:** independent per person — logout on one device does not sign out others.
 - **Shared phones:** all signed-in sessions sign out locally after **60 seconds** hidden
