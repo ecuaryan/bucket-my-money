@@ -55,8 +55,11 @@ import {
   stripJustArrived,
   type HistoryDisplayRow,
 } from '@/features/history/historyQueries'
+import { historyCountState } from '@/features/history/historyCount'
 import {
+  readHistoryBucketsCache,
   readHistoryPageCache,
+  writeHistoryBucketsCache,
   writeHistoryPageCache,
 } from '@/lib/historyPageCache'
 import { HISTORY_ROW_ARRIVED_CLEAR_MS } from '@/features/history/historyRowExpand'
@@ -125,13 +128,21 @@ export default function HistoryPage() {
   usePeekTarget((rows?.length ?? 0) > 0)
   const { formatMoney, hidden, hasPeekTarget } = useHideAmounts()
   const sheetOpen = useSheetBackdropOpen()
-  const [buckets, setBuckets] = useState<Bucket[] | null>(null)
+  // The filter's bucket list: shown instantly from the last visit while a fresh
+  // copy loads (see loadBuckets), so the filter bar never waits on the network.
+  const [buckets, setBuckets] = useState<Bucket[] | null>(() => {
+    const m = auth.status === 'signedIn' ? auth.member : null
+    return m ? readHistoryBucketsCache(m.family_id, m.id) : null
+  })
+  const bucketsRequestedRef = useRef(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
   // Exact number of transactions matching the current filter (from the first
   // page's response); null until known.
   const [total, setTotal] = useState<number | null>(null)
+  // True once the separate total request has finished (even if it failed).
+  const [totalSettled, setTotalSettled] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   // Transaction selection for summing: id -> amount snapshot. A Map instead
   // of deriving from `rows` so the selection — and its total — survives
@@ -143,8 +154,10 @@ export default function HistoryPage() {
 
   // Bump when family or filter changes so stale async work cannot mutate state.
   const listGeneration = useRef(0)
-  // True once the current list has been (re)loaded from the server this visit.
-  const freshRef = useRef(false)
+  // The filter whose list was last (re)loaded from the server this visit. The
+  // cache is only written for that filter, so a filter switch can never save the
+  // previous filter's rows under the new filter's key.
+  const freshKeyRef = useRef<string | null>(null)
   const rowsRef = useRef<TxRow[] | null>(null)
   const realtimeRefreshTimer = useRef<
     ReturnType<typeof setTimeout> | undefined
@@ -208,8 +221,9 @@ export default function HistoryPage() {
   const refreshTotal = useCallback(
     (generation: number, activeFilter: HistoryFilter) => {
       void fetchHistoryTotal(activeFilter).then((next) => {
-        if (generation !== listGeneration.current || next === null) return
-        setTotal(next)
+        if (generation !== listGeneration.current) return
+        if (next !== null) setTotal(next)
+        setTotalSettled(true)
       })
     },
     [],
@@ -226,7 +240,7 @@ export default function HistoryPage() {
     if (!result.ok) return
 
     let hasNewRows = false
-    freshRef.current = true
+    freshKeyRef.current = filterKey
     flushSync(() => {
       setRows((prev) => {
         if (!prev) return result.rows
@@ -248,22 +262,33 @@ export default function HistoryPage() {
     }, REALTIME_REFRESH_DEBOUNCE_MS)
   }, [refreshHead])
 
-  const loadBuckets = useCallback(async () => {
-    try {
-      await withAuthLockRetry(async () => {
-        const { data, error } = await supabase
-          .from('buckets')
-          .select('id, name, display_order, created_at')
-          .order('display_order', { ascending: true })
-          .order('created_at', { ascending: true })
-        // Non-fatal: settle to a (possibly empty) list either way so the filter
-        // resolves out of its skeleton and just renders without bucket options.
-        setBuckets(error ? [] : (data ?? []))
-      })
-    } catch {
-      setBuckets([])
-    }
-  }, [])
+  const loadBuckets = useCallback(
+    async (cacheFamilyId: string, cacheMemberId: string | null) => {
+      try {
+        await withAuthLockRetry(async () => {
+          const { data, error } = await supabase
+            .from('buckets')
+            .select('id, name, display_order, created_at')
+            .order('display_order', { ascending: true })
+            .order('created_at', { ascending: true })
+          if (error) {
+            // Non-fatal: settle to a (possibly empty) list so the filter
+            // resolves out of its skeleton; keep a cached list if we have one.
+            setBuckets((prev) => prev ?? [])
+            return
+          }
+          const fresh = data ?? []
+          setBuckets(fresh)
+          if (cacheMemberId) {
+            writeHistoryBucketsCache(cacheFamilyId, cacheMemberId, fresh)
+          }
+        })
+      } catch {
+        setBuckets((prev) => prev ?? [])
+      }
+    },
+    [],
+  )
 
   const loadInitialHistory = useCallback(async () => {
     if (!familyId) return
@@ -277,7 +302,8 @@ export default function HistoryPage() {
     setLoadError(null)
     setLoadMoreError(null)
     setLoadingMore(false)
-    freshRef.current = false
+    setTotalSettled(false)
+    freshKeyRef.current = null
     if (cached) {
       // Instant return: what you last saw, while the fresh page loads behind it.
       setRows(cached.rows)
@@ -288,6 +314,7 @@ export default function HistoryPage() {
       setTotal(null)
       setHasMore(true)
     }
+    refreshTotal(generation, activeFilter) // in parallel with the rows
 
     const result = await fetchHistoryPage(activeFilter, null, INITIAL_PAGE_SIZE, {
       withCount: false,
@@ -299,7 +326,7 @@ export default function HistoryPage() {
       return
     }
 
-    freshRef.current = true
+    freshKeyRef.current = filterKey
     if (cached) {
       // New rows (e.g. a transfer made while you were away) animate in.
       let hasNewRows = false
@@ -316,13 +343,12 @@ export default function HistoryPage() {
       setRows(result.rows)
     }
     setHasMore(result.rows.length === INITIAL_PAGE_SIZE)
-    refreshTotal(generation, activeFilter)
   }, [familyId, memberId, filterKey, scheduleClearJustArrived, refreshTotal])
 
   // Remember the first page for the next visit — only once it is fresh from the
   // server, so a cached copy can never renew its own lifetime.
   useEffect(() => {
-    if (!familyId || !memberId || rows === null || !freshRef.current) return
+    if (!familyId || !memberId || rows === null || freshKeyRef.current !== filterKey) return
     writeHistoryPageCache(familyId, memberId, filterKey, {
       rows: rows.slice(0, INITIAL_PAGE_SIZE).map(stripJustArrived),
       total,
@@ -367,11 +393,14 @@ export default function HistoryPage() {
   // active we need the names right away so the filter chip doesn't flash a
   // "Deleted bucket" placeholder.
   const needsBucketsImmediately = filter.kind === 'bucket'
+  // A cached list (from the last visit) already fills the filter, but we still
+  // refresh it once per visit so renamed/added/deleted buckets show up.
   useEffect(() => {
-    if (!familyId || buckets !== null) return
+    if (!familyId || bucketsRequestedRef.current) return
     if (!needsBucketsImmediately && rows === null) return
-    void loadBuckets()
-  }, [familyId, buckets, needsBucketsImmediately, rows, loadBuckets])
+    bucketsRequestedRef.current = true
+    void loadBuckets(familyId, memberId)
+  }, [familyId, memberId, needsBucketsImmediately, rows, loadBuckets])
 
   useEffect(() => {
     if (filter.kind !== 'give' || !giveReady || showGiveFilter) return
@@ -477,6 +506,7 @@ export default function HistoryPage() {
   }
 
   const isGiveFilter = filter.kind === 'give'
+  const countState = historyCountState(rows?.length ?? 0, total, hasMore, totalSettled)
 
   return (
     <div className="space-y-6">
@@ -489,11 +519,9 @@ export default function HistoryPage() {
               ? isGiveFilter
                 ? 'No gives or takes yet'
                 : 'No transactions yet'
-              : historyCountLabel(
-                  total ?? rows.length,
-                  total === null && hasMore,
-                  isGiveFilter,
-                )}
+              : countState.pending
+                ? <span role="status" aria-label="Counting" className="inline-block h-3 w-24 animate-pulse rounded bg-zinc-800 align-middle" />
+                : historyCountLabel(countState.count, countState.approximate, isGiveFilter)}
         </p>
       </header>
 
