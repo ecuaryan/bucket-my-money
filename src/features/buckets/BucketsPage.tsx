@@ -566,8 +566,13 @@ export default function BucketsPage() {
     }
   }, [activeTab])
 
+  // Tab content eases in only once the user has switched tabs (not on page open).
+  const [tabSwitched, setTabSwitched] = useState(false)
+  const panelMotion = tabSwitched ? 'tab-panel-enter' : undefined
+
   const onBucketsPageTabChange = useCallback(
     (tab: BucketsPageTab) => {
+      setTabSwitched(true)
       setSearchParams(
         (prev) => applyBucketsPageTabToSearchParams(prev, tab),
         { replace: true },
@@ -1192,6 +1197,7 @@ export default function BucketsPage() {
           showBucketsPageTabs ? 'segmented-tab-buckets' : undefined
         }
         hidden={showBucketsPageTabs ? activeTab !== 'buckets' : undefined}
+        className={panelMotion}
       >
       <ReorderHintProvider
         reorderable={(buckets.length >= 2 || grouped) && renamingId === null}
@@ -1332,9 +1338,10 @@ export default function BucketsPage() {
       memberId ? (
         <div
           role="tabpanel"
-          id="segmented-panel-auto-organize"
-          aria-labelledby="segmented-tab-auto-organize"
+          id="segmented-panel-auto-bucket"
+          aria-labelledby="segmented-tab-auto-bucket"
           hidden={activeTab !== 'auto-bucket'}
+          className={panelMotion}
         >
           <AutoOrganizeSection
             embedded
@@ -1359,9 +1366,10 @@ export default function BucketsPage() {
       {showAccountTab ? (
         <div
           role="tabpanel"
-          id="segmented-panel-account"
-          aria-labelledby="segmented-tab-account"
+          id="segmented-panel-bank"
+          aria-labelledby="segmented-tab-bank"
           hidden={activeTab !== 'bank'}
+          className={panelMotion}
         >
           <section aria-label={BUCKETS_PAGE_TAB_ACCOUNT_LABEL}>
             <BankAccountsTab
@@ -1379,6 +1387,7 @@ export default function BucketsPage() {
           id="segmented-panel-bitcoin"
           aria-labelledby="segmented-tab-bitcoin"
           hidden={activeTab !== 'bitcoin'}
+          className={panelMotion}
         >
           <BitcoinTab />
         </div>
