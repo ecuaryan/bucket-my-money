@@ -173,8 +173,13 @@ export default function AdminPage() {
     if (activeTab === 'household') setHouseholdPanelMounted(true)
   }, [activeTab])
 
+  // Tab content eases in only once the user has switched tabs (not on page open).
+  const [tabSwitched, setTabSwitched] = useState(false)
+  const panelMotion = tabSwitched ? 'tab-panel-enter' : undefined
+
   const onAdminPageTabChange = useCallback(
     (tab: AdminPageTab) => {
+      setTabSwitched(true)
       setSearchParams(
         (prev) => applyAdminPageTabToSearchParams(prev, tab),
         { replace: true },
@@ -542,6 +547,7 @@ export default function AdminPage() {
         id="segmented-panel-money-sources"
         aria-labelledby="segmented-tab-money-sources"
         hidden={activeTab !== 'money-sources'}
+        className={panelMotion}
       >
       <BusyOverlay
         busy={
@@ -892,6 +898,7 @@ export default function AdminPage() {
         id="segmented-panel-household"
         aria-labelledby="segmented-tab-household"
         hidden={activeTab !== 'household'}
+        className={panelMotion}
       >
         {householdPanelMounted ? (
           <div className="space-y-6">
