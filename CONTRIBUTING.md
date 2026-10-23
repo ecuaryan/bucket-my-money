@@ -232,6 +232,11 @@ user to run `supabase db push` on their machine after merge — hosted schema is
 applied by **Deploy Supabase** automatically (see table above). Manual CLI
 deploy is documented below only as a fallback when that workflow fails.
 
+**Fast deploy (temporary):** while the `FAST_DEPLOY` Actions variable is `true`,
+a merge deploys immediately instead of waiting for CI on `main`. It is off by
+default; see [docs/MAINTENANCE.md § Fast deploy](./docs/MAINTENANCE.md#fast-deploy-temporary-switch)
+for how to turn it on and off (`gh variable set|delete FAST_DEPLOY`).
+
 **CI runs on `main` are never cancelled** (PR runs still are when superseded): the
 deploy only fires after a green CI run on `main`, so a merge landing mid-run used
 to cancel it and silently skip that deploy. Runs on `main` now go one at a time;

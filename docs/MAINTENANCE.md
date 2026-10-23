@@ -123,6 +123,34 @@ applies migrations and deploys Edge Functions. PRs do not touch production.
 
 Full workflow, Vercel gating, and troubleshooting: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+### Fast deploy (temporary switch)
+
+Normally a merge deploys only after the **whole** CI run on `main` finishes. That
+run repeats the database and e2e tests the PR already passed and can take
+6–17 minutes, while the deploy itself takes under one. For a single-user app
+during active work you can deploy on merge instead, with one repository Actions
+variable:
+
+| Action | Command |
+| ------ | ------- |
+| Turn **on** | `gh variable set FAST_DEPLOY --body true` |
+| Turn **off** (default) | `gh variable delete FAST_DEPLOY` |
+| Check | `gh variable list` |
+
+While it is `true`: a push to `main` runs **Deploy Supabase** immediately (event
+`push`) and the CI-gated trigger (`workflow_run`) steps aside, so there is no
+double deploy. CI still runs in parallel, and PR CI must still pass before the
+merge. Every fast run prints a `FAST_DEPLOY is ON` warning annotation. Manual
+runs (`workflow_dispatch`) are unchanged and still require a green CI run for
+the commit.
+
+**Risk:** a bad merge reaches production *before* its main-CI result. That is
+acceptable for one user mid-task, not for a real multi-household app. **Turn it
+off when the task is done, and always before other households use the app.**
+Unset = the safe, gated behavior; the switch is `vars.FAST_DEPLOY` in the job
+`if:` of [`deploy-supabase.yml`](../.github/workflows/deploy-supabase.yml).
+Agents: never flip it on your own; the owner decides.
+
 ### Production Supabase deploy (one-time secrets)
 
 Create a GitHub **environment** named `production` and add:
