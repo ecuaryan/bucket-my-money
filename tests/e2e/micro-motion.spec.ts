@@ -4,7 +4,12 @@ import {
   addMember,
   createAdminFamily,
   familyJoinCode,
+  insertBucket,
+  moveMoney,
+  serviceClient,
+  setBucketAllocation,
   setMemberPin,
+  userClient,
 } from '../db/fixtures'
 
 // Small motion details: content that fades in when it replaces a loading
@@ -33,7 +38,23 @@ const fadeTargets = (page: Page) => page.locator('main .content-fade-enter')
 
 test.describe('Skeleton to content fade', () => {
   test('content fades in after a skeleton, but not when History returns from cache', async ({ page }) => {
+    // History only caches a list that has rows, so give it a few.
     const family = await createAdminFamily('e2e-micro-fade')
+    const svc = serviceClient()
+    await svc.from('accounts').insert({
+      family_id: family.familyId,
+      owner_member_id: null,
+      teller_account_id: `test-${crypto.randomUUID()}`,
+      account_type: 'checking',
+      current_balance: 500,
+    })
+    const a = await insertBucket(svc, family.familyId, 'Alpha', null)
+    const b = await insertBucket(svc, family.familyId, 'Beta', null)
+    await setBucketAllocation(svc, a, 100)
+    const admin = await userClient(family.adminEmail, family.adminPassword)
+    for (let i = 0; i < 3; i++) {
+      await moveMoney(admin, { fromBucketId: a, toBucketId: b, amount: 1 })
+    }
     await signIn(page, family.adminEmail, family.adminPassword)
     const nav = page.getByRole('navigation')
 
@@ -47,7 +68,9 @@ test.describe('Skeleton to content fade', () => {
     await expect
       .poll(() =>
         page.evaluate(() =>
-          Object.keys(sessionStorage).some((k) => k.startsWith('bucketmymoney:history:')),
+          Object.keys(sessionStorage).some(
+            (k) => k.startsWith('bucketmymoney:history:') && !k.includes(':buckets:'),
+          ),
         ),
       )
       .toBe(true)
@@ -56,7 +79,7 @@ test.describe('Skeleton to content fade', () => {
     await nav.getByRole('link', { name: 'Buckets' }).click()
     await nav.getByRole('link', { name: 'History' }).click()
     await expect(page).toHaveURL(/\/history/)
-    await expect(page.getByText('Nothing here yet')).toBeVisible()
+    await expect(page.locator('main li').filter({ hasText: /\$\d/ })).toHaveCount(3)
     await expect(fadeTargets(page)).toHaveCount(0)
   })
 
