@@ -55,6 +55,7 @@ import {
   stripJustArrived,
   type HistoryDisplayRow,
 } from '@/features/history/historyQueries'
+import { historyCountState } from '@/features/history/historyCount'
 import {
   readHistoryBucketsCache,
   readHistoryPageCache,
@@ -140,6 +141,8 @@ export default function HistoryPage() {
   // Exact number of transactions matching the current filter (from the first
   // page's response); null until known.
   const [total, setTotal] = useState<number | null>(null)
+  // True once the separate total request has finished (even if it failed).
+  const [totalSettled, setTotalSettled] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   // Transaction selection for summing: id -> amount snapshot. A Map instead
   // of deriving from `rows` so the selection — and its total — survives
@@ -216,8 +219,9 @@ export default function HistoryPage() {
   const refreshTotal = useCallback(
     (generation: number, activeFilter: HistoryFilter) => {
       void fetchHistoryTotal(activeFilter).then((next) => {
-        if (generation !== listGeneration.current || next === null) return
-        setTotal(next)
+        if (generation !== listGeneration.current) return
+        if (next !== null) setTotal(next)
+        setTotalSettled(true)
       })
     },
     [],
@@ -305,8 +309,10 @@ export default function HistoryPage() {
     } else {
       setRows(null)
       setTotal(null)
+      setTotalSettled(false)
       setHasMore(true)
     }
+    refreshTotal(generation, activeFilter) // in parallel with the rows
 
     const result = await fetchHistoryPage(activeFilter, null, INITIAL_PAGE_SIZE, {
       withCount: false,
@@ -335,7 +341,6 @@ export default function HistoryPage() {
       setRows(result.rows)
     }
     setHasMore(result.rows.length === INITIAL_PAGE_SIZE)
-    refreshTotal(generation, activeFilter)
   }, [familyId, memberId, filterKey, scheduleClearJustArrived, refreshTotal])
 
   // Remember the first page for the next visit — only once it is fresh from the
@@ -499,6 +504,7 @@ export default function HistoryPage() {
   }
 
   const isGiveFilter = filter.kind === 'give'
+  const countState = historyCountState(rows?.length ?? 0, total, hasMore, totalSettled)
 
   return (
     <div className="space-y-6">
@@ -511,11 +517,9 @@ export default function HistoryPage() {
               ? isGiveFilter
                 ? 'No gives or takes yet'
                 : 'No transactions yet'
-              : historyCountLabel(
-                  total ?? rows.length,
-                  total === null && hasMore,
-                  isGiveFilter,
-                )}
+              : countState.pending
+                ? <span role="status" aria-label="Counting" className="inline-block h-3 w-24 animate-pulse rounded bg-zinc-800 align-middle" />
+                : historyCountLabel(countState.count, countState.approximate, isGiveFilter)}
         </p>
       </header>
 
