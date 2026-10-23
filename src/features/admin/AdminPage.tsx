@@ -79,6 +79,7 @@ import AppVersionFooter from '@/components/AppVersionFooter'
 import { Sheet } from '@/components/ui/Sheet'
 import { useHideAmounts, usePeekTarget } from '@/lib/HideAmountsProvider'
 import { BusyOverlay } from '@/components/ui/BusyOverlay'
+import { ListSkeleton } from '@/components/ui/ListSkeleton'
 import { LoadingStatus } from '@/components/ui/LoadingStatus'
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs'
 import {
@@ -640,7 +641,7 @@ export default function AdminPage() {
             className="rounded-lg p-3"
           />
         ) : accounts === null ? (
-          <LoadingStatus label="Loading accounts…" className="py-6" />
+          <ListSkeleton label="Loading accounts…" rows={2} />
         ) : groups.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center">
             <p className="text-sm font-medium text-zinc-300">

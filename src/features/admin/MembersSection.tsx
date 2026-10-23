@@ -8,7 +8,7 @@ import { FieldLabel } from '@/components/ui/FieldLabel'
 import PinInput from '@/components/ui/PinInput'
 import { Sheet } from '@/components/ui/Sheet'
 import { BusyOverlay } from '@/components/ui/BusyOverlay'
-import { LoadingStatus } from '@/components/ui/LoadingStatus'
+import { ListSkeleton } from '@/components/ui/ListSkeleton'
 import {
   ADMIN_HOUSEHOLD_MEMBERS_INTRO,
   ADMIN_HOUSEHOLD_MEMBERS_TITLE,
@@ -507,7 +507,7 @@ export default function MembersSection({
       </form>
 
       {members === null ? (
-        <LoadingStatus label={ADMIN_LOADING_MEMBERS} className="py-6" />
+        <ListSkeleton label={ADMIN_LOADING_MEMBERS} rows={3} />
       ) : (
         <ul className="divide-y divide-zinc-800 overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-zinc-800">
           {members.map((m) => {
