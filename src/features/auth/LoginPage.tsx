@@ -451,6 +451,7 @@ export default function LoginPage() {
                       autoFocus
                       aria-label="4-digit PIN"
                       value={pinValue}
+                      error={Boolean(pinError)}
                       onChange={onPinChange}
                       disabled={pinBusy}
                       placeholder="····"

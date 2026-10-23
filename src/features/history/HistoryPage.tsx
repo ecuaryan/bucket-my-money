@@ -33,6 +33,7 @@ import {
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import HistoryPageSkeleton from '@/components/HistoryPageSkeleton'
+import { useContentFade } from '@/hooks/useContentFade'
 import { ClearableInput } from '@/components/ui/ClearableInput'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Sheet } from '@/components/ui/Sheet'
@@ -124,6 +125,7 @@ export default function HistoryPage() {
   const filter = useMemo(() => filterForKey(filterKey), [filterKey])
 
   const [rows, setRows] = useState<TxRow[] | null>(null)
+  const rowsFade = useContentFade(rows === null)
   // Only offer Peek when there are actually amounts on screen.
   usePeekTarget((rows?.length ?? 0) > 0)
   const { formatMoney, hidden, hasPeekTarget } = useHideAmounts()
@@ -544,7 +546,12 @@ export default function HistoryPage() {
       {rows === null ? (
         <HistoryPageSkeleton />
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center">
+        <div
+          className={
+            'rounded-2xl border border-dashed border-zinc-700 p-6 text-center ' +
+            (rowsFade ?? '')
+          }
+        >
           <p className="text-sm font-medium text-zinc-300">
             {isGiveFilter
               ? 'No gives or takes yet'
@@ -561,7 +568,7 @@ export default function HistoryPage() {
           </p>
         </div>
       ) : (
-        <div ref={daysRef} className="space-y-5">
+        <div ref={daysRef} className={'space-y-5 ' + (rowsFade ?? '')}>
           {/* One Select for the whole list. A zero-height sticky wrapper at the
               start of the list sits on the first day label at rest and pins
               level with the pinned label while scrolling — independent of the

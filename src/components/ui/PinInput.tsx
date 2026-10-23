@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useEffect,
   useLayoutEffect,
   useRef,
   type FocusEvent,
@@ -12,6 +13,8 @@ type PinInputProps = Omit<
   'type' | 'value' | 'onChange' | 'inputMode' | 'autoComplete' | 'ref'
 > & {
   value: string
+  /** Shakes the field each time it turns true (a wrong PIN). */
+  error?: boolean
   onChange: (value: string) => void
   maxLength?: number
 }
@@ -27,6 +30,7 @@ const PinInput = forwardRef<HTMLInputElement, PinInputProps>(function PinInput(
   {
     value,
     onChange,
+    error = false,
     maxLength = 4,
     className = '',
     autoFocus,
@@ -58,6 +62,22 @@ const PinInput = forwardRef<HTMLInputElement, PinInputProps>(function PinInput(
     if (!el) return
     el.focus({ preventScroll: true })
   }, [autoFocus])
+
+  useEffect(() => {
+    if (!error) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    localRef.current?.animate(
+      [
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-8px)' },
+        { transform: 'translateX(7px)' },
+        { transform: 'translateX(-5px)' },
+        { transform: 'translateX(3px)' },
+        { transform: 'translateX(0)' },
+      ],
+      { duration: 320, easing: 'cubic-bezier(0.36, 0.07, 0.19, 0.97)' },
+    )
+  }, [error])
 
   return (
     <input

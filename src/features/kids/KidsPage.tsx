@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import KidsPageSkeleton from '@/components/KidsPageSkeleton'
+import { useContentFade } from '@/hooks/useContentFade'
 import FundKidSheet from '@/features/kids/FundKidSheet'
 import ReturnKidSheet from '@/features/kids/ReturnKidSheet'
 import { LinkedKidRow, VirtualKidRow } from '@/features/kids/KidMoneyRow'
@@ -233,6 +234,15 @@ export default function KidsPage() {
     }
   }
 
+  const showSkeleton =
+    children === null ||
+    accounts === null ||
+    linkedChildIds === null ||
+    balanceBreakdown === null ||
+    model === null ||
+    available === null
+  const contentFade = useContentFade(showSkeleton)
+
   if (!isAdult) {
     return <Navigate to="/" replace />
   }
@@ -247,14 +257,7 @@ export default function KidsPage() {
     )
   }
 
-  if (
-    children === null ||
-    accounts === null ||
-    linkedChildIds === null ||
-    balanceBreakdown === null ||
-    model === null ||
-    available === null
-  ) {
+  if (showSkeleton) {
     return <KidsPageSkeleton />
   }
 
@@ -263,7 +266,7 @@ export default function KidsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={'space-y-6 ' + (contentFade ?? '')}>
       <header>
         <h1 className="text-xl font-semibold">{KIDS_PAGE_TITLE}</h1>
         <p className="mt-1 text-sm text-zinc-400">

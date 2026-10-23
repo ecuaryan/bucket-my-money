@@ -48,6 +48,7 @@ import SuggestedBucketChips from '@/features/buckets/SuggestedBucketChips'
 import { Sheet } from '@/components/ui/Sheet'
 import { isCashAccount, isLinkedAccount } from '@/lib/accounts'
 import BucketsPageSkeleton from '@/components/BucketsPageSkeleton'
+import { useContentFade } from '@/hooks/useContentFade'
 import { BusyOverlay } from '@/components/ui/BusyOverlay'
 import { ClearableInput } from '@/components/ui/ClearableInput'
 import {
@@ -1013,6 +1014,21 @@ export default function BucketsPage() {
     setNewBucketName('')
   }
 
+  const authLoading =
+    auth.status === 'signedIn' && auth.memberLoading
+  const tabAvailabilityPending = isAutoOrganizeTabAvailabilityPending(
+    canSeeAutoOrganize,
+    isAutoOrganizeAuthor,
+    autoOrganizeTabAvailable,
+  )
+  const showSkeleton =
+    authLoading ||
+    !familyId ||
+    buckets === null ||
+    accounts === null ||
+    balanceBreakdown === null ||
+    tabAvailabilityPending
+  const contentFade = useContentFade(showSkeleton)
   if (loadError) {
     return (
       <LoadErrorPanel
@@ -1023,21 +1039,7 @@ export default function BucketsPage() {
     )
   }
 
-  const authLoading =
-    auth.status === 'signedIn' && auth.memberLoading
-  const tabAvailabilityPending = isAutoOrganizeTabAvailabilityPending(
-    canSeeAutoOrganize,
-    isAutoOrganizeAuthor,
-    autoOrganizeTabAvailable,
-  )
-  if (
-    authLoading ||
-    !familyId ||
-    buckets === null ||
-    accounts === null ||
-    balanceBreakdown === null ||
-    tabAvailabilityPending
-  ) {
+  if (showSkeleton) {
     return <BucketsPageSkeleton />
   }
 
@@ -1117,7 +1119,7 @@ export default function BucketsPage() {
         }
         label="Updating…"
       >
-        <div className="space-y-6">
+        <div className={'space-y-6 ' + (contentFade ?? '')}>
       {balanceUsesFallback && (
         <p className="rounded-2xl bg-amber-500/10 px-4 py-3 text-sm text-amber-200 ring-1 ring-amber-500/30">
           {BUCKETS_DB_UPDATE_PENDING_BODY}
