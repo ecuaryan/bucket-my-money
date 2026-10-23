@@ -1273,6 +1273,7 @@ export type Database = {
         Args: { p_amount: number; p_kind?: string; p_label: string }
         Returns: string
       }
+      anon_exposed_surface: { Args: never; Returns: Json }
       auth_family_id: { Args: never; Returns: string }
       auth_member_id: { Args: never; Returns: string }
       auth_role: { Args: never; Returns: string }
