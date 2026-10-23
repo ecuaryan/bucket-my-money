@@ -57,9 +57,25 @@ export default function FamilyJoinSection() {
     return `${window.location.origin}/join?code=${encodeURIComponent(joinCode)}`
   }, [joinCode])
 
-  const qrSrc = useMemo(() => {
-    if (!joinUrl) return ''
-    return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(joinUrl)}`
+  // Drawn here, never by a third party: the link contains the join code.
+  // Loaded lazily so the QR encoder stays out of the main bundle.
+  const [qrSrc, setQrSrc] = useState('')
+  useEffect(() => {
+    if (!joinUrl) {
+      setQrSrc('')
+      return
+    }
+    let cancelled = false
+    void import('@/lib/qrCode')
+      .then((m) => {
+        if (!cancelled) setQrSrc(m.qrSvgDataUrl(joinUrl))
+      })
+      .catch(() => {
+        if (!cancelled) setQrSrc('')
+      })
+    return () => {
+      cancelled = true
+    }
   }, [joinUrl])
 
   function openRotateConfirm() {
@@ -128,14 +144,19 @@ export default function FamilyJoinSection() {
         </div>
       )}
       <div className="mt-4 flex flex-col items-center gap-4 rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800 sm:flex-row sm:items-start">
-        {qrSrc && (
-          <img
-            src={qrSrc}
-            alt={ADMIN_JOIN_CODE_QR_ALT}
-            width={180}
-            height={180}
-            className="rounded-lg bg-white p-2"
-          />
+        {joinCode && (
+          // Reserve the space so the card doesn't jump when the QR appears.
+          <div className="h-[180px] w-[180px] shrink-0 rounded-lg bg-white/5">
+            {qrSrc && (
+              <img
+                src={qrSrc}
+                alt={ADMIN_JOIN_CODE_QR_ALT}
+                width={180}
+                height={180}
+                className="rounded-lg bg-white p-2"
+              />
+            )}
+          </div>
         )}
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <div className="flex items-center justify-center gap-2 sm:justify-start">
