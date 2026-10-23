@@ -131,29 +131,53 @@ export function historyPageCursorFilter(cursor: HistoryPageCursor): string {
   return `created_at.lt.${ts},and(created_at.eq.${ts},id.lt.${id})`
 }
 
+/** The filter's predicates, shared by the page query and the total count. */
+function applyHistoryFilter<
+  Q extends {
+    eq: (column: string, value: string) => Q
+    or: (filters: string) => Q
+  },
+>(query: Q, activeFilter: HistoryFilter): Q {
+  if (activeFilter.kind === 'give') {
+    // 'give'-type rows cover both gives (adult → kid) and takes
+    // (return_from_child), so one filter surfaces all give/take activity.
+    return query.eq('type', 'give')
+  }
+  if (activeFilter.kind === 'bucket') {
+    return query.or(
+      `from_bucket_id.eq.${activeFilter.bucketId},to_bucket_id.eq.${activeFilter.bucketId}`,
+    )
+  }
+  return query
+}
+
+export type FetchHistoryPageOptions = {
+  /**
+   * Ask for the exact total in the same request. Defaults to true for the first
+   * page only. The count has to evaluate row visibility for every row (it was
+   * measured at ~1.7 s with ~16,000 transactions), so the page itself fetches
+   * without it and loads the total separately with fetchHistoryTotal.
+   */
+  withCount?: boolean
+}
+
 export async function fetchHistoryPage(
   activeFilter: HistoryFilter,
   before: HistoryPageCursor | null,
   limit: number,
+  options: FetchHistoryPageOptions = {},
 ): Promise<FetchHistoryPageResult> {
+  const withCount = options.withCount ?? before === null
   try {
     return await withAuthLockRetry(async () => {
       let query = supabase
         .from(TX_FROM)
-        .select(TX_SELECT, before ? undefined : { count: 'exact' })
+        .select(TX_SELECT, withCount ? { count: 'exact' } : undefined)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .limit(limit)
       if (before) query = query.or(historyPageCursorFilter(before))
-      if (activeFilter.kind === 'give') {
-        // 'give'-type rows cover both gives (adult → kid) and takes
-        // (return_from_child), so one filter surfaces all give/take activity.
-        query = query.eq('type', 'give')
-      } else if (activeFilter.kind === 'bucket') {
-        query = query.or(
-          `from_bucket_id.eq.${activeFilter.bucketId},to_bucket_id.eq.${activeFilter.bucketId}`,
-        )
-      }
+      query = applyHistoryFilter(query, activeFilter)
       const { data, error, count } = await query
       if (error) {
         return { ok: false as const, error: formatLoadErrorMessage(error.message) }
@@ -169,5 +193,24 @@ export async function fetchHistoryPage(
       ok: false,
       error: formatLoadErrorMessage(error, 'Could not load history.'),
     }
+  }
+}
+
+/** Exact number of rows matching the filter (head request: no rows are sent). */
+export async function fetchHistoryTotal(
+  activeFilter: HistoryFilter,
+): Promise<number | null> {
+  try {
+    return await withAuthLockRetry(async () => {
+      const query = applyHistoryFilter(
+        supabase.from(TX_FROM).select('id', { count: 'exact', head: true }),
+        activeFilter,
+      )
+      const { count, error } = await query
+      if (error) return null
+      return typeof count === 'number' ? count : null
+    })
+  } catch {
+    return null
   }
 }

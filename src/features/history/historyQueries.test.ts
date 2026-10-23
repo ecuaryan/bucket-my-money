@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import {
   fetchHistoryPage,
+  fetchHistoryTotal,
   historyPageCursorFilter,
   isHistoryRowOlderThan,
   mergeHistoryHead,
@@ -159,6 +160,17 @@ describe('fetchHistoryPage', () => {
     expect(mockSelect).toHaveBeenLastCalledWith(expect.any(String), undefined)
   })
 
+  it('can fetch the first page without the (slow) exact total', async () => {
+    await fetchHistoryPage({ kind: 'all' }, null, 10, { withCount: false })
+    expect(mockSelect).toHaveBeenLastCalledWith(expect.any(String), undefined)
+
+    // ...and a later page can still opt in explicitly.
+    await fetchHistoryPage({ kind: 'all' }, null, 10, { withCount: true })
+    expect(mockSelect).toHaveBeenLastCalledWith(expect.any(String), {
+      count: 'exact',
+    })
+  })
+
   it('applies bucket filter', async () => {
     await fetchHistoryPage({ kind: 'bucket', bucketId: 'bucket-1' }, null, 10)
     expect(chain.or).toHaveBeenCalledWith(
@@ -174,5 +186,50 @@ describe('fetchHistoryPage', () => {
     await fetchHistoryPage({ kind: 'all' }, cursor, 50)
     expect(chain.or).toHaveBeenCalledWith(historyPageCursorFilter(cursor))
     expect(mockLimit).toHaveBeenCalledWith(50)
+  })
+})
+
+describe('fetchHistoryTotal', () => {
+  function totalChain(result: { count: number | null; error: unknown }) {
+    const c: {
+      eq: ReturnType<typeof vi.fn>
+      or: ReturnType<typeof vi.fn>
+      then: (resolve: (v: typeof result) => void) => void
+    } = {
+      eq: vi.fn(),
+      or: vi.fn(),
+      then: (resolve) => resolve(result),
+    }
+    c.eq.mockReturnValue(c)
+    c.or.mockReturnValue(c)
+    return c
+  }
+
+  beforeEach(() => vi.clearAllMocks())
+
+  it('asks for a head-only exact count and applies the same filters', async () => {
+    const all = totalChain({ count: 42, error: null })
+    mockSelect.mockReturnValueOnce(all as never)
+    expect(await fetchHistoryTotal({ kind: 'all' })).toBe(42)
+    expect(mockSelect).toHaveBeenLastCalledWith('id', { count: 'exact', head: true })
+
+    const gives = totalChain({ count: 7, error: null })
+    mockSelect.mockReturnValueOnce(gives as never)
+    expect(await fetchHistoryTotal({ kind: 'give' })).toBe(7)
+    expect(gives.eq).toHaveBeenCalledWith('type', 'give')
+
+    const bucket = totalChain({ count: 3, error: null })
+    mockSelect.mockReturnValueOnce(bucket as never)
+    expect(await fetchHistoryTotal({ kind: 'bucket', bucketId: 'bucket-1' })).toBe(3)
+    expect(bucket.or).toHaveBeenCalledWith(
+      'from_bucket_id.eq.bucket-1,to_bucket_id.eq.bucket-1',
+    )
+  })
+
+  it('returns null instead of throwing when the count fails', async () => {
+    mockSelect.mockReturnValueOnce(
+      totalChain({ count: null, error: { message: 'boom' } }) as never,
+    )
+    expect(await fetchHistoryTotal({ kind: 'all' })).toBeNull()
   })
 })

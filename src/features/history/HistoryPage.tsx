@@ -50,10 +50,15 @@ import {
 } from '@/features/history/historyFilters'
 import {
   fetchHistoryPage,
+  fetchHistoryTotal,
   applyHistoryHeadRefresh,
   stripJustArrived,
   type HistoryDisplayRow,
 } from '@/features/history/historyQueries'
+import {
+  readHistoryPageCache,
+  writeHistoryPageCache,
+} from '@/lib/historyPageCache'
 import { HISTORY_ROW_ARRIVED_CLEAR_MS } from '@/features/history/historyRowExpand'
 import { useHistoryRowExpandAnimation } from '@/features/history/useHistoryRowExpandAnimation'
 import { withAuthLockRetry } from '@/lib/authLockError'
@@ -138,6 +143,8 @@ export default function HistoryPage() {
 
   // Bump when family or filter changes so stale async work cannot mutate state.
   const listGeneration = useRef(0)
+  // True once the current list has been (re)loaded from the server this visit.
+  const freshRef = useRef(false)
   const rowsRef = useRef<TxRow[] | null>(null)
   const realtimeRefreshTimer = useRef<
     ReturnType<typeof setTimeout> | undefined
@@ -150,6 +157,7 @@ export default function HistoryPage() {
   const accessToken =
     auth.status === 'signedIn' ? auth.session.access_token : null
   const familyId = member?.family_id ?? null
+  const memberId = member?.id ?? null
   const { giveReady, showGiveNav, kids } = useGiveRecipients()
   // Kids that give see it via showGiveNav; adults give/take with virtual kids
   // (kids.length) but route through the Kids tab, so showGiveNav is false for
@@ -195,16 +203,30 @@ export default function HistoryPage() {
     setHasMore(result.rows.length === MORE_PAGE_SIZE)
   }, [filterKey, loadingMore, rows])
 
+  // The exact total is slow on big histories, so it never blocks rows: it fills
+  // in afterwards (the page keeps showing the previous total meanwhile).
+  const refreshTotal = useCallback(
+    (generation: number, activeFilter: HistoryFilter) => {
+      void fetchHistoryTotal(activeFilter).then((next) => {
+        if (generation !== listGeneration.current || next === null) return
+        setTotal(next)
+      })
+    },
+    [],
+  )
+
   const refreshHead = useCallback(async () => {
     const generation = listGeneration.current
     const activeFilter = filterForKey(filterKey)
-    const result = await fetchHistoryPage(activeFilter, null, INITIAL_PAGE_SIZE)
+    const result = await fetchHistoryPage(activeFilter, null, INITIAL_PAGE_SIZE, {
+      withCount: false,
+    })
 
     if (generation !== listGeneration.current) return
     if (!result.ok) return
-    if (result.total !== null) setTotal(result.total)
 
     let hasNewRows = false
+    freshRef.current = true
     flushSync(() => {
       setRows((prev) => {
         if (!prev) return result.rows
@@ -213,8 +235,11 @@ export default function HistoryPage() {
         return applied.rows
       })
     })
-    if (hasNewRows) scheduleClearJustArrived()
-  }, [filterKey, scheduleClearJustArrived])
+    if (hasNewRows) {
+      scheduleClearJustArrived()
+      refreshTotal(generation, activeFilter)
+    }
+  }, [filterKey, scheduleClearJustArrived, refreshTotal])
 
   const debouncedRefreshHead = useCallback(() => {
     clearTimeout(realtimeRefreshTimer.current)
@@ -245,24 +270,65 @@ export default function HistoryPage() {
 
     const generation = ++listGeneration.current
     const activeFilter = filterForKey(filterKey)
+    const cached = memberId
+      ? readHistoryPageCache(familyId, memberId, filterKey)
+      : null
 
     setLoadError(null)
     setLoadMoreError(null)
-    setRows(null)
-    setTotal(null)
-    setHasMore(true)
     setLoadingMore(false)
+    freshRef.current = false
+    if (cached) {
+      // Instant return: what you last saw, while the fresh page loads behind it.
+      setRows(cached.rows)
+      setTotal(cached.total)
+      setHasMore(cached.hasMore)
+    } else {
+      setRows(null)
+      setTotal(null)
+      setHasMore(true)
+    }
 
-    const result = await fetchHistoryPage(activeFilter, null, INITIAL_PAGE_SIZE)
+    const result = await fetchHistoryPage(activeFilter, null, INITIAL_PAGE_SIZE, {
+      withCount: false,
+    })
     if (generation !== listGeneration.current) return
     if (!result.ok) {
-      setLoadError(result.error)
+      // Keep showing the cached rows if the refresh fails (e.g. offline).
+      if (!cached) setLoadError(result.error)
       return
     }
-    setRows(result.rows)
-    setTotal(result.total)
+
+    freshRef.current = true
+    if (cached) {
+      // New rows (e.g. a transfer made while you were away) animate in.
+      let hasNewRows = false
+      flushSync(() => {
+        setRows((prev) => {
+          if (!prev) return result.rows
+          const applied = applyHistoryHeadRefresh(prev, result.rows)
+          hasNewRows = applied.newlyArrivedIds.length > 0
+          return applied.rows
+        })
+      })
+      if (hasNewRows) scheduleClearJustArrived()
+    } else {
+      setRows(result.rows)
+    }
     setHasMore(result.rows.length === INITIAL_PAGE_SIZE)
-  }, [familyId, filterKey])
+    refreshTotal(generation, activeFilter)
+  }, [familyId, memberId, filterKey, scheduleClearJustArrived, refreshTotal])
+
+  // Remember the first page for the next visit — only once it is fresh from the
+  // server, so a cached copy can never renew its own lifetime.
+  useEffect(() => {
+    if (!familyId || !memberId || rows === null || !freshRef.current) return
+    writeHistoryPageCache(familyId, memberId, filterKey, {
+      rows: rows.slice(0, INITIAL_PAGE_SIZE).map(stripJustArrived),
+      total,
+      hasMore: rows.length > INITIAL_PAGE_SIZE || hasMore,
+    })
+  }, [familyId, memberId, filterKey, rows, total, hasMore])
 
   useEffect(() => {
     void loadInitialHistory()

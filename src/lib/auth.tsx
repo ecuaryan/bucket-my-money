@@ -32,6 +32,7 @@ import {
   clearAllBucketsPageCaches,
   writeBucketsPageCache,
 } from '@/lib/bucketsPageCache'
+import { clearAllHistoryPageCaches } from '@/lib/historyPageCache'
 import { clearSupabaseApiCache } from '@/lib/serviceWorkerCache'
 import {
   fetchHomeBootstrap,
@@ -207,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearPasswordRecoveryFlow()
       clearBackgroundPrivacyState()
       clearAllBucketsPageCaches()
+      clearAllHistoryPageCaches()
       setState({
         status: 'signedOut',
         session: null,
@@ -423,6 +425,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAutoSignOut()
     clearBackgroundPrivacyState()
     clearAllBucketsPageCaches()
+    clearAllHistoryPageCaches()
     clearSupabaseApiCache()
     const { error } = await supabase.auth.signOut()
     if (error) throw error
