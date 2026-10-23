@@ -125,7 +125,12 @@ export default function HistoryPage() {
   const filter = useMemo(() => filterForKey(filterKey), [filterKey])
 
   const [rows, setRows] = useState<TxRow[] | null>(null)
-  const rowsFade = useContentFade(rows === null)
+  // Opened from cache: the list appears at once, so it never fades (the cache is
+  // applied just after first paint, which a slow device could mistake for a
+  // skeleton that was seen).
+  const [openedFromCache, setOpenedFromCache] = useState(false)
+  const skeletonFade = useContentFade(rows === null)
+  const rowsFade = openedFromCache ? undefined : skeletonFade
   // Only offer Peek when there are actually amounts on screen.
   usePeekTarget((rows?.length ?? 0) > 0)
   const { formatMoney, hidden, hasPeekTarget } = useHideAmounts()
@@ -308,6 +313,7 @@ export default function HistoryPage() {
     freshKeyRef.current = null
     if (cached) {
       // Instant return: what you last saw, while the fresh page loads behind it.
+      setOpenedFromCache(true)
       setRows(cached.rows)
       setTotal(cached.total)
       setHasMore(cached.hasMore)
