@@ -224,9 +224,15 @@ html {
     /* Buttons dip slightly while pressed. `scale` is its own property, so it
        composes with any transform a button already has, and Tailwind's
        `transition` utility already animates it. Tabs animate their own pill;
-       disabled buttons do nothing. */
-    button:not(:disabled):not([role='tab']):active {
+       expandable rows (aria-expanded) are full-width, so squeezing them while you
+       tap looks jittery; disabled buttons do nothing. */
+    button:not(:disabled):not([role='tab']):not([aria-expanded]):active {
       scale: 0.97;
+    }
+
+    /* Full-width buttons move a lot more for the same percentage: a gentler dip. */
+    button.w-full:not(:disabled):not([role='tab']):not([aria-expanded]):active {
+      scale: 0.985;
     }
 
     @keyframes page-fade-in {
