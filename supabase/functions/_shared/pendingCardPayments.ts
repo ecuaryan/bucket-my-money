@@ -43,6 +43,9 @@ export const MAX_SIGNAL_AGE_MS = 12 * 60 * 60 * 1000
 /** A posted card credit this close (days) after the payment means the card already reflects it. */
 const POSTED_MATCH_SLACK_DAYS = 2
 
+/** A posted cash debit only counts as a card payment still in flight for this long. */
+const POSTED_DEBIT_MAX_AGE_DAYS = 5
+
 const EPS = 0.01
 
 export type PendingOutflow = {
@@ -54,12 +57,21 @@ export type PendingOutflow = {
   cardPayment: boolean
 }
 
+export type PostedOutflow = {
+  /** Positive amount of money that left the account (already in its balance). */
+  amount: number
+  /** YYYY-MM-DD */
+  date: string
+}
+
 export type CardCredit = {
   /** Positive magnitude of money paid/credited to the card. */
   amount: number
   /** YYYY-MM-DD */
   date: string
   pending: boolean
+  /** Plaid categorised it as a credit-card payment (not a refund or other credit). */
+  cardPayment?: boolean
 }
 
 export type CashSignals = {
@@ -70,6 +82,12 @@ export type CashSignals = {
   pendingOutflows: PendingOutflow[]
   /** Total of pending inflows (positive magnitude). */
   pendingInflowTotal: number
+  /**
+   * Recent POSTED debits, any category. Banks often file a card payment under
+   * something else (e.g. "Transfer out"), so the card's own pending credit of
+   * the same amount is what identifies it. Absent in signals stored before this.
+   */
+  postedOutflows?: PostedOutflow[]
   observedAt: string
 }
 
@@ -170,6 +188,37 @@ export function computeCardNetting(
     }
   }
 
+  // A cash debit that has already POSTED is in the account's balance for sure,
+  // so there is no pending-vs-current question. The bank may label it anything,
+  // so it is the card's own pending card-payment credit of the exact same amount
+  // that says "this payment is on its way". One card must match, each pending
+  // credit is used once, and recent debits only.
+  const today = dayNumber(now.toISOString().slice(0, 10))
+  const unusedCredits = new Map(
+    debtBearing.map((c) => [
+      c.accountId,
+      c.credits.filter((cr) => cr.pending && cr.cardPayment),
+    ]),
+  )
+  for (const cash of fresh) {
+    if (cash.kind !== 'cash') continue
+    for (const debit of cash.postedOutflows ?? []) {
+      const age = today - dayNumber(debit.date)
+      if (age < 0 || age > POSTED_DEBIT_MAX_AGE_DAYS) continue
+      const payment: PendingOutflow = { ...debit, cardPayment: true }
+      const matches = debtBearing.filter(
+        (c) =>
+          c.debt >= debit.amount - EPS &&
+          !postedCreditCoversPayment(c, payment) &&
+          (unusedCredits.get(c.accountId) ?? []).some((cr) => close(cr.amount, debit.amount)),
+      )
+      if (matches.length !== 1) continue
+      const credits = unusedCredits.get(matches[0].accountId) ?? []
+      credits.splice(credits.findIndex((cr) => close(cr.amount, debit.amount)), 1)
+      result.set(matches[0].accountId, (result.get(matches[0].accountId) ?? 0) + debit.amount)
+    }
+  }
+
   // Never net more than the card owes.
   for (const card of cards) {
     const sum = result.get(card.accountId) ?? 0
@@ -223,6 +272,9 @@ export function cashSignalsFromPlaid(args: {
     pendingInflowTotal: pending
       .filter((t) => t.amount < 0)
       .reduce((sum, t) => sum - t.amount, 0),
+    postedOutflows: args.transactions
+      .filter((t) => t.account_id === args.plaidAccountId && !t.pending && t.amount > 0)
+      .map((t) => ({ amount: t.amount, date: t.date })),
     observedAt: args.observedAt,
   }
 }
@@ -241,7 +293,12 @@ export function cardSignalsFromPlaid(args: {
     debt: args.debt,
     credits: args.transactions
       .filter((t) => t.account_id === args.plaidAccountId && t.amount < 0)
-      .map((t) => ({ amount: -t.amount, date: t.date, pending: t.pending })),
+      .map((t) => ({
+        amount: -t.amount,
+        date: t.date,
+        pending: t.pending,
+        cardPayment: isCardPaymentCategory(t.personal_finance_category),
+      })),
     observedAt: args.observedAt,
   }
 }
