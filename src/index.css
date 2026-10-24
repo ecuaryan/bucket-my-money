@@ -225,13 +225,14 @@ html {
        composes with any transform a button already has, and Tailwind's
        `transition` utility already animates it. Tabs animate their own pill;
        expandable rows (aria-expanded) are full-width, so squeezing them while you
-       tap looks jittery; disabled buttons do nothing. */
-    button:not(:disabled):not([role='tab']):not([aria-expanded]):active {
+       tap looks jittery (small ⋮ menu buttons, which also set aria-haspopup, keep
+       the dip); disabled buttons do nothing. */
+    button:not(:disabled):not([role='tab']):not([aria-expanded]:not([aria-haspopup])):active {
       scale: 0.97;
     }
 
     /* Full-width buttons move a lot more for the same percentage: a gentler dip. */
-    button.w-full:not(:disabled):not([role='tab']):not([aria-expanded]):active {
+    button.w-full:not(:disabled):not([role='tab']):not([aria-expanded]:not([aria-haspopup])):active {
       scale: 0.985;
     }
 

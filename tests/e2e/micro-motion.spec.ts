@@ -148,6 +148,15 @@ test.describe('Button press feedback', () => {
     expect(await pressedScale(page, 'main button:enabled:not([role="tab"]):not([aria-expanded])')).toBe('0.97')
   })
 
+  test('small ⋮ menu buttons keep the dip', async ({ page }) => {
+    const family = await createAdminFamily('e2e-micro-press-menu')
+    await insertBucket(serviceClient(), family.familyId, 'Groceries', null)
+    await signIn(page, family.adminEmail, family.adminPassword)
+    const menu = page.getByRole('button', { name: 'Bucket options' }).first()
+    await expect(menu).toBeVisible()
+    expect(await pressedScale(page, 'button[aria-label="Bucket options"]')).toBe('0.97')
+  })
+
   test('full-width buttons dip less than small ones', async ({ page }) => {
     const family = await createAdminFamily('e2e-micro-press-wide')
     await signIn(page, family.adminEmail, family.adminPassword)

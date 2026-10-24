@@ -159,12 +159,22 @@ export default function BitcoinKidsSection({
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-800/40"
                 >
                   <span className="flex items-center gap-2 text-sm text-zinc-200">
-                    <span
-                      aria-hidden
-                      className={`text-[10px] text-zinc-500 transition-transform ${expanded ? 'rotate-90' : ''}`}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      className={
+                        'h-4 w-4 shrink-0 text-zinc-500 motion-safe:transition-transform motion-safe:duration-200 ' +
+                        (expanded ? 'rotate-180' : '')
+                      }
                     >
-                      ▶
-                    </span>
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
                     {kid.name}
                   </span>
                   {kidEntries.length === 0 ? (
