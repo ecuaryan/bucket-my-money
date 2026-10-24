@@ -1,10 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { nextSegmentedTabIndex } from '@/lib/segmentedTabsKeyboard'
 
 type SegmentedTabsProps<T extends string> = {
   value: T
   options: readonly { value: T; label: string }[]
   onChange: (value: T) => void
+  /** Optional decorative icon shown before each label. */
+  renderIcon?: (value: T) => ReactNode
   ariaLabel: string
   className?: string
 }
@@ -13,9 +15,14 @@ export function SegmentedTabs<T extends string>({
   value,
   options,
   onChange,
+  renderIcon,
   ariaLabel,
   className = '',
 }: SegmentedTabsProps<T>) {
+  // Icons need room: with more than three tabs the labels alone already fill
+  // a phone-width bar, so they drop the icons rather than truncate.
+  const showIcons = Boolean(renderIcon) && options.length <= 3
+
   function focusTab(tabValue: T) {
     document.getElementById(`segmented-tab-${tabValue}`)?.focus()
   }
@@ -99,13 +106,24 @@ export function SegmentedTabs<T extends string>({
               focusTab(next.value)
             }}
             className={
-              'relative z-10 min-w-0 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors duration-200 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
+              'relative z-10 min-w-0 flex-1 rounded-lg py-2 font-semibold transition-colors duration-200 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
+              (showIcons ? 'px-1 text-[13px] min-[380px]:px-2 min-[380px]:text-sm ' : 'px-3 text-sm ') +
               (selected
                 ? 'text-zinc-100'
                 : 'text-zinc-400 hover:text-zinc-300')
             }
           >
-            {option.label}
+            {showIcons ? (
+              <span className="flex items-center justify-center gap-1 min-[380px]:gap-1.5">
+                {/* Hidden on very narrow screens, where the label needs the room. */}
+                <span className="hidden min-[340px]:contents">
+                  {renderIcon?.(option.value)}
+                </span>
+                <span className="truncate">{option.label}</span>
+              </span>
+            ) : (
+              option.label
+            )}
           </button>
         )
       })}

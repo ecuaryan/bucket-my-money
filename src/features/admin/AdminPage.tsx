@@ -82,6 +82,7 @@ import { BusyOverlay } from '@/components/ui/BusyOverlay'
 import { ListSkeleton } from '@/components/ui/ListSkeleton'
 import { LoadingStatus } from '@/components/ui/LoadingStatus'
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs'
+import { SegmentedTabIcon } from '@/components/ui/SegmentedTabIcons'
 import {
   ADMIN_PAGE_TAB_OPTIONS,
   applyAdminPageTabToSearchParams,
@@ -538,6 +539,7 @@ export default function AdminPage() {
       <SegmentedTabs
         value={activeTab}
         options={ADMIN_PAGE_TAB_OPTIONS}
+        renderIcon={(tab) => <SegmentedTabIcon tab={tab} />}
         onChange={onAdminPageTabChange}
         ariaLabel={ADMIN_PAGE_TABS_ARIA_LABEL}
       />

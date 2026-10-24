@@ -65,6 +65,7 @@ import { formatRelativeTime } from '@/lib/relativeTime'
 import { formatLoadErrorMessage } from '@/lib/authLockError'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs'
+import { SegmentedTabIcon } from '@/components/ui/SegmentedTabIcons'
 import { loadBucketsPage } from '@/lib/bucketsPageLoad'
 import {
   renameBucketInList,
@@ -1209,6 +1210,7 @@ export default function BucketsPage() {
         <SegmentedTabs
           value={activeTab}
           options={bucketsTabOptions}
+          renderIcon={(tab) => <SegmentedTabIcon tab={tab} />}
           onChange={onBucketsPageTabChange}
           ariaLabel={BUCKETS_PAGE_TABS_ARIA_LABEL}
         />
