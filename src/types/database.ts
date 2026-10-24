@@ -1370,6 +1370,7 @@ export type Database = {
         }[]
       }
       cleanup_rate_limit_hits: { Args: never; Returns: number }
+      client_extra_privileges: { Args: never; Returns: Json }
       client_float_balance_after: {
         Args: { p_transaction_id: string }
         Returns: number
