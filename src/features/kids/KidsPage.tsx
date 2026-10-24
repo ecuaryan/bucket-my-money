@@ -31,7 +31,7 @@ import { subscribeHouseholdRosterRefresh } from '@/lib/householdRosterRefresh'
 import { formatErrorMessage } from '@/lib/errorMessage'
 import { formatRelativeTime } from '@/lib/relativeTime'
 import { refreshAllBankBalances } from '@/lib/bankProviders'
-import { refreshBalancesErrorMessage } from '@/lib/bankLink'
+import { refreshBalancesErrorMessage, refreshThrottledMessage } from '@/lib/bankLink'
 import RefreshIconButton from '@/components/ui/RefreshIconButton'
 import { buildKidsPageModel, type VirtualKidRow as VirtualKidRowData } from '@/lib/kidsPageModel'
 import { fetchLinkedChildMemberIds } from '@/lib/give'
@@ -226,6 +226,8 @@ export default function KidsPage() {
       // come back in `errors`), so surface that instead of stopping silently.
       const result = await refreshAllBankBalances({ plaidEnabled })
       setRefreshError(refreshBalancesErrorMessage(result))
+      const throttled = refreshThrottledMessage(result)
+      if (throttled) toast.success(throttled)
       await loadData()
     } catch (e) {
       setRefreshError(formatErrorMessage(e, REFRESH_BALANCES_ERROR))

@@ -138,7 +138,7 @@ import { usePostgresChanges } from '@/hooks/usePostgresChanges'
 import { useFlipList } from '@/hooks/useFlipList'
 import { useHideAmounts, usePeekTarget } from '@/lib/HideAmountsProvider'
 import { refreshAllBankBalances } from '@/lib/bankProviders'
-import { refreshBalancesErrorMessage } from '@/lib/bankLink'
+import { refreshBalancesErrorMessage, refreshThrottledMessage } from '@/lib/bankLink'
 import {
   formatBucketsHeaderSubtitle,
   formatFloatCashSubtext,
@@ -879,6 +879,8 @@ export default function BucketsPage() {
       // come back in `errors`), so surface that instead of stopping silently.
       const result = await refreshAllBankBalances({ plaidEnabled })
       setRefreshError(refreshBalancesErrorMessage(result))
+      const throttled = refreshThrottledMessage(result)
+      if (throttled) toast.success(throttled)
       await loadData()
     } catch (e) {
       setRefreshError(formatErrorMessage(e, REFRESH_BALANCES_ERROR))
