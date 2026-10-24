@@ -6,6 +6,7 @@ import {
   formatFloatCashSubtext,
   formatFloatSummary,
   floatSummary,
+  mayBeCardPaymentLag,
 } from '@/lib/floatBreakdown'
 
 const fmt = (n: number) => `$${n.toFixed(2)}`
@@ -350,5 +351,31 @@ describe('formatBucketsHeaderSubtitle', () => {
     expect(formatBucketsHeaderSubtitle(31, 50825.3, fmt)).toBe(
       '31 buckets · $50825.30 allocated',
     )
+  })
+})
+
+describe('mayBeCardPaymentLag', () => {
+  const cards = { cardDebt: 2000, cardPendingPayments: 0 }
+
+  it('is true when red, a card is counted, and the shortfall fits within the card debt', () => {
+    expect(mayBeCardPaymentLag(-307.06, cards)).toBe(true)
+    expect(mayBeCardPaymentLag(-2000, cards)).toBe(true)
+  })
+
+  it('is false when Unbucketed is not negative', () => {
+    expect(mayBeCardPaymentLag(0, cards)).toBe(false)
+    expect(mayBeCardPaymentLag(150, cards)).toBe(false)
+  })
+
+  it('is false without a card', () => {
+    expect(mayBeCardPaymentLag(-307.06, { cardDebt: 0, cardPendingPayments: 0 })).toBe(false)
+  })
+
+  it('is false when the shortfall is bigger than the card debt (over-bucketed, not a payment)', () => {
+    expect(mayBeCardPaymentLag(-2000.01, cards)).toBe(false)
+  })
+
+  it('is false when a payment is already being counted as paid', () => {
+    expect(mayBeCardPaymentLag(-307.06, { cardDebt: 2000, cardPendingPayments: 500 })).toBe(false)
   })
 })

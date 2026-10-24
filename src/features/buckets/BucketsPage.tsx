@@ -38,6 +38,7 @@ import {
   FLOAT_HERO_SUBTITLE,
   FLOAT_HERO_SUBTITLE_WITH_CARDS,
   floatOverbucketedHint,
+  FLOAT_CARD_PAYMENT_LAG_NOTE,
   floatShortWithCardsHint,
   FLOAT_LABEL,
 } from '@/lib/brand'
@@ -140,6 +141,7 @@ import { refreshBalancesErrorMessage } from '@/lib/bankLink'
 import {
   formatBucketsHeaderSubtitle,
   formatFloatCashSubtext,
+  mayBeCardPaymentLag,
 } from '@/lib/floatBreakdown'
 import {
   getOnboardingCoachState,
@@ -1101,7 +1103,10 @@ export default function BucketsPage() {
       ? null
       : float < 0
         ? balanceBreakdown.cardDebt > 0
-          ? floatShortWithCardsHint(formatMoney(Math.abs(float)))
+          ? floatShortWithCardsHint(formatMoney(Math.abs(float))) +
+            (mayBeCardPaymentLag(float, balanceBreakdown)
+              ? ' ' + FLOAT_CARD_PAYMENT_LAG_NOTE
+              : '')
           : floatOverbucketedHint(formatMoney(Math.abs(float)))
         : cashSubtext
           ? null
