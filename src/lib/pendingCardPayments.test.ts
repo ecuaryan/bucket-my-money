@@ -202,6 +202,146 @@ describe('Plaid payload mapping', () => {
       transactions: txns,
       observedAt: OBSERVED,
     })
-    expect(s.credits).toEqual([{ amount: 300, date: '2026-10-22', pending: true }])
+    expect(s.credits).toEqual([
+      { amount: 300, date: '2026-10-22', pending: true, cardPayment: false },
+    ])
+  })
+})
+
+describe('computeCardNetting — posted cash debit matched to the card\'s pending credit', () => {
+  // The real pattern: the bank posted the debit under an unrelated label
+  // ("Transfer out"), while the card shows a pending card-payment credit.
+  const posted = (over: Partial<CashSignals> = {}) =>
+    cash({
+      pendingOutflows: [],
+      available: 2700,
+      postedOutflows: [{ amount: 300, date: '2026-10-21' }],
+      ...over,
+    })
+  const pendingPaymentCard = (over: Partial<CardSignals> = {}) =>
+    card({
+      credits: [{ amount: 300, date: '2026-10-22', pending: true, cardPayment: true }],
+      ...over,
+    })
+
+  it('nets it when both sides show the same amount', () => {
+    expect(net([posted(), pendingPaymentCard()]).get('card1')).toBe(300)
+  })
+
+  it('works without any pending debit or balance gate (a posted debit is already in the balance)', () => {
+    expect(net([posted({ available: null }), pendingPaymentCard()]).get('card1')).toBe(300)
+  })
+
+  it('does nothing when the amounts differ', () => {
+    const c = pendingPaymentCard({
+      credits: [{ amount: 299.5, date: '2026-10-22', pending: true, cardPayment: true }],
+    })
+    expect(net([posted(), c]).get('card1')).toBe(0)
+  })
+
+  it('does nothing when the card credit is not labelled a card payment (could be a refund)', () => {
+    const c = pendingPaymentCard({
+      credits: [{ amount: 300, date: '2026-10-22', pending: true, cardPayment: false }],
+    })
+    expect(net([posted(), c]).get('card1')).toBe(0)
+  })
+
+  it('does nothing when the card credit already posted', () => {
+    const c = pendingPaymentCard({
+      credits: [{ amount: 300, date: '2026-10-22', pending: false, cardPayment: true }],
+    })
+    expect(net([posted(), c]).get('card1')).toBe(0)
+  })
+
+  it('does nothing when the debit is too old to be this payment', () => {
+    const old = posted({ postedOutflows: [{ amount: 300, date: '2026-10-10' }] })
+    expect(net([old, pendingPaymentCard()]).get('card1')).toBe(0)
+  })
+
+  it('refuses to guess when two cards both show the same pending credit', () => {
+    const second = pendingPaymentCard({ accountId: 'card2' })
+    const result = net([posted(), pendingPaymentCard(), second])
+    expect(result.get('card1')).toBe(0)
+    expect(result.get('card2')).toBe(0)
+  })
+
+  it('uses each pending credit once (two equal debits, one pending payment)', () => {
+    const twice = posted({
+      postedOutflows: [
+        { amount: 300, date: '2026-10-21' },
+        { amount: 300, date: '2026-10-20' },
+      ],
+    })
+    expect(net([twice, pendingPaymentCard()]).get('card1')).toBe(300)
+  })
+
+  it('ignores a card that owes less than the payment, and never nets more than owed', () => {
+    expect(net([posted(), pendingPaymentCard({ debt: 100 })]).get('card1')).toBe(0)
+  })
+
+  it('does nothing when the card already posted a matching credit', () => {
+    const c = pendingPaymentCard({
+      credits: [
+        { amount: 300, date: '2026-10-22', pending: true, cardPayment: true },
+        { amount: 300, date: '2026-10-21', pending: false, cardPayment: true },
+      ],
+    })
+    expect(net([posted(), c]).get('card1')).toBe(0)
+  })
+
+  it('does nothing with signals stored before posted debits were tracked, stale signals, or mode off', () => {
+    const legacy = posted({ postedOutflows: undefined })
+    expect(net([legacy, pendingPaymentCard()]).get('card1')).toBe(0)
+    const stale = posted({ observedAt: new Date(NOW.getTime() - MAX_SIGNAL_AGE_MS - 1000).toISOString() })
+    expect(net([stale, pendingPaymentCard()]).get('card1')).toBe(0)
+    expect(net([posted(), pendingPaymentCard()], 'off').get('card1')).toBe(0)
+  })
+
+  it('does not double count a payment already netted through the pending-debit path', () => {
+    // The same $300 shown as a pending card-payment debit (netted) and no posted debit.
+    expect(net([cash(), pendingPaymentCard()]).get('card1')).toBe(300)
+  })
+})
+
+describe('Plaid payload mapping — posted debits and card-payment credits', () => {
+  const txns = [
+    { account_id: 'p-chk', amount: 1940.75, date: '2026-10-23', pending: false,
+      personal_finance_category: { primary: 'TRANSFER_OUT', detailed: 'TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS' } },
+    { account_id: 'p-chk', amount: 12, date: '2026-10-23', pending: true },
+    { account_id: 'p-chk', amount: -500, date: '2026-10-22', pending: false },
+    { account_id: 'p-card', amount: -1940.75, date: '2026-10-23', pending: true,
+      personal_finance_category: { primary: 'LOAN_PAYMENTS', detailed: CARD_PAYMENT_CATEGORY } },
+  ]
+
+  it('collects posted debits of any category, not pending ones or inflows', () => {
+    const s = cashSignalsFromPlaid({
+      accountId: 'chk', plaidAccountId: 'p-chk', current: 100, available: 100,
+      transactions: txns, observedAt: OBSERVED,
+    })
+    expect(s.postedOutflows).toEqual([{ amount: 1940.75, date: '2026-10-23' }])
+  })
+
+  it('flags card credits that Plaid categorised as card payments', () => {
+    const s = cardSignalsFromPlaid({
+      accountId: 'card1', plaidAccountId: 'p-card', debt: 2033.93,
+      transactions: txns, observedAt: OBSERVED,
+    })
+    expect(s.credits).toEqual([
+      { amount: 1940.75, date: '2026-10-23', pending: true, cardPayment: true },
+    ])
+  })
+
+  it('reproduces the real case end to end: mislabelled posted debit + pending card payment', () => {
+    const now = new Date('2026-10-23T22:00:00Z')
+    const observedAt = '2026-10-23T21:30:00Z'
+    const chk = cashSignalsFromPlaid({
+      accountId: 'chk', plaidAccountId: 'p-chk', current: 1450.63, available: 1450.63,
+      transactions: txns, observedAt,
+    })
+    const crd = cardSignalsFromPlaid({
+      accountId: 'card1', plaidAccountId: 'p-card', debt: 2033.93,
+      transactions: txns, observedAt,
+    })
+    expect(computeCardNetting([chk, crd], now).get('card1')).toBe(1940.75)
   })
 })

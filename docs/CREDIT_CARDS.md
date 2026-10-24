@@ -152,6 +152,14 @@ by `plaidPendingSync.ts` after every Plaid balance refresh):
   be the target (exact-debt match preferred). Optimistic if the bank's balance
   turns out not to include the pending debit — opt in with the Edge Function
   secret `PLAID_PENDING_NETTING=standard`.
+- **Posted debit, any label** (in either mode): banks often file a card payment
+  under something else (e.g. Ally shows Robinhood's as "Transfer out"). A cash
+  debit that has already **posted** is in the balance for certain, so no
+  `available` check applies. It is netted when the card shows a **pending
+  credit Plaid categorised as a card payment** for the exact same amount, the
+  debit is at most 5 days old, exactly one card matches, each pending credit is
+  used once, and the card has not already posted a matching credit. A card
+  credit without the card-payment category (a refund, say) never matches.
 - not if the card already posted a matching credit, never more than the card
   owes, and signals older than 12h are ignored (a failed sync can't leave a
   stuck adjustment). `PLAID_PENDING_NETTING=off` is the kill switch (resets
