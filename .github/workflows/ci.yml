@@ -35,7 +35,7 @@ jobs:
       run_db: ${{ steps.scope.outputs.run_db }}
       run_e2e: ${{ steps.scope.outputs.run_e2e }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -64,9 +64,9 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -115,16 +115,16 @@ jobs:
         if: needs.changes.outputs.run_db == 'false'
         run: echo "Skipping database RLS tests — change set cannot affect Postgres RLS or RPCs."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.run_db != 'false'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.run_db != 'false'
         with:
           node-version: '22'
           cache: npm
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         if: needs.changes.outputs.run_db != 'false'
         with:
           version: 2.105.0
@@ -162,16 +162,16 @@ jobs:
         if: needs.changes.outputs.run_e2e == 'false'
         run: echo "Skipping e2e smoke tests — docs-only change."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: needs.changes.outputs.run_e2e != 'false'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.run_e2e != 'false'
         with:
           node-version: '22'
           cache: npm
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         if: needs.changes.outputs.run_e2e != 'false'
         with:
           version: 2.105.0
@@ -180,7 +180,7 @@ jobs:
         if: needs.changes.outputs.run_e2e != 'false'
         run: npm ci
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: needs.changes.outputs.run_e2e != 'false'
         id: playwright-cache
         with:
