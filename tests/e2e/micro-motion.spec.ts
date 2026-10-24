@@ -129,6 +129,33 @@ test.describe('Button press feedback', () => {
     ).toBe('none')
   })
 
+  test('expandable rows do not squeeze while pressed', async ({ page }) => {
+    const family = await createAdminFamily('e2e-micro-press-row')
+    await serviceClient().from('accounts').insert({
+      family_id: family.familyId,
+      owner_member_id: null,
+      teller_account_id: `test-${crypto.randomUUID()}`,
+      account_type: 'checking',
+      current_balance: 500,
+    })
+    await signIn(page, family.adminEmail, family.adminPassword)
+    await page.getByRole('tab', { name: 'Bank', exact: true }).click()
+    const row = page.locator('button[aria-expanded]').first()
+    await expect(row).toBeVisible()
+    expect(await pressedScale(page, 'button[aria-expanded]')).toBe('none')
+    // An ordinary button still dips, so the exemption is not a blanket removal.
+    await page.getByRole('tab', { name: 'Buckets', exact: true }).click()
+    expect(await pressedScale(page, 'main button:enabled:not([role="tab"]):not([aria-expanded])')).toBe('0.97')
+  })
+
+  test('full-width buttons dip less than small ones', async ({ page }) => {
+    const family = await createAdminFamily('e2e-micro-press-wide')
+    await signIn(page, family.adminEmail, family.adminPassword)
+    await page.goto('/settings')
+    await expect(page.locator('main button.w-full:enabled').first()).toBeVisible()
+    expect(await pressedScale(page, 'main button.w-full:enabled')).toBe('0.985')
+  })
+
   test('with reduced motion buttons do not scale', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     const family = await createAdminFamily('e2e-micro-press-reduced')
