@@ -1,7 +1,7 @@
 {
   "name": "bucket-my-money",
   "private": true,
-  "version": "1.16.38",
+  "version": "1.16.39",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -38,7 +38,7 @@
     "qrcode-generator": "2.0.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.1"
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
