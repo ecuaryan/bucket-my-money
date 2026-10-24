@@ -64,7 +64,9 @@ export function SegmentedTabs<T extends string>({
       role="tablist"
       aria-label={ariaLabel}
       className={
-        'relative flex rounded-xl bg-zinc-900/80 p-1 ring-1 ring-zinc-800 ' +
+        // `isolate` keeps the buttons' z-10 (above the sliding pill) inside the
+        // tab bar, so a page-level overlay (BusyOverlay) still covers the tabs.
+        'relative isolate flex rounded-xl bg-zinc-900/80 p-1 ring-1 ring-zinc-800 ' +
         className
       }
     >

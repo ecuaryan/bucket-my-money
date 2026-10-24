@@ -22,15 +22,16 @@ async function signedInWithLinkedBank(page: Page, name: string) {
 }
 
 /** Make the refresh endpoint answer like the server does when throttled (or not). */
-async function mockRefresh(page: Page, body: Record<string, unknown>) {
-  await page.route('**/functions/v1/simplefin-refresh', (route) =>
-    route.fulfill({
+async function mockRefresh(page: Page, body: Record<string, unknown>, delayMs = 0) {
+  await page.route('**/functions/v1/simplefin-refresh', async (route) => {
+    if (delayMs) await new Promise((r) => setTimeout(r, delayMs))
+    await route.fulfill({
       status: 200,
       contentType: 'application/json',
       headers: { 'access-control-allow-origin': '*' },
       body: JSON.stringify({ ok: true, errors: [], accountsUpdated: 0, ...body }),
-    }),
-  )
+    })
+  })
 }
 
 test.describe('Refresh throttle feedback', () => {
@@ -47,5 +48,20 @@ test.describe('Refresh throttle feedback', () => {
     await page.getByRole('button', { name: 'Refresh balances' }).first().click()
     await page.waitForTimeout(800)
     await expect(page.getByText(REFRESH_BALANCES_THROTTLED)).toHaveCount(0)
+  })
+
+  test('the Updating overlay covers the tabs too', async ({ page }) => {
+    await signedInWithLinkedBank(page, 'e2e-overlay-tabs')
+    await mockRefresh(page, { refreshed: true, accountsUpdated: 1, bankLastSyncedAt: new Date().toISOString() }, 2500)
+    await page.getByRole('button', { name: 'Refresh balances' }).first().click()
+    await expect(page.getByText('Updating…')).toBeVisible()
+    // Whatever is topmost at the middle of a tab must be the overlay, not the tab.
+    const tabIsCovered = await page.evaluate(() => {
+      const tab = document.querySelector('[role="tab"][aria-selected="false"]')!
+      const box = tab.getBoundingClientRect()
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      return !top?.closest('[role="tablist"]')
+    })
+    expect(tabIsCovered).toBe(true)
   })
 })
