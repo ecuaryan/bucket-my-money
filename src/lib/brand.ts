@@ -756,6 +756,15 @@ export function floatShortWithCardsHint(overAmountLabel: string): string {
   return `Buckets and cards total ${overAmountLabel} more than your cash.`
 }
 
+/**
+ * Appended to {@link floatShortWithCardsHint} when a recent card payment may
+ * explain the shortfall: cash and card balances update at different times, so
+ * paying a card can dip Unbucketed for a day or two. Hedged on purpose — we
+ * can't tell whether a payment was made.
+ */
+export const FLOAT_CARD_PAYMENT_LAG_NOTE =
+  'If you recently paid a card, it can take a day or two to show up here.'
+
 /** Hero subtext clause appended after the cash summary, e.g. "· $1,200 owed on cards". */
 export function floatCardsSubtextClause(
   cardDebtLabel: string,

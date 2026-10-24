@@ -219,3 +219,22 @@ export function formatBucketsHeaderSubtitle(
   if (bucketAllocated <= 0) return count
   return `${count} · ${formatMoney(bucketAllocated)} allocated`
 }
+
+/**
+ * Whether the red Unbucketed shortfall could be a card payment still posting
+ * (cash already down, card not yet): a card is counted, the shortfall is no
+ * bigger than what the cards owe, and no payment is already being netted (that
+ * case has its own message). A household without cards, or one that is simply
+ * over-bucketed by more than its card debt, never sees it.
+ */
+export function mayBeCardPaymentLag(
+  float: number,
+  breakdown: Pick<BucketsBalanceBreakdown, 'cardDebt' | 'cardPendingPayments'>,
+): boolean {
+  return (
+    float < 0 &&
+    breakdown.cardDebt > 0 &&
+    breakdown.cardPendingPayments === 0 &&
+    -float <= breakdown.cardDebt
+  )
+}
