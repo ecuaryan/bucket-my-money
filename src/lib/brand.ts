@@ -1540,7 +1540,7 @@ export const BUCKET_GROUP_NEW_LABEL = 'New group'
 export const BUCKET_GROUP_UNNAMED = 'Unnamed group'
 export const BUCKET_GROUP_UNGROUPED = 'Ungrouped'
 export const BUCKET_GROUP_NAME_LABEL = 'Group name (optional)'
-export const BUCKET_GROUP_NAME_PLACEHOLDER = 'Cruise, Kids, Ryan…'
+export const BUCKET_GROUP_NAME_PLACEHOLDER = 'Cruise, Kids, Pets…'
 export const BUCKET_GROUP_CREATE_TITLE = 'New group'
 export const BUCKET_GROUP_CREATE_HINT =
   'Groups just organize your buckets on your own Buckets tab. Nobody else sees them, and no money moves. Drag buckets in afterwards.'
