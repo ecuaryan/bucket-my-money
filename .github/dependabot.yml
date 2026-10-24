@@ -1,0 +1,28 @@
+# Weekly check for outdated packages. Minor/patch updates arrive as ONE grouped
+# PR (not a stream of them); major versions are left alone for a deliberate
+# upgrade. Dependabot PRs are never auto-merged: merging to `main` promotes to
+# production, so the owner reviews each one (see CONTRIBUTING § Branch workflow).
+# They do not bump package.json's own version; bump it when you merge one.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

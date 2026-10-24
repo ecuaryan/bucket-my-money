@@ -134,6 +134,13 @@ Result: merge to `main` only after PR CI passes; production promotes only after 
 
 Preview deployments for PRs are optional; use separate Supabase env vars for previews if you add real users later (avoid previews hitting production data).
 
+### Dependabot PRs
+
+`.github/dependabot.yml` opens at most one grouped PR a week for minor/patch
+package updates (majors are skipped on purpose). Review it like any PR: CI must
+be green, then bump `package.json` (+ lockfile lines 3 and 9) and merge by
+hand. Never enable auto-merge on one, since merging promotes to production.
+
 ## CI jobs
 
 Every push to `main` and every pull request runs [`.github/workflows/ci.yml`](./.github/workflows/ci.yml):
