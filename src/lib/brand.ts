@@ -796,6 +796,14 @@ export function floatRefreshedLabel(relativeTime: string): string {
  * throwing, so this is shown when that array is non-empty — otherwise the
  * spinner just stops with no feedback. Mirrors {@link BANK_ACTIVITY_LOAD_ERROR}.
  */
+/**
+ * Toast when Refresh was tapped but balances were synced moments ago (the
+ * server refreshes a bank at most every 30 minutes). Without it the button
+ * appears to do nothing.
+ */
+export const REFRESH_BALANCES_THROTTLED =
+  'Balances are already up to date. They refresh at most every 30 minutes.'
+
 export const REFRESH_BALANCES_ERROR =
   "Couldn't refresh your balances right now. Your bank or our sync may be busy—try again in a moment."
 

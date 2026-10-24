@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BANK_ACTIVITY_LOAD_ERROR, REFRESH_BALANCES_ERROR } from '@/lib/brand'
+import {
+  BANK_ACTIVITY_LOAD_ERROR,
+  REFRESH_BALANCES_ERROR,
+  REFRESH_BALANCES_THROTTLED,
+} from '@/lib/brand'
 
 vi.mock('@/lib/sessionToken', () => ({
   getFreshAccessToken: vi.fn(async () => 'access-token'),
@@ -13,6 +17,7 @@ vi.mock('@/lib/supabaseKeys', () => ({
 import {
   BankLinkReconnectError,
   refreshBalancesErrorMessage,
+  refreshThrottledMessage,
   type RefreshBalancesResult,
 } from '@/lib/bankLink'
 import { checkTellerReachable, fetchBankTransactions } from '@/lib/teller'
@@ -71,6 +76,39 @@ describe('checkTellerReachable (fail-open)', () => {
       }),
     )
     await expect(checkTellerReachable()).resolves.toBe(true)
+  })
+})
+
+describe('refreshThrottledMessage', () => {
+  const NOW = Date.parse('2026-10-24T12:00:00Z')
+  const minutesAgo = (m: number) => new Date(NOW - m * 60_000).toISOString()
+
+  it('explains a no-op refresh when balances were synced moments ago', () => {
+    expect(
+      refreshThrottledMessage(refreshResult({ bankLastSyncedAt: minutesAgo(6) }), NOW),
+    ).toBe(REFRESH_BALANCES_THROTTLED)
+  })
+
+  it('stays quiet after a real refresh', () => {
+    expect(
+      refreshThrottledMessage(
+        refreshResult({ refreshed: true, accountsUpdated: 3, bankLastSyncedAt: minutesAgo(0) }),
+        NOW,
+      ),
+    ).toBeNull()
+  })
+
+  it('stays quiet when a bank errored, or there is no sync time, or the sync is old', () => {
+    expect(
+      refreshThrottledMessage(
+        refreshResult({ bankLastSyncedAt: minutesAgo(6), errors: ['x'] }),
+        NOW,
+      ),
+    ).toBeNull()
+    expect(refreshThrottledMessage(refreshResult({ bankLastSyncedAt: null }), NOW)).toBeNull()
+    expect(
+      refreshThrottledMessage(refreshResult({ bankLastSyncedAt: minutesAgo(120) }), NOW),
+    ).toBeNull()
   })
 })
 

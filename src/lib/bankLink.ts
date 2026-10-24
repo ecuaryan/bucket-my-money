@@ -3,7 +3,7 @@
 // what the provider Edge Functions return, so components can render bank
 // activity and refresh results without knowing which provider served them.
 
-import { REFRESH_BALANCES_ERROR } from '@/lib/brand'
+import { REFRESH_BALANCES_ERROR, REFRESH_BALANCES_THROTTLED } from '@/lib/brand'
 
 /**
  * The bank link is expired/deauthorized — a retry won't help; it must be
@@ -61,4 +61,25 @@ export function refreshBalancesErrorMessage(
   result: RefreshBalancesResult,
 ): string | null {
   return result.errors.length > 0 ? REFRESH_BALANCES_ERROR : null
+}
+
+/** Servers refresh a bank at most this often; a tap sooner is a no-op. */
+const REFRESH_THROTTLE_MS = 30 * 60_000
+
+/**
+ * Message for a Refresh tap that did nothing because balances were synced
+ * moments ago (throttled), else null. Not shown when anything errored, or when
+ * the last sync is old or unknown (nothing to refresh is a different story).
+ */
+export function refreshThrottledMessage(
+  result: RefreshBalancesResult,
+  now: number = Date.now(),
+): string | null {
+  if (result.refreshed || result.errors.length > 0 || !result.bankLastSyncedAt) {
+    return null
+  }
+  const age = now - Date.parse(result.bankLastSyncedAt)
+  return age >= 0 && age <= REFRESH_THROTTLE_MS + 60_000
+    ? REFRESH_BALANCES_THROTTLED
+    : null
 }
