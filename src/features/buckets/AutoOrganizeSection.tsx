@@ -105,6 +105,21 @@ type AutoOrganizeCardProps = {
   onDelete: () => void
 }
 
+/**
+ * One bucket line inside a rule card. Alternating tints give the eye a band to
+ * follow from the bucket name to its amount, the same for every rule type.
+ */
+const lineRowClassName =
+  'flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-sm text-zinc-200 odd:bg-zinc-800/50'
+/**
+ * Top-up and save-off rows carry a long right-hand phrase ("Leave at least $50 ·
+ * Moves $50"). When name and phrase do not fit side by side the phrase drops to
+ * its own right-aligned line instead of squeezing the name to nothing.
+ */
+const lineRowWrapClassName = lineRowClassName + ' flex-wrap gap-y-0.5'
+const lineAmountClassName =
+  'shrink-0 text-sm font-semibold tabular-nums text-emerald-300'
+
 const runNowAmountGridClassName =
   'grid grid-cols-[minmax(0,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)] items-baseline gap-x-2'
 
@@ -380,7 +395,7 @@ function AutoOrganizeCard({
             }
           >
             <div className="min-h-0 overflow-hidden">
-              <ul className="space-y-1 border-t border-zinc-800 pt-2 text-xs text-zinc-400">
+              <ul className="space-y-0.5 border-t border-zinc-800 pt-2">
                 {displayLines.map((line) => {
                   const configured = Number(line.amount)
                   const move = autoOrganizeLineMoveAtRun(
@@ -390,11 +405,11 @@ function AutoOrganizeCard({
                   )
                   if (kind === 'top_up') {
                     return (
-                      <li key={line.id} className="flex justify-between gap-3">
-                        <span className="truncate">
+                      <li key={line.id} className={lineRowWrapClassName}>
+                        <span className="max-w-full truncate">
                           {resolveAutoOrganizeLineBucketName(line, bucketNamesById)}
                         </span>
-                        <span className="shrink-0 text-right tabular-nums text-zinc-400">
+                        <span className="ml-auto text-right text-xs tabular-nums text-zinc-400">
                           {AUTO_ORGANIZE_TOPUP_FILL_TO_LABEL}{' '}
                           {formatMoney(configured)}
                           {move === 0 ? (
@@ -417,14 +432,14 @@ function AutoOrganizeCard({
                         ? AUTO_ORGANIZE_SAVEOFF_SWEEP_ALL_LABEL
                         : `${AUTO_ORGANIZE_SAVEOFF_KEEP_LABEL} ${formatMoney(configured)}`
                     return (
-                      <li key={line.id} className="flex justify-between gap-3">
-                        <span className="truncate">
+                      <li key={line.id} className={lineRowWrapClassName}>
+                        <span className="max-w-full truncate">
                           {resolveAutoOrganizeLineBucketName(
                             line,
                             bucketNamesById,
                           )}
                         </span>
-                        <span className="shrink-0 text-right tabular-nums text-zinc-400">
+                        <span className="ml-auto text-right text-xs tabular-nums text-zinc-400">
                           {keepLabel}
                           {move === 0 ? (
                             <span className="ml-1 text-zinc-500">
@@ -444,11 +459,11 @@ function AutoOrganizeCard({
                     )
                   }
                   return (
-                    <li key={line.id} className="flex justify-between gap-3">
+                    <li key={line.id} className={lineRowClassName}>
                       <span className="truncate">
                         {resolveAutoOrganizeLineBucketName(line, bucketNamesById)}
                       </span>
-                      <span className="shrink-0 tabular-nums text-emerald-300/90">
+                      <span className={lineAmountClassName}>
                         + {formatMoney(configured)}
                       </span>
                     </li>
