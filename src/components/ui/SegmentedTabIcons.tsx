@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import SatsIcon from '@/features/bitcoin/SatsIcon'
 
 // Outline icons on the same 24px, 1.5-stroke grid as the bottom nav, so the
 // tabs read as part of the same family. Decorative: the label names the tab.
@@ -62,11 +61,22 @@ function HomeIcon() {
   )
 }
 
+function BitcoinIcon() {
+  return (
+    <svg {...svgProps}>
+      <path d="M9 5v11.5" />
+      <path d="M9 5h4.75a2.75 2.75 0 0 1 0 5.5H9" />
+      <path d="M9 10.5h5.75a3 3 0 0 1 0 6H9" />
+      <path d="M11.5 3v2M14.5 3v2M11.5 16.5v2M14.5 16.5v2" />
+    </svg>
+  )
+}
+
 const ICONS: Record<string, () => ReactNode> = {
   buckets: BucketIcon,
   'auto-bucket': BoltIcon,
   bank: BankIcon,
-  bitcoin: () => <SatsIcon className="h-4 w-4 shrink-0" />,
+  bitcoin: BitcoinIcon,
   'money-sources': WalletIcon,
   household: HomeIcon,
 }

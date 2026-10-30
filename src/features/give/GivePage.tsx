@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
+import {
+  HERO_RADIUS,
+  HERO_TONE_NEGATIVE,
+  HERO_TONE_POSITIVE,
+} from '@/components/ui/heroTone'
 import { formatLoadErrorMessage, withAuthLockRetry } from '@/lib/authLockError'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
@@ -301,10 +306,7 @@ export default function GivePage() {
   const showAddSourceCard = isAdult && !hasMoneySources && !hasAllocations
   const canGive = giveEnabled && !showAddSourceCard
 
-  const availableColor =
-    available >= 0
-      ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30'
-      : 'bg-red-500/10 text-red-300 ring-red-500/30'
+  const availableTone = available >= 0 ? HERO_TONE_POSITIVE : HERO_TONE_NEGATIVE
 
   return (
     <>
@@ -322,7 +324,7 @@ export default function GivePage() {
 
       {showAddSourceCard ? (
         <section
-          className="rounded-2xl bg-emerald-500/10 px-4 py-4 ring-1 ring-emerald-500/30"
+          className={`${HERO_RADIUS} px-4 py-4 ${HERO_TONE_POSITIVE}`}
           aria-label="Add a money source"
         >
           <p className="text-xs font-medium uppercase tracking-wide text-emerald-300/70">
@@ -356,13 +358,18 @@ export default function GivePage() {
         </section>
       ) : (
         <section
-          className={`rounded-2xl px-4 py-4 ring-1 ${availableColor}`}
+          className={`${HERO_RADIUS} px-4 pt-3.5 pb-4 ${availableTone}`}
           aria-label={`Your ${FLOAT_LABEL_LOWER} balance`}
         >
-          <p className="text-xs font-medium uppercase tracking-wide opacity-70">
+          <p className="text-[11.5px] font-semibold uppercase leading-4 tracking-[0.1em] opacity-75">
             You can give
           </p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums">
+          <p
+            className={
+              'mt-1 text-[32px] font-bold leading-[1.15] tracking-tight tabular-nums ' +
+              (available >= 0 ? 'text-emerald-300' : 'text-red-200')
+            }
+          >
             {formatMoney(available)}
           </p>
           {showChildBreakdown && balanceBreakdown ? (

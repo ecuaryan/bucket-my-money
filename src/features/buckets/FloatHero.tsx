@@ -1,4 +1,9 @@
 import RefreshIcon from '@/components/ui/RefreshIcon'
+import {
+  HERO_RADIUS,
+  HERO_TONE_NEGATIVE,
+  HERO_TONE_POSITIVE,
+} from '@/components/ui/heroTone'
 import type { FloatHeroTile } from '@/lib/floatBreakdown'
 import {
   floatRefreshedLabel,
@@ -11,8 +16,8 @@ type FloatHeroProps = {
   /** Red treatment: more is bucketed (or owed on cards) than there is cash. */
   negative: boolean
   cashSubtext: string | null
-  /** Cash + card-debt tiles (adults with cards); replace the cash sentence. */
-  tiles: { cash: FloatHeroTile; cards: FloatHeroTile } | null
+  /** Total-balance tile (plus card-debt tile when owed); replaces the cash sentence. */
+  tiles: { cash: FloatHeroTile; cards: FloatHeroTile | null } | null
   hint: string | null
   bankSyncedLabel: string | null
   canRefresh: boolean
@@ -34,15 +39,6 @@ function floatRefreshVisibleLabel(bankSyncedLabel: string | null): string {
   }
   return FLOAT_REFRESH_BALANCES_LABEL
 }
-
-// A calm tint when there is room to spare; a deeper tint and brighter edge
-// when the household has promised more than it has.
-const TONE_POSITIVE =
-  'bg-gradient-to-br from-emerald-500/[0.09] to-emerald-500/[0.03] text-emerald-300 ' +
-  'shadow-[inset_0_0_0_1px_rgba(52,211,153,0.22),inset_0_1px_0_rgba(255,255,255,0.05),0_6px_16px_-10px_rgba(52,211,153,0.35)]'
-const TONE_NEGATIVE =
-  'bg-gradient-to-br from-red-500/20 to-red-500/[0.08] text-red-300 ' +
-  'shadow-[inset_0_0_0_1px_rgba(248,113,113,0.45),inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_-10px_rgba(248,113,113,0.5)]'
 
 function StatTile({
   tile,
@@ -87,7 +83,8 @@ export default function FloatHero({
   return (
     <section
       className={
-        'rounded-[22px] px-4 pt-3.5 pb-4 ' + (negative ? TONE_NEGATIVE : TONE_POSITIVE)
+        `${HERO_RADIUS} px-4 pt-3.5 pb-4 ` +
+        (negative ? HERO_TONE_NEGATIVE : HERO_TONE_POSITIVE)
       }
       aria-label={`${floatLabel} balance`}
     >
@@ -131,9 +128,9 @@ export default function FloatHero({
         </p>
       ) : null}
       {tiles ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className={'mt-3 grid gap-2 ' + (tiles.cards ? 'grid-cols-2' : 'grid-cols-1')}>
           <StatTile tile={tiles.cash} />
-          <StatTile tile={tiles.cards} accent />
+          {tiles.cards ? <StatTile tile={tiles.cards} accent /> : null}
         </div>
       ) : null}
       {refreshError ? (

@@ -169,6 +169,7 @@ import {
   REFRESH_BALANCES_ERROR,
 } from '@/lib/brand'
 import BankAccountsTab from '@/features/accounts/BankAccountsTab'
+import { HERO_RADIUS, HERO_TONE_POSITIVE } from '@/components/ui/heroTone'
 import BitcoinTab from '@/features/bitcoin/BitcoinTab'
 import { fetchOwnBitcoinEntryCount } from '@/lib/bitcoinData'
 import { useFeatureFlag } from '@/hooks/FeatureFlagsProvider'
@@ -1127,7 +1128,7 @@ export default function BucketsPage() {
               ? ' ' + FLOAT_CARD_PAYMENT_LAG_NOTE
               : '')
           : floatOverbucketedHint(formatMoney(Math.abs(float)))
-        : cashSubtext
+        : cashSubtext || heroTiles
           ? null
           : isChild
             ? bucketsKidFloatHint(householdAdminName)
@@ -1171,7 +1172,7 @@ export default function BucketsPage() {
       ) : null}
       {showAddSourceCard ? (
         <section
-          className="rounded-2xl bg-emerald-500/10 px-4 py-5 ring-1 ring-emerald-500/30"
+          className={`${HERO_RADIUS} px-4 py-5 ${HERO_TONE_POSITIVE}`}
           aria-label="Add a money source"
         >
           <p className="text-xs font-medium uppercase tracking-wide text-emerald-300/70">

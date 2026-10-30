@@ -250,17 +250,35 @@ export type FloatHeroTile = {
 }
 
 /**
- * Hero stat tiles for adults with credit cards: cash on the left, card debt on
- * the right. They replace the one-line cash sentence (same numbers, easier to
- * scan). Null when there is nothing to split — no cards, no cash, or a child.
+ * Hero stat tiles: a "Total balance" tile for everyone (adults, kids), plus an
+ * "Owed on cards" tile when an adult has card debt. They replace the one-line
+ * cash sentence (same numbers, easier to scan). Null when there is no cash to show.
  */
 export function floatHeroTiles(
   breakdown: BucketsBalanceBreakdown,
   opts: BuildOpts,
   formatMoney: (amount: number) => string,
-): { cash: FloatHeroTile; cards: FloatHeroTile } | null {
-  if (opts.isChild) return null
-  if (breakdown.totalCash <= 0 || breakdown.cardDebt <= 0) return null
+): { cash: FloatHeroTile; cards: FloatHeroTile | null } | null {
+  if (opts.isChild) {
+    if (opts.childTotal <= 0) return null
+    const linkedCaption =
+      breakdown.bankCash > 0 && opts.bankAccountsCount > 0
+        ? `${formatMoney(breakdown.bankCash)} across ${
+            opts.bankAccountsCount === 1
+              ? 'linked account'
+              : `${opts.bankAccountsCount} linked accounts`
+          }`
+        : null
+    return {
+      cash: {
+        label: FLOAT_TILE_BALANCE_LABEL,
+        value: formatMoney(opts.childTotal),
+        caption: linkedCaption,
+      },
+      cards: null,
+    }
+  }
+  if (breakdown.totalCash <= 0) return null
 
   const cashCaption =
     breakdown.bankCash > 0 && breakdown.manualCash > 0
@@ -273,13 +291,16 @@ export function floatHeroTiles(
       value: formatMoney(breakdown.totalCash),
       caption: cashCaption,
     },
-    cards: {
-      label: FLOAT_TILE_CARDS_LABEL,
-      value: formatMoney(breakdown.cardDebt),
-      caption:
-        breakdown.cardPendingPayments > 0
-          ? floatTileCardsPendingNote(formatMoney(breakdown.cardPendingPayments))
-          : null,
-    },
+    cards:
+      breakdown.cardDebt > 0
+        ? {
+            label: FLOAT_TILE_CARDS_LABEL,
+            value: formatMoney(breakdown.cardDebt),
+            caption:
+              breakdown.cardPendingPayments > 0
+                ? floatTileCardsPendingNote(formatMoney(breakdown.cardPendingPayments))
+                : null,
+          }
+        : null,
   }
 }
