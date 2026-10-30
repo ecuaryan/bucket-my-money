@@ -170,6 +170,7 @@ import {
 } from '@/lib/brand'
 import BankAccountsTab from '@/features/accounts/BankAccountsTab'
 import { HERO_RADIUS, HERO_TONE_POSITIVE } from '@/components/ui/heroTone'
+import { useHeaderAccent, useReportFloat } from '@/hooks/HeaderGlowProvider'
 import BitcoinTab from '@/features/bitcoin/BitcoinTab'
 import { fetchOwnBitcoinEntryCount } from '@/lib/bitcoinData'
 import { useFeatureFlag } from '@/hooks/FeatureFlagsProvider'
@@ -177,7 +178,6 @@ import { useFeatureFlag } from '@/hooks/FeatureFlagsProvider'
 type Bucket = Database['public']['Tables']['buckets']['Row']
 type Account = Database['public']['Tables']['accounts']['Row']
 
-const RED_GLOW_RGB = '248 113 113'
 const BITCOIN_GLOW_RGB = '247 147 26'
 
 export default function BucketsPage() {
@@ -324,19 +324,10 @@ export default function BucketsPage() {
     () => sections.filter((s) => !isHiddenSection(s, grouped)),
     [sections, grouped],
   )
-  // The app header's glow follows the page: red while Unbucketed is negative,
-  // Bitcoin orange on the (flag-gated) Bitcoin tab. See .app-header-glow.
-  const floatNegative = (balanceBreakdown?.float ?? 0) < 0
-  const headerGlow =
-    activeTab === 'bitcoin' ? BITCOIN_GLOW_RGB : floatNegative ? RED_GLOW_RGB : null
-  useEffect(() => {
-    if (!headerGlow) return
-    const root = document.documentElement
-    root.style.setProperty('--header-glow-rgb', headerGlow)
-    return () => {
-      root.style.removeProperty('--header-glow-rgb')
-    }
-  }, [headerGlow])
+  // The app header's glow follows Unbucketed (red when negative, on every page)
+  // and turns Bitcoin orange on the (flag-gated) Bitcoin tab. See HeaderGlowProvider.
+  useReportFloat(balanceBreakdown?.float ?? null)
+  useHeaderAccent(activeTab === 'bitcoin' ? BITCOIN_GLOW_RGB : null)
   // "Collapse all" while anything is open, "Expand all" once everything is closed.
   // Only worth a control when there are at least two sections to act on.
   const collapseAllPlan = useMemo(
