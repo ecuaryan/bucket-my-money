@@ -1410,6 +1410,14 @@ export const BREAKDOWN_LINKED_CASH_LABEL = 'Linked cash'
 export const BREAKDOWN_MANUAL_CASH_LABEL = 'Manual cash'
 export const BREAKDOWN_CARD_DEBT_LABEL = 'Credit cards'
 
+/** Unbucketed hero stat tiles — shown when the household has credit cards. */
+export const FLOAT_TILE_BALANCE_LABEL = 'Total balance'
+export const FLOAT_TILE_CARDS_LABEL = 'Owed on cards'
+
+export function floatTileCardsPendingNote(pendingPaymentLabel: string): string {
+  return `after ${pendingPaymentLabel} pending payment`
+}
+
 /** Collapsed float breakdown toggle, e.g. "$1,234.56 across 14 money sources". */
 export function floatSourcesCountText(count: number): string | undefined {
   if (count <= 0) return undefined

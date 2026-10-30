@@ -26,6 +26,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ClearableInput } from '@/components/ui/ClearableInput'
+import BucketTile from '@/features/buckets/BucketTile'
+import { splitBucketEmoji } from '@/lib/bucketEmoji'
 import DragHandle from '@/components/ui/DragHandle'
 import BucketActionsMenu from '@/features/buckets/BucketActionsMenu'
 import BucketGroupHeader, {
@@ -96,17 +98,23 @@ type Props = {
   onRemoveFromGroup: (bucketId: string) => void
 }
 
+/**
+ * Hairline between rows, drawn inside the row (a pseudo-element) so it can be
+ * inset past the grip and stop short of the card edge. Not on a card's first row.
+ */
+const ROW_DIVIDER =
+  'relative before:pointer-events-none before:absolute before:top-0 before:right-3 before:left-11 before:h-px before:bg-zinc-800 '
+
 /** Each group is its own rounded card; rows draw the card edges (ring-1 equivalent). */
 function groupedCardClass(first: boolean, last: boolean): string {
   return (
-    'border-x border-t border-zinc-800 bg-zinc-900 ' +
-    (first ? 'rounded-t-2xl ' : '') +
+    'border-x border-zinc-800 bg-zinc-900 ' +
+    (first ? 'border-t rounded-t-2xl ' : ROW_DIVIDER) +
     (last ? 'border-b rounded-b-2xl ' : '')
   )
 }
 
-const LIST_CARD_CLASS =
-  'divide-y divide-zinc-800 rounded-2xl bg-zinc-900 ring-1 ring-zinc-800'
+const LIST_CARD_CLASS = 'rounded-2xl bg-zinc-900 ring-1 ring-zinc-800'
 
 type ListItem =
   | { type: 'header'; section: BucketSection; sectionIndex: number }
@@ -185,7 +193,11 @@ export default function SortableBucketList({
             bucket,
             bucketIndex,
             sectionKey: section.key,
-            card: grouped ? groupedCardClass(at === 0, at === n - 1) : undefined,
+            card: grouped
+              ? groupedCardClass(at === 0, at === n - 1)
+              : at === 0
+                ? undefined
+                : ROW_DIVIDER,
           })
         }
         bucketIndex += 1
@@ -421,7 +433,7 @@ export default function SortableBucketList({
               key={bucket.id}
               data-flip-id={bucket.id}
               data-section-key={item.sectionKey}
-              className={'flex min-w-0 items-center gap-1 px-2 py-2 ' + (item.card ?? '')}
+              className={'flex min-w-0 items-center gap-1 px-2 py-1 ' + (item.card ?? '')}
             >
               <BucketRowContent
                 bucket={bucket}
@@ -625,7 +637,7 @@ function SortableBucketRow(props: RowProps) {
       data-flip-id={bucket.id}
       data-section-key={props.sectionKey}
       className={
-        'flex min-w-0 items-center gap-1 px-2 py-2 ' +
+        'flex min-w-0 items-center gap-1 px-2 py-1 ' +
         (props.cardClass ?? '') +
         (dimmed ? 'opacity-40 ' : '')
       }
@@ -683,7 +695,7 @@ function BucketRowContent({
   if (renaming) {
     return (
       <>
-        <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
+        <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 pl-1">
           <ClearableInput
             wrapperClassName="min-w-0 flex-1"
             autoFocus
@@ -719,6 +731,8 @@ function BucketRowContent({
     )
   }
 
+  const { emoji, label } = splitBucketEmoji(bucket.name)
+
   return (
     <>
       <div
@@ -732,16 +746,17 @@ function BucketRowContent({
           onMoveMoney(bucket.id)
         }}
         className={
-          'flex min-w-0 flex-1 select-none items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-zinc-800/60 focus:bg-zinc-800/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 [-webkit-touch-callout:none] ' +
+          'flex min-w-0 flex-1 select-none items-center justify-between gap-3 rounded-lg px-1.5 py-1 text-left transition hover:bg-zinc-800/60 focus:bg-zinc-800/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 [-webkit-touch-callout:none] ' +
           (rowTouchLocked ? 'touch-none ' : 'touch-pan-y ') +
           (rowPressPending
             ? 'bg-zinc-800/70 ring-2 ring-emerald-400/45 ring-inset'
             : '')
         }
       >
-        <div className="flex min-w-0 flex-1 items-center gap-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2 min-[360px]:gap-2.5">
+          <BucketTile emoji={emoji} />
           <p className="min-w-0 truncate text-sm font-medium text-zinc-300">
-            {bucket.name}
+            {label}
           </p>
           {(bucket.notes ?? '').trim() && (
             <button
@@ -802,18 +817,22 @@ function BucketRowOverlay({
   formatMoney: (amount: number) => string
   className?: string
 }) {
+  const overlayName = splitBucketEmoji(bucket.name)
   return (
     <div
       className={
-        'flex min-w-0 items-center gap-1 rounded-2xl bg-zinc-900 px-2 py-2 shadow-lg ring-2 ring-emerald-400 ' +
+        'flex min-w-0 items-center gap-1 rounded-2xl bg-zinc-900 px-2 py-1 shadow-lg ring-2 ring-emerald-400 ' +
         className
       }
     >
       <DragHandle className="cursor-grabbing text-zinc-400" tabIndex={-1} />
-      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1.5">
-        <p className="truncate text-sm font-medium text-zinc-300">
-          {bucket.name}
-        </p>
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-1.5 py-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2 min-[360px]:gap-2.5">
+          <BucketTile emoji={overlayName.emoji} />
+          <p className="truncate text-sm font-medium text-zinc-300">
+            {overlayName.label}
+          </p>
+        </div>
         <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-300">
           {formatMoney(Number(bucket.allocated_amount))}
         </p>

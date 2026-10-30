@@ -142,6 +142,7 @@ import { refreshBalancesErrorMessage, refreshThrottledMessage } from '@/lib/bank
 import {
   formatBucketsHeaderSubtitle,
   formatFloatCashSubtext,
+  floatHeroTiles,
   mayBeCardPaymentLag,
 } from '@/lib/floatBreakdown'
 import {
@@ -174,6 +175,9 @@ import { useFeatureFlag } from '@/hooks/FeatureFlagsProvider'
 
 type Bucket = Database['public']['Tables']['buckets']['Row']
 type Account = Database['public']['Tables']['accounts']['Row']
+
+const RED_GLOW_RGB = '248 113 113'
+const BITCOIN_GLOW_RGB = '247 147 26'
 
 export default function BucketsPage() {
   const { formatMoney } = useHideAmounts()
@@ -319,6 +323,19 @@ export default function BucketsPage() {
     () => sections.filter((s) => !isHiddenSection(s, grouped)),
     [sections, grouped],
   )
+  // The app header's glow follows the page: red while Unbucketed is negative,
+  // Bitcoin orange on the (flag-gated) Bitcoin tab. See .app-header-glow.
+  const floatNegative = (balanceBreakdown?.float ?? 0) < 0
+  const headerGlow =
+    activeTab === 'bitcoin' ? BITCOIN_GLOW_RGB : floatNegative ? RED_GLOW_RGB : null
+  useEffect(() => {
+    if (!headerGlow) return
+    const root = document.documentElement
+    root.style.setProperty('--header-glow-rgb', headerGlow)
+    return () => {
+      root.style.removeProperty('--header-glow-rgb')
+    }
+  }, [headerGlow])
   // "Collapse all" while anything is open, "Expand all" once everything is closed.
   // Only worth a control when there are at least two sections to act on.
   const collapseAllPlan = useMemo(
@@ -1065,11 +1082,6 @@ export default function BucketsPage() {
   const showCoach = shouldShowOnboardingCoach(isAdult, coachDismissed, coachState)
   const showAddSourceCard =
     isAdult && !hasMoneySources && !hasAllocations && !showCoach
-  const floatColor =
-    float >= 0
-      ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30'
-      : 'bg-red-500/10 text-red-300 ring-red-500/30'
-
   const cashAccounts = accounts.filter(
     (a) => isCashAccount(a) && Number(a.current_balance) > 0,
   )
@@ -1097,9 +1109,13 @@ export default function BucketsPage() {
     manualAccountsCount,
     childTotal,
   }
-  const cashSubtext = !balanceUsesFallback
-    ? formatFloatCashSubtext(balanceBreakdown, breakdownOpts, formatMoney)
+  const heroTiles = !balanceUsesFallback
+    ? floatHeroTiles(balanceBreakdown, breakdownOpts, formatMoney)
     : null
+  const cashSubtext =
+    !balanceUsesFallback && !heroTiles
+      ? formatFloatCashSubtext(balanceBreakdown, breakdownOpts, formatMoney)
+      : null
 
   const floatHint =
     showAddSourceCard || showCoach
@@ -1197,8 +1213,9 @@ export default function BucketsPage() {
         <FloatHero
           floatLabel={FLOAT_LABEL}
           amount={formatMoney(float)}
-          floatColorClass={floatColor}
+          negative={float < 0}
           cashSubtext={cashSubtext}
+          tiles={heroTiles}
           hint={floatHint}
           bankSyncedLabel={bankSyncedLabel}
           canRefresh={canRefreshBalances}

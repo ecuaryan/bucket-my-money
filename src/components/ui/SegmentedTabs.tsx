@@ -108,8 +108,12 @@ export function SegmentedTabs<T extends string>({
               focusTab(next.value)
             }}
             className={
-              'relative z-10 min-w-0 flex-1 rounded-lg py-2 font-semibold transition-colors duration-200 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
-              (showIcons ? 'px-1 text-[13px] min-[380px]:px-2 min-[380px]:text-sm ' : 'px-3 text-sm ') +
+              'relative z-10 min-w-0 rounded-lg py-2 font-semibold transition-colors duration-200 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
+              (showIcons
+                ? // Content-sized (then sharing spare room), so the longest label is not
+                  // squeezed into an equal third.
+                  'flex-auto px-1 text-[13px] min-[380px]:px-2 min-[380px]:text-sm '
+                : 'flex-1 px-3 text-sm ') +
               (selected
                 ? 'text-zinc-100'
                 : 'text-zinc-400 hover:text-zinc-300')

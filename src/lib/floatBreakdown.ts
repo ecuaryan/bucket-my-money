@@ -1,4 +1,7 @@
 import {
+  FLOAT_TILE_BALANCE_LABEL,
+  FLOAT_TILE_CARDS_LABEL,
+  floatTileCardsPendingNote,
   BREAKDOWN_CARD_DEBT_LABEL,
   BREAKDOWN_CASH_LABEL,
   BREAKDOWN_LINKED_CASH_LABEL,
@@ -237,4 +240,46 @@ export function mayBeCardPaymentLag(
     breakdown.cardPendingPayments === 0 &&
     -float <= breakdown.cardDebt
   )
+}
+
+export type FloatHeroTile = {
+  label: string
+  value: string
+  /** Optional second line under the value. */
+  caption: string | null
+}
+
+/**
+ * Hero stat tiles for adults with credit cards: cash on the left, card debt on
+ * the right. They replace the one-line cash sentence (same numbers, easier to
+ * scan). Null when there is nothing to split — no cards, no cash, or a child.
+ */
+export function floatHeroTiles(
+  breakdown: BucketsBalanceBreakdown,
+  opts: BuildOpts,
+  formatMoney: (amount: number) => string,
+): { cash: FloatHeroTile; cards: FloatHeroTile } | null {
+  if (opts.isChild) return null
+  if (breakdown.totalCash <= 0 || breakdown.cardDebt <= 0) return null
+
+  const cashCaption =
+    breakdown.bankCash > 0 && breakdown.manualCash > 0
+      ? `${formatMoney(breakdown.bankCash)} linked · ${formatMoney(breakdown.manualCash)} manual`
+      : (floatSourcesCountText(opts.cashAccountsCount) ?? null)
+
+  return {
+    cash: {
+      label: FLOAT_TILE_BALANCE_LABEL,
+      value: formatMoney(breakdown.totalCash),
+      caption: cashCaption,
+    },
+    cards: {
+      label: FLOAT_TILE_CARDS_LABEL,
+      value: formatMoney(breakdown.cardDebt),
+      caption:
+        breakdown.cardPendingPayments > 0
+          ? floatTileCardsPendingNote(formatMoney(breakdown.cardPendingPayments))
+          : null,
+    },
+  }
 }
