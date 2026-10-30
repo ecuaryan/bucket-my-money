@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { HERO_RADIUS, HERO_TONE_INFO } from '@/components/ui/heroTone'
 import {
   BUCKETS_ADD_SOURCE_LINK_ACTION,
   ONBOARDING_COACH_ADD_SOURCE_ACTION,
@@ -48,7 +49,7 @@ export default function OnboardingCoachCard({
 
   return (
     <section
-      className="rounded-2xl bg-sky-500/10 px-4 py-5 ring-1 ring-sky-500/30"
+      className={`${HERO_RADIUS} px-4 py-5 ${HERO_TONE_INFO}`}
       aria-label={ONBOARDING_COACH_TITLE}
     >
       <div className="flex items-start justify-between gap-3">

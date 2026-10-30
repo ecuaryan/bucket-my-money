@@ -415,12 +415,30 @@ describe('floatHeroTiles', () => {
       fmt,
     )
     expect(tiles?.cash.caption).toBe('across 3 money sources')
-    expect(tiles?.cards.caption).toBe('after $40.00 pending payment')
+    expect(tiles?.cards?.caption).toBe('after $40.00 pending payment')
   })
 
-  it('is null without cards, without cash, or for a child', () => {
-    expect(floatHeroTiles(adultBreakdown({ cardDebt: 0 }), opts, fmt)).toBeNull()
-    expect(floatHeroTiles(adultBreakdown({ totalCash: 0, bankCash: 0, cardDebt: 50 }), opts, fmt)).toBeNull()
-    expect(floatHeroTiles(adultBreakdown({ cardDebt: 50 }), { ...opts, isChild: true }, fmt)).toBeNull()
+  it('shows only the balance tile when no cards are owed', () => {
+    const tiles = floatHeroTiles(adultBreakdown({ cardDebt: 0 }), opts, fmt)
+    expect(tiles?.cash.value).toBe('$1000.00')
+    expect(tiles?.cards).toBeNull()
+  })
+
+  it('is null when an adult has no cash', () => {
+    expect(
+      floatHeroTiles(adultBreakdown({ totalCash: 0, bankCash: 0, cardDebt: 50 }), opts, fmt),
+    ).toBeNull()
+  })
+
+  it('gives a child the same balance tile, with the linked-account caption', () => {
+    const kid = { ...opts, isChild: true, childTotal: 700, bankAccountsCount: 1 }
+    const tiles = floatHeroTiles(adultBreakdown({ bankCash: 700, totalCash: 700 }), kid, fmt)
+    expect(tiles?.cash).toEqual({
+      label: 'Total balance',
+      value: '$700.00',
+      caption: '$700.00 across linked account',
+    })
+    expect(tiles?.cards).toBeNull()
+    expect(floatHeroTiles(adultBreakdown(), { ...kid, childTotal: 0 }, fmt)).toBeNull()
   })
 })
