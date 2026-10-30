@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useReportFloat } from '@/hooks/HeaderGlowProvider'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import {
   HERO_RADIUS,
@@ -68,6 +69,7 @@ export default function GivePage() {
     null,
   )
   const [available, setAvailable] = useState<number | null>(null)
+  useReportFloat(available)
   const [balanceBreakdown, setBalanceBreakdown] =
     useState<BucketsBalanceBreakdown | null>(null)
   const [balanceUsesFallback, setBalanceUsesFallback] = useState(false)
