@@ -24,13 +24,13 @@ describe('toastDismissMode', () => {
 
 describe('toastPushPx', () => {
   it('leaves equal space above and below the toast', () => {
-    // 12px above (header → toast); below = main padding 24 + push − 12 − height.
-    expect(toastPushPx(52)).toBe(52)
-    expect(toastPushPx(101)).toBe(101)
+    // 12px above (header → toast); below = main padding 16 + push − 12 − height.
+    expect(toastPushPx(52)).toBe(60)
+    expect(toastPushPx(101)).toBe(109)
   })
 
   it('never pushes upward', () => {
-    expect(toastPushPx(0)).toBe(0)
+    expect(toastPushPx(-100)).toBe(0)
   })
 })
 

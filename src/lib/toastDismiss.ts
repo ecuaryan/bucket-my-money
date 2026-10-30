@@ -18,8 +18,8 @@ export const TOAST_EXIT_MS = 200
 /** Space above the toast (under the header) and below it (before the content) (px). */
 export const TOAST_GAP_PX = 12
 
-/** The page's own top padding (`pt-6` on AppShell's <main>) — counted in the gap below. */
-export const TOAST_MAIN_TOP_PAD_PX = 24
+/** The page's own top padding (`pt-4` on AppShell's <main>) — counted in the gap below. */
+export const TOAST_MAIN_TOP_PAD_PX = 16
 
 /**
  * Extra top offset for sticky page headings while a toast is showing, so they
