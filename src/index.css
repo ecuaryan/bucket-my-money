@@ -104,6 +104,15 @@ html {
 
 /* User-initiated motion — disabled when the OS prefers reduced motion. */
 @layer components {
+  /* App header glow; Buckets sets --header-glow-rgb to red while Unbucketed is negative. */
+  .app-header-glow {
+    background-image: radial-gradient(
+      80% 160% at 25% 0%,
+      rgb(var(--header-glow-rgb, 52 211 153) / 0.2),
+      transparent 78%
+    );
+  }
+
   .sheet-backdrop {
     background-color: rgb(0 0 0 / 0);
     transition: background-color 200ms ease;

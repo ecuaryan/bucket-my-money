@@ -131,10 +131,10 @@ function AppShellLayout() {
     <div className="flex min-h-svh flex-col bg-black text-zinc-300">
       <header
         ref={headerRef}
-        className="sticky top-0 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur"
+        className="app-header-glow sticky top-0 bg-black/85 backdrop-blur-xl"
         style={{ zIndex: APP_CHROME_Z_INDEX }}
       >
-        <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-md items-center justify-between px-4 py-2.5">
           <NavLink
             to="/"
             end
@@ -146,31 +146,39 @@ function AppShellLayout() {
               ].join(' ')
             }
           >
-            <BrandLogo size={32} className="shrink-0 rounded-lg" />
+            <BrandLogo size={34} className="shrink-0 rounded-[9px] ring-1 ring-white/10" />
             <span className="truncate text-sm font-medium">{memberDisplayName}</span>
           </NavLink>
           <button
             type="button"
             onClick={onSignOut}
             disabled={signingOut}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-700 px-2 py-1 text-xs font-medium text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-800/60 hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={signingOut ? HEADER_SIGNING_OUT_LABEL : HEADER_SIGN_OUT_LABEL}
+            title={HEADER_SIGN_OUT_LABEL}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/[0.04] text-zinc-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/[0.08] hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {signingOut ? (
-              <LoadingSpinner className="h-4 w-4" />
+              <LoadingSpinner className="h-5 w-5" />
             ) : (
-              <SignOutIcon className="h-4 w-4" />
+              <SignOutIcon className="h-5 w-5" />
             )}
-            <span>
-              {signingOut ? HEADER_SIGNING_OUT_LABEL : HEADER_SIGN_OUT_LABEL}
-            </span>
           </button>
         </div>
       </header>
 
+      {/* Soft edge under the header. Its own layer (below sticky page bars such as
+          History's date row, above page content) so it never dims those bars. Same
+          height as main's top padding, so at rest it only covers empty black. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 z-[5] h-4 bg-gradient-to-b from-black/80 to-transparent"
+        style={{ top: 'var(--app-header-h, 3.5rem)' }}
+      />
+
       <main
         key={pathname}
         className={
-          'toast-push-target mx-auto w-full max-w-md flex-1 px-4 pt-6 ' +
+          'toast-push-target mx-auto w-full max-w-md flex-1 px-4 pt-4 ' +
           NAV_CENTER_MAIN_PB +
           (navigated ? ' page-fade-enter' : '')
         }

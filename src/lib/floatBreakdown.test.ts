@@ -5,6 +5,7 @@ import {
   formatBucketsHeaderSubtitle,
   formatFloatCashSubtext,
   formatFloatSummary,
+  floatHeroTiles,
   floatSummary,
   mayBeCardPaymentLag,
 } from '@/lib/floatBreakdown'
@@ -377,5 +378,49 @@ describe('mayBeCardPaymentLag', () => {
 
   it('is false when a payment is already being counted as paid', () => {
     expect(mayBeCardPaymentLag(-307.06, { cardDebt: 2000, cardPendingPayments: 500 })).toBe(false)
+  })
+})
+
+describe('floatHeroTiles', () => {
+  const opts = {
+    isChild: false,
+    cashAccountsCount: 3,
+    bankAccountsCount: 2,
+    manualAccountsCount: 1,
+    childTotal: 0,
+  }
+
+  it('splits cash and card debt, with the linked/manual split as a caption', () => {
+    const tiles = floatHeroTiles(
+      adultBreakdown({ totalCash: 1000, bankCash: 600, manualCash: 400, cardDebt: 250 }),
+      opts,
+      fmt,
+    )
+    expect(tiles?.cash).toEqual({
+      label: 'Total balance',
+      value: '$1000.00',
+      caption: '$600.00 linked · $400.00 manual',
+    })
+    expect(tiles?.cards).toEqual({
+      label: 'Owed on cards',
+      value: '$250.00',
+      caption: null,
+    })
+  })
+
+  it('falls back to the source count and notes a pending card payment', () => {
+    const tiles = floatHeroTiles(
+      adultBreakdown({ totalCash: 1000, bankCash: 1000, cardDebt: 250, cardPendingPayments: 40 }),
+      opts,
+      fmt,
+    )
+    expect(tiles?.cash.caption).toBe('across 3 money sources')
+    expect(tiles?.cards.caption).toBe('after $40.00 pending payment')
+  })
+
+  it('is null without cards, without cash, or for a child', () => {
+    expect(floatHeroTiles(adultBreakdown({ cardDebt: 0 }), opts, fmt)).toBeNull()
+    expect(floatHeroTiles(adultBreakdown({ totalCash: 0, bankCash: 0, cardDebt: 50 }), opts, fmt)).toBeNull()
+    expect(floatHeroTiles(adultBreakdown({ cardDebt: 50 }), { ...opts, isChild: true }, fmt)).toBeNull()
   })
 })
