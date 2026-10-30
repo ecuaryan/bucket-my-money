@@ -143,6 +143,7 @@ import {
   formatBucketsHeaderSubtitle,
   formatFloatCashSubtext,
   floatHeroTiles,
+  floatMathRows,
   mayBeCardPaymentLag,
 } from '@/lib/floatBreakdown'
 import {
@@ -1104,6 +1105,9 @@ export default function BucketsPage() {
   const heroTiles = !balanceUsesFallback
     ? floatHeroTiles(balanceBreakdown, breakdownOpts, formatMoney)
     : null
+  const heroMath = !balanceUsesFallback
+    ? floatMathRows(balanceBreakdown, breakdownOpts, formatMoney)
+    : null
   const cashSubtext =
     !balanceUsesFallback && !heroTiles
       ? formatFloatCashSubtext(balanceBreakdown, breakdownOpts, formatMoney)
@@ -1208,6 +1212,7 @@ export default function BucketsPage() {
           negative={float < 0}
           cashSubtext={cashSubtext}
           tiles={heroTiles}
+          math={heroMath}
           hint={floatHint}
           bankSyncedLabel={bankSyncedLabel}
           canRefresh={canRefreshBalances}

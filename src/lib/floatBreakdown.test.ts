@@ -6,6 +6,7 @@ import {
   formatFloatCashSubtext,
   formatFloatSummary,
   floatHeroTiles,
+  floatMathRows,
   floatSummary,
   mayBeCardPaymentLag,
 } from '@/lib/floatBreakdown'
@@ -440,5 +441,79 @@ describe('floatHeroTiles', () => {
     })
     expect(tiles?.cards).toBeNull()
     expect(floatHeroTiles(adultBreakdown(), { ...kid, childTotal: 0 }, fmt)).toBeNull()
+  })
+})
+
+describe('floatMathRows', () => {
+  const opts = {
+    isChild: false,
+    cashAccountsCount: 3,
+    bankAccountsCount: 3,
+    manualAccountsCount: 0,
+    childTotal: 0,
+  }
+
+  it('spells out total, buckets, kids and cards down to Unbucketed', () => {
+    const rows = floatMathRows(
+      adultBreakdown({ totalCash: 1000, bankCash: 1000, cardDebt: 250, cardPendingPayments: 40, float: 100 }),
+      opts,
+      fmt,
+    )
+    expect(rows?.map((r) => [r.label, r.value, r.kind])).toEqual([
+      ['Total balance', '$1000.00', 'start'],
+      ['In buckets', '$500.00', 'minus'],
+      ['Set aside for kids', '$50.00', 'minus'],
+      ['Adri', '$30.00', 'minus'],
+      ['Jake', '$20.00', 'minus'],
+      ['Owed on cards', '$250.00', 'minus'],
+      ['Unbucketed', '$100.00', 'result'],
+    ])
+    expect(rows?.find((r) => r.key === 'cards')?.note).toBe('after $40.00 pending payment')
+    expect(rows?.filter((r) => r.indent).length).toBe(2)
+  })
+
+  it('lists a kid with nothing set aside as $0 instead of dropping them', () => {
+    const rows = floatMathRows(
+      adultBreakdown({
+        childrenSetAside: 30,
+        children: [
+          { memberId: 'c1', name: 'Adri', amount: 30 },
+          { memberId: 'c2', name: 'T', amount: 0 },
+        ],
+      }),
+      opts,
+      fmt,
+    )
+    expect(rows?.filter((r) => r.indent).map((r) => [r.label, r.value])).toEqual([
+      ['Adri', '$30.00'],
+      ['T', '$0.00'],
+    ])
+    expect(rows?.find((r) => r.key === 'kids')?.value).toBe('$30.00')
+  })
+
+  it('skips lines that are zero and is null when nothing is taken out', () => {
+    const rows = floatMathRows(
+      adultBreakdown({ bucketAllocated: 0, children: [], childrenSetAside: 0, cardDebt: 0 }),
+      opts,
+      fmt,
+    )
+    expect(rows).toBeNull()
+  })
+
+  it('is null with no cash to start from', () => {
+    expect(floatMathRows(adultBreakdown({ totalCash: 0, bankCash: 0 }), opts, fmt)).toBeNull()
+  })
+
+  it('gives a child total, their buckets and Unbucketed only', () => {
+    const rows = floatMathRows(
+      adultBreakdown({ children: [], childrenSetAside: 0, bucketAllocated: 300, float: 700 }),
+      { ...opts, isChild: true, childTotal: 1000 },
+      fmt,
+    )
+    expect(rows?.map((r) => [r.label, r.value])).toEqual([
+      ['Total balance', '$1000.00'],
+      ['In your buckets', '$300.00'],
+      ['Unbucketed', '$700.00'],
+    ])
   })
 })

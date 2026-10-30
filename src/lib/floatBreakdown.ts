@@ -1,4 +1,8 @@
 import {
+  FLOAT_LABEL,
+  FLOAT_MATH_BUCKETS_LABEL,
+  FLOAT_MATH_CHILD_BUCKETS_LABEL,
+  FLOAT_MATH_KIDS_LABEL,
   FLOAT_TILE_BALANCE_LABEL,
   FLOAT_TILE_CARDS_LABEL,
   floatTileCardsPendingNote,
@@ -303,4 +307,104 @@ export function floatHeroTiles(
           }
         : null,
   }
+}
+
+export type FloatMathRow = {
+  key: string
+  label: string
+  value: string
+  /** `start` = the total, `minus` = taken out of it, `result` = Unbucketed. */
+  kind: 'start' | 'minus' | 'result'
+  /** A per-kid line under "Set aside for kids". */
+  indent?: boolean
+  note?: string | null
+}
+
+/**
+ * The hero's arithmetic spelled out: total balance, minus what is in buckets,
+ * minus kids' money, minus card debt, equals Unbucketed. Null when there is
+ * nothing taken out (the total *is* Unbucketed) or no cash to start from.
+ */
+export function floatMathRows(
+  breakdown: BucketsBalanceBreakdown,
+  opts: BuildOpts,
+  formatMoney: (amount: number) => string,
+): FloatMathRow[] | null {
+  const rows: FloatMathRow[] = []
+  const result: FloatMathRow = {
+    key: 'result',
+    label: FLOAT_LABEL,
+    value: formatMoney(breakdown.float),
+    kind: 'result',
+  }
+
+  if (opts.isChild) {
+    if (opts.childTotal <= 0 || breakdown.bucketAllocated <= 0) return null
+    rows.push(
+      {
+        key: 'total',
+        label: FLOAT_TILE_BALANCE_LABEL,
+        value: formatMoney(opts.childTotal),
+        kind: 'start',
+      },
+      {
+        key: 'buckets',
+        label: FLOAT_MATH_CHILD_BUCKETS_LABEL,
+        value: formatMoney(breakdown.bucketAllocated),
+        kind: 'minus',
+      },
+      result,
+    )
+    return rows
+  }
+
+  if (breakdown.totalCash <= 0) return null
+  rows.push({
+    key: 'total',
+    label: FLOAT_TILE_BALANCE_LABEL,
+    value: formatMoney(breakdown.totalCash),
+    kind: 'start',
+  })
+  if (breakdown.bucketAllocated > 0) {
+    rows.push({
+      key: 'buckets',
+      label: FLOAT_MATH_BUCKETS_LABEL,
+      value: formatMoney(breakdown.bucketAllocated),
+      kind: 'minus',
+    })
+  }
+  // Every kid is listed, including one at $0 — a kid vanishing from the math
+  // reads as missing, not as nothing set aside.
+  if (breakdown.children.length > 0) {
+    rows.push({
+      key: 'kids',
+      label: FLOAT_MATH_KIDS_LABEL,
+      value: formatMoney(breakdown.childrenSetAside),
+      kind: 'minus',
+    })
+    for (const kid of breakdown.children) {
+      rows.push({
+        key: `kid-${kid.memberId}`,
+        label: kid.name,
+        value: formatMoney(kid.amount),
+        kind: 'minus',
+        indent: true,
+      })
+    }
+  }
+  if (breakdown.cardDebt > 0) {
+    rows.push({
+      key: 'cards',
+      label: FLOAT_TILE_CARDS_LABEL,
+      value: formatMoney(breakdown.cardDebt),
+      kind: 'minus',
+      note:
+        breakdown.cardPendingPayments > 0
+          ? floatTileCardsPendingNote(formatMoney(breakdown.cardPendingPayments))
+          : null,
+    })
+  }
+  if (rows.length < 2) return null
+  rows.push(result)
+  return rows
 }
