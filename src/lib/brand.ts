@@ -804,6 +804,10 @@ export function floatRefreshedLabel(relativeTime: string): string {
 export const REFRESH_BALANCES_THROTTLED =
   'Balances are already up to date. They refresh at most every 30 minutes.'
 
+/** Some accounts refreshed and others didn't, so "Refreshed just now" is true too. */
+export const REFRESH_BALANCES_PARTIAL =
+  "Some balances refreshed, but others couldn't. Try again in a moment."
+
 export const REFRESH_BALANCES_ERROR =
   "Couldn't refresh your balances right now. Your bank or our sync may be busy—try again in a moment."
 

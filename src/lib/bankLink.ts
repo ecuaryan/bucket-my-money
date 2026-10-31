@@ -3,7 +3,11 @@
 // what the provider Edge Functions return, so components can render bank
 // activity and refresh results without knowing which provider served them.
 
-import { REFRESH_BALANCES_ERROR, REFRESH_BALANCES_THROTTLED } from '@/lib/brand'
+import {
+  REFRESH_BALANCES_ERROR,
+  REFRESH_BALANCES_PARTIAL,
+  REFRESH_BALANCES_THROTTLED,
+} from '@/lib/brand'
 
 /**
  * The bank link is expired/deauthorized — a retry won't help; it must be
@@ -56,11 +60,16 @@ export type FetchBankTransactionsResult = {
  * failures are collected into `errors` rather than thrown. Callers must check
  * this so a failed refresh isn't silently swallowed (the spinner stopping with
  * no feedback). A throttled/skipped refresh has no errors and returns null.
+ * Partial success (some updated, some errored) gets its own wording.
  */
 export function refreshBalancesErrorMessage(
   result: RefreshBalancesResult,
 ): string | null {
-  return result.errors.length > 0 ? REFRESH_BALANCES_ERROR : null
+  if (result.errors.length === 0) return null
+  // Say so when some accounts did refresh, so it agrees with "Refreshed just now".
+  return result.accountsUpdated > 0
+    ? REFRESH_BALANCES_PARTIAL
+    : REFRESH_BALANCES_ERROR
 }
 
 /** Servers refresh a bank at most this often; a tap sooner is a no-op. */
