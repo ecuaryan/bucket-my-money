@@ -36,13 +36,15 @@ describe('validateJoinCode', () => {
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(networkResult)
       .mockResolvedValueOnce(networkResult)
+      .mockResolvedValueOnce(networkResult)
+      .mockResolvedValueOnce(networkResult)
       .mockResolvedValueOnce(rosterResult(payload))
 
     const promise = validateJoinCode('ABC123')
     await vi.runAllTimersAsync()
 
     await expect(promise).resolves.toEqual(payload)
-    expect(supabase.rpc).toHaveBeenCalledTimes(3)
+    expect(supabase.rpc).toHaveBeenCalledTimes(5)
   })
 
   it('translates a persistent fetch failure into friendly connection copy', async () => {
@@ -56,8 +58,8 @@ describe('validateJoinCode', () => {
     await vi.runAllTimersAsync()
     await assertion
 
-    // Retries exhausted, not a single-shot failure.
-    expect(supabase.rpc).toHaveBeenCalledTimes(3)
+    // Retries exhausted (six tries over ~10s), not a single-shot failure.
+    expect(supabase.rpc).toHaveBeenCalledTimes(6)
   })
 
   it('does not treat a network failure as a stale join code', async () => {

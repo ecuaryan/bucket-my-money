@@ -133,12 +133,13 @@ async function postFunction<T>(
 /**
  * The roster read is a safe, idempotent lookup, and a dropped request on mobile
  * is usually a momentary blip (backgrounded tab, spotty signal). Retry a few
- * times with short backoff so a transient failure self-heals before the user
+ * times with backoff so a transient failure self-heals before the user
  * ever sees an error. Only network failures retry — an invalid/stale code or any
  * other domain error fails fast so feedback stays immediate.
  */
-const JOIN_ROSTER_MAX_ATTEMPTS = 3
-const JOIN_ROSTER_RETRY_BASE_MS = 400
+// A phone waking the PWA often has no usable network for several seconds, so
+// the schedule runs ~10s before the error shows (the spinner stays up meanwhile).
+const JOIN_ROSTER_RETRY_DELAYS_MS = [500, 1000, 2000, 3000, 4000]
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -160,8 +161,9 @@ export async function validateJoinCode(code: string): Promise<ValidateJoinResult
     // supabase-js reports a dropped request as a PostgrestError whose message is
     // the stringified fetch failure ("TypeError: Failed to fetch").
     if (isNetworkFailureMessage(error.message)) {
-      if (attempt < JOIN_ROSTER_MAX_ATTEMPTS) {
-        await delay(JOIN_ROSTER_RETRY_BASE_MS * attempt)
+      const wait = JOIN_ROSTER_RETRY_DELAYS_MS[attempt - 1]
+      if (wait !== undefined) {
+        await delay(wait)
         continue
       }
       // Out of retries — show the friendly copy the Edge Function path uses
