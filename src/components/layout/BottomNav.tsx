@@ -33,7 +33,7 @@ export default function BottomNav({ tabs }: BottomNavProps) {
   return (
     <nav
       className={
-        'fixed inset-x-0 bottom-0 overflow-visible border-t border-zinc-800 bg-zinc-900/95 backdrop-blur ' +
+        'fixed inset-x-0 bottom-0 overflow-visible border-t border-zinc-800 bg-zinc-900/65 backdrop-blur-xl ' +
         SAFE_BOTTOM
       }
       style={{ zIndex: APP_CHROME_Z_INDEX }}

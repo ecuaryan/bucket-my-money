@@ -50,6 +50,22 @@ afterEach(async () => {
   document.documentElement.style.removeProperty('--header-glow-rgb')
 })
 
+describe('HeaderGlowProvider status bar', () => {
+  it('tints theme-color to the glow and restores black on unmount', async () => {
+    const meta = document.createElement('meta')
+    meta.name = 'theme-color'
+    meta.content = '#000000'
+    document.head.appendChild(meta)
+    rpc.mockResolvedValue({ data: { float: -50 }, error: null } as never)
+    await render(null)
+    expect(meta.content).toBe('rgb(25 11 11)')
+    await act(async () => root.unmount())
+    expect(meta.content).toBe('#000000')
+    root = createRoot(host)
+    meta.remove()
+  })
+})
+
 describe('HeaderGlowProvider', () => {
   it('is red when the balance read on load is negative, with no page reporting', async () => {
     rpc.mockResolvedValue({ data: { float: -50 }, error: null } as never)
