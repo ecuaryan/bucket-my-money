@@ -1,12 +1,15 @@
+import { useId, useState } from 'react'
 import RefreshIcon from '@/components/ui/RefreshIcon'
 import {
   HERO_RADIUS,
   HERO_TONE_NEGATIVE,
   HERO_TONE_POSITIVE,
 } from '@/components/ui/heroTone'
-import type { FloatHeroTile } from '@/lib/floatBreakdown'
+import type { FloatHeroTile, FloatMathRow } from '@/lib/floatBreakdown'
 import {
   floatRefreshedLabel,
+  FLOAT_MATH_CARDS_NOTE,
+  FLOAT_MATH_TOGGLE_LABEL,
   FLOAT_REFRESH_BALANCES_LABEL,
 } from '@/lib/brand'
 
@@ -18,6 +21,8 @@ type FloatHeroProps = {
   cashSubtext: string | null
   /** Total-balance tile (plus card-debt tile when owed); replaces the cash sentence. */
   tiles: { cash: FloatHeroTile; cards: FloatHeroTile | null } | null
+  /** Total → buckets → kids → cards → Unbucketed, behind a quiet toggle. */
+  math: FloatMathRow[] | null
   hint: string | null
   bankSyncedLabel: string | null
   canRefresh: boolean
@@ -38,6 +43,45 @@ function floatRefreshVisibleLabel(bankSyncedLabel: string | null): string {
     return floatRefreshedLabel(bankSyncedLabel)
   }
   return FLOAT_REFRESH_BALANCES_LABEL
+}
+
+function MathRows({ rows }: { rows: FloatMathRow[] }) {
+  return (
+    <div className="mt-2 rounded-[13px] bg-black/30 px-3 py-2.5 ring-1 ring-inset ring-white/5">
+      <dl className="space-y-1 text-[12.5px]">
+        {rows.map((row) => (
+          <div
+            key={row.key}
+            className={
+              'flex items-baseline justify-between gap-4 tabular-nums ' +
+              (row.kind === 'result'
+                ? 'mt-1.5 border-t border-white/10 pt-2 font-semibold text-zinc-100 '
+                : 'text-zinc-300 ') +
+              (row.indent ? 'pl-3 text-[12px] text-zinc-500' : '')
+            }
+          >
+            <dt className="min-w-0">
+              {row.label}
+              {row.note ? (
+                <span className="block text-[10.5px] font-normal leading-[1.35] text-zinc-500">
+                  {row.note}
+                </span>
+              ) : null}
+            </dt>
+            <dd className="shrink-0">
+              {row.kind === 'minus' ? '− ' : row.kind === 'result' ? '= ' : ''}
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {rows.some((row) => row.key === 'cards') ? (
+        <p className="mt-2 text-[11px] leading-[1.4] text-zinc-500">
+          {FLOAT_MATH_CARDS_NOTE}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 function StatTile({
@@ -73,6 +117,7 @@ export default function FloatHero({
   negative,
   cashSubtext,
   tiles,
+  math,
   hint,
   bankSyncedLabel,
   canRefresh,
@@ -80,6 +125,8 @@ export default function FloatHero({
   refreshError,
   onRefresh,
 }: FloatHeroProps) {
+  const [mathOpen, setMathOpen] = useState(false)
+  const mathId = useId()
   return (
     <section
       className={
@@ -132,6 +179,34 @@ export default function FloatHero({
           <StatTile tile={tiles.cash} />
           {tiles.cards ? <StatTile tile={tiles.cards} accent /> : null}
         </div>
+      ) : null}
+      {math ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setMathOpen((open) => !open)}
+            aria-expanded={mathOpen}
+            aria-controls={mathId}
+            className="mt-2.5 inline-flex items-center gap-1 text-[11.5px] leading-4 opacity-70 transition hover:opacity-100"
+          >
+            {FLOAT_MATH_TOGGLE_LABEL}
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className={'h-3 w-3 transition-transform ' + (mathOpen ? 'rotate-180' : '')}
+            >
+              <path d="m5 8 5 5 5-5" />
+            </svg>
+          </button>
+          <div id={mathId} hidden={!mathOpen}>
+            <MathRows rows={math} />
+          </div>
+        </>
       ) : null}
       {refreshError ? (
         <p className="mt-1.5 text-[11px] text-red-300/80">{refreshError}</p>
