@@ -7,6 +7,9 @@ export const CASH_ACCOUNT_SUBTYPES = new Set([
   'cash_management',
   'treasury',
   'manual',
+  // SimpleFIN cash rows, and Plaid depository accounts without a classic subtype
+  // (HSA, prepaid, …). Postgres counts it; so must every copy.
+  'cash',
 ])
 
 export function isCashAccountType(accountType: string | null | undefined): boolean {
