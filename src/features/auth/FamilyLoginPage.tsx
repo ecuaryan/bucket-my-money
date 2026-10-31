@@ -280,6 +280,28 @@ export default function FamilyLoginPage() {
     }
   }, [loadBoundRoster])
 
+  // While the load-error panel is up, retry on its own as soon as the phone
+  // is likely reachable again (network back, app brought to the front).
+  useEffect(() => {
+    if (!rosterLoadError) return
+    let busy = false
+    const retryNow = () => {
+      if (busy || document.visibilityState !== 'visible') return
+      busy = true
+      setLoading(true)
+      void loadBoundRoster().finally(() => {
+        busy = false
+        setLoading(false)
+      })
+    }
+    window.addEventListener('online', retryNow)
+    document.addEventListener('visibilitychange', retryNow)
+    return () => {
+      window.removeEventListener('online', retryNow)
+      document.removeEventListener('visibilitychange', retryNow)
+    }
+  }, [rosterLoadError, loadBoundRoster])
+
   const silentRefreshRoster = useCallback(async () => {
     const storedCode = getBoundJoinCode()?.trim()
     if (!storedCode) return
