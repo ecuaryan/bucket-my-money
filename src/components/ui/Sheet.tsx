@@ -77,7 +77,7 @@ export function Sheet({
     >
       <div
         className={
-          'sheet-panel w-full max-w-md rounded-2xl bg-zinc-900 p-5 shadow-2xl ring-1 ring-zinc-800 ' +
+          'sheet-panel w-full max-w-md rounded-2xl bg-zinc-900/75 p-5 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl ' +
           (shown ? 'sheet-panel-open' : '')
         }
         onClick={(e) => e.stopPropagation()}

@@ -206,6 +206,8 @@ export default function BucketsPage() {
   const [notesBucketId, setNotesBucketId] = useState<string | null>(null)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+  // Hero refresh: spinner only, no page-wide dim (BusyOverlay is for writes).
+  const [refreshingBalances, setRefreshingBalances] = useState(false)
   const [manualSourceOpen, setManualSourceOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Bucket | null>(null)
   const [deleteAutoOrganizeRefs, setDeleteAutoOrganizeRefs] = useState<
@@ -885,7 +887,7 @@ export default function BucketsPage() {
 
   async function handleRefreshBalances() {
     setRefreshError(null)
-    setSyncing(true)
+    setRefreshingBalances(true)
     try {
       // refreshBalances resolves even when a bank errors (per-account failures
       // come back in `errors`), so surface that instead of stopping silently.
@@ -897,7 +899,7 @@ export default function BucketsPage() {
     } catch (e) {
       setRefreshError(formatErrorMessage(e, REFRESH_BALANCES_ERROR))
     } finally {
-      setSyncing(false)
+      setRefreshingBalances(false)
     }
   }
 
@@ -1218,7 +1220,7 @@ export default function BucketsPage() {
           hint={floatHint}
           bankSyncedLabel={bankSyncedLabel}
           canRefresh={canRefreshBalances}
-          syncing={syncing}
+          syncing={syncing || refreshingBalances}
           refreshError={refreshError}
           onRefresh={() => void handleRefreshBalances()}
         />
