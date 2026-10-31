@@ -50,18 +50,13 @@ test.describe('Refresh throttle feedback', () => {
     await expect(page.getByText(REFRESH_BALANCES_THROTTLED)).toHaveCount(0)
   })
 
-  test('the Updating overlay covers the tabs too', async ({ page }) => {
-    await signedInWithLinkedBank(page, 'e2e-overlay-tabs')
+  test('a slow refresh spins the button without dimming the page', async ({ page }) => {
+    await signedInWithLinkedBank(page, 'e2e-no-overlay')
     await mockRefresh(page, { refreshed: true, accountsUpdated: 1, bankLastSyncedAt: new Date().toISOString() }, 2500)
-    await page.getByRole('button', { name: 'Refresh balances' }).first().click()
-    await expect(page.getByText('Updating…')).toBeVisible()
-    // Whatever is topmost at the middle of a tab must be the overlay, not the tab.
-    const tabIsCovered = await page.evaluate(() => {
-      const tab = document.querySelector('[role="tab"][aria-selected="false"]')!
-      const box = tab.getBoundingClientRect()
-      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
-      return !top?.closest('[role="tablist"]')
-    })
-    expect(tabIsCovered).toBe(true)
+    const refresh = page.getByRole('button', { name: 'Refresh balances' }).first()
+    await refresh.click()
+    await expect(refresh).toBeDisabled()
+    await expect(page.getByText('Updating…')).toHaveCount(0)
+    await expect(refresh).toBeEnabled({ timeout: 10_000 })
   })
 })

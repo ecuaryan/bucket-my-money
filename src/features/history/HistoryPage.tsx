@@ -606,7 +606,7 @@ export default function HistoryPage() {
                   the date is always visible; the next day's label takes over. */}
               <div
                 data-day-heading=""
-                className="sticky-below-header z-10 -mx-4 mb-2 flex items-center justify-between gap-3 border-b border-transparent bg-black/90 px-5 py-1 backdrop-blur transition-[border-color,box-shadow] duration-150 data-[stuck=true]:border-zinc-800 data-[stuck=true]:shadow-[0_6px_10px_-6px_rgb(0_0_0/0.9)]"
+                className="sticky-below-header z-10 -mx-4 mb-2 flex items-center justify-between gap-3 border-b border-transparent bg-black/90 px-5 py-1 backdrop-blur-[2px] transition-[border-color,box-shadow] duration-150 data-[stuck=true]:border-zinc-800 data-[stuck=true]:shadow-[0_6px_10px_-6px_rgb(0_0_0/0.9)]"
               >
                 <h2 className="py-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
                   {group.label}

@@ -13,6 +13,11 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
 const RED_GLOW_RGB = '248 113 113'
+const DEFAULT_GLOW_RGB = '52 211 153'
+// The header's glow is strongest near its top-left and fades out, so the
+// status bar (one flat color) takes roughly its average strength over black.
+const STATUS_BAR_TINT = 0.1
+const STATUS_BAR_BLACK = '#000000'
 
 type HeaderGlowApi = {
   setFloat: (float: number) => void
@@ -60,6 +65,20 @@ export function HeaderGlowProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--header-glow-rgb', glow)
     return () => {
       root.style.removeProperty('--header-glow-rgb')
+    }
+  }, [glow])
+
+  // Tint the system status bar to the header's top edge so it reads as one
+  // surface (Android PWAs can't draw under it, but they honor theme-color).
+  useEffect(() => {
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    if (!meta) return
+    const [r, g, b] = (glow ?? DEFAULT_GLOW_RGB)
+      .split(' ')
+      .map((c) => Math.round(Number(c) * STATUS_BAR_TINT))
+    meta.content = `rgb(${r} ${g} ${b})`
+    return () => {
+      meta.content = STATUS_BAR_BLACK
     }
   }, [glow])
 

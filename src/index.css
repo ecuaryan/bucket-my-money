@@ -115,7 +115,9 @@ html {
 
   .sheet-backdrop {
     background-color: rgb(0 0 0 / 0);
-    transition: background-color 200ms ease;
+    transition:
+      background-color 200ms ease,
+      backdrop-filter 200ms ease;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
@@ -130,7 +132,9 @@ html {
   }
 
   .sheet-backdrop-open {
-    background-color: rgb(0 0 0 / 0.7);
+    background-color: rgb(0 0 0 / 0.55);
+    /* Same light blur as the header and footer. */
+    backdrop-filter: blur(4px);
   }
 
   .sheet-panel {
