@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   BANK_ACTIVITY_LOAD_ERROR,
   REFRESH_BALANCES_ERROR,
+  REFRESH_BALANCES_PARTIAL,
   REFRESH_BALANCES_THROTTLED,
 } from '@/lib/brand'
 
@@ -130,7 +131,7 @@ describe('refreshBalancesErrorMessage', () => {
     ).toBe(REFRESH_BALANCES_ERROR)
   })
 
-  it('flags a partial failure (some updated, some errored)', () => {
+  it('names a partial failure as partial (some updated, some errored)', () => {
     expect(
       refreshBalancesErrorMessage(
         refreshResult({
@@ -139,7 +140,7 @@ describe('refreshBalancesErrorMessage', () => {
           errors: ['acc_3: Teller timed out'],
         }),
       ),
-    ).toBe(REFRESH_BALANCES_ERROR)
+    ).toBe(REFRESH_BALANCES_PARTIAL)
   })
 })
 

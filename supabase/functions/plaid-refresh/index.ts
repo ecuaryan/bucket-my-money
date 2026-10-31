@@ -21,7 +21,7 @@ import {
   isCashAccountType,
   isCreditCardAccountType,
 } from '../_shared/cashAccountTypes.ts'
-import { shouldSkipRefresh } from '../_shared/refreshThrottle.ts'
+import { itemsDueForRefresh } from '../_shared/refreshThrottle.ts'
 import { getBalances, isReconnectError, pickPlaidBalance } from '../_shared/plaid.ts'
 import { syncPendingCardPayments } from '../_shared/plaidPendingSync.ts'
 
@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
   let itemQuery = admin
     .from('plaid_items')
-    .select('id, access_token')
+    .select('id, access_token, last_synced_at')
     .eq('family_id', familyId)
     .eq('status', 'active')
   if (body.itemIds?.length) {
@@ -119,7 +119,6 @@ Deno.serve(async (req: Request) => {
   }
 
   const accounts = familyAccounts ?? []
-  let latestSyncedMs: number | null = null
   let bankLastSyncedAt: string | null = null
   for (const account of accounts) {
     const counted =
@@ -128,13 +127,15 @@ Deno.serve(async (req: Request) => {
     if (!counted || !account.last_synced_at) continue
     const ms = Date.parse(account.last_synced_at)
     if (Number.isNaN(ms)) continue
-    if (latestSyncedMs == null || ms > latestSyncedMs) {
-      latestSyncedMs = ms
+    if (bankLastSyncedAt == null || ms > Date.parse(bankLastSyncedAt)) {
       bankLastSyncedAt = account.last_synced_at
     }
   }
 
-  if (shouldSkipRefresh(latestSyncedMs, Date.now(), PLAID_REFRESH_THROTTLE_MS)) {
+  // Throttle per bank, not per family: a bank that just failed must stay
+  // retryable even when another bank refreshed a moment ago.
+  const dueItems = itemsDueForRefresh(items ?? [], Date.now(), PLAID_REFRESH_THROTTLE_MS)
+  if (dueItems.length === 0) {
     return jsonResponse({
       ok: true,
       refreshed: false,
@@ -159,7 +160,7 @@ Deno.serve(async (req: Request) => {
 
   // One Plaid request per Item covers all of its accounts.
   const results = await Promise.all(
-    (items ?? []).map(async (item) => {
+    dueItems.map(async (item) => {
       const linked = accountsByItem.get(item.id) ?? []
       if (linked.length === 0) return { updated: 0, errors: [] }
       const itemErrors: string[] = []
@@ -193,10 +194,14 @@ Deno.serve(async (req: Request) => {
             )
           }
         }
-        await admin
-          .from('plaid_items')
-          .update({ last_synced_at: nowIso })
-          .eq('id', item.id)
+        // Only a fully clean pass counts as synced, so a bank with a failed
+        // account is retried on the next tap instead of throttled.
+        if (itemErrors.length === 0) {
+          await admin
+            .from('plaid_items')
+            .update({ last_synced_at: nowIso })
+            .eq('id', item.id)
+        }
         pendingSyncItems.push({
           accessToken: item.access_token,
           plaidAccounts,
