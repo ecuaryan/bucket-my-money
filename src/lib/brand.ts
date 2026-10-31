@@ -1416,6 +1416,9 @@ export const FLOAT_TILE_CARDS_LABEL = 'Owed on cards'
 
 /** "How this adds up" disclosure under the Unbucketed hero. */
 export const FLOAT_MATH_TOGGLE_LABEL = 'How this adds up'
+export const FLOAT_MATH_SETTING_TITLE = 'Show how it adds up'
+export const FLOAT_MATH_SETTING_DETAIL =
+  'Adds a "How this adds up" line under Unbucketed that spells out the math.'
 export const FLOAT_MATH_BUCKETS_LABEL = 'In buckets'
 export const FLOAT_MATH_CHILD_BUCKETS_LABEL = 'In your buckets'
 export const FLOAT_MATH_KIDS_LABEL = 'Set aside for kids'

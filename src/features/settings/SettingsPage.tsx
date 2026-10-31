@@ -1,6 +1,7 @@
 import AppVersionFooter from '@/components/AppVersionFooter'
 import DemoHideAmountsToggle from '@/components/DemoHideAmountsToggle'
 import DevToastPreview from '@/components/DevToastPreview'
+import HeroMathSettingsCard from '@/features/settings/HeroMathSettingsCard'
 import AccountSettingsCard from '@/features/settings/AccountSettingsCard'
 import BiometricSettingsCard from '@/features/settings/BiometricSettingsCard'
 import PinSettingsCard from '@/features/settings/PinSettingsCard'
@@ -16,6 +17,8 @@ export default function SettingsPage() {
       <DevToastPreview />
 
       <DemoHideAmountsToggle />
+
+      <HeroMathSettingsCard />
 
       <AccountSettingsCard />
 

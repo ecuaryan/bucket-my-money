@@ -172,6 +172,7 @@ import {
 import BankAccountsTab from '@/features/accounts/BankAccountsTab'
 import { HERO_RADIUS, HERO_TONE_POSITIVE } from '@/components/ui/heroTone'
 import { useHeaderAccent, useReportFloat } from '@/hooks/HeaderGlowProvider'
+import { useHeroMathPref } from '@/hooks/useHeroMathPref'
 import BitcoinTab from '@/features/bitcoin/BitcoinTab'
 import { fetchOwnBitcoinEntryCount } from '@/lib/bitcoinData'
 import { useFeatureFlag } from '@/hooks/FeatureFlagsProvider'
@@ -238,6 +239,7 @@ export default function BucketsPage() {
     auth.status === 'signedIn' ? auth.session.access_token : null
   const familyId = member?.family_id ?? null
   const memberId = member?.id ?? null
+  const [showHeroMath] = useHeroMathPref(memberId)
 
   if (memberId !== prevCoachMemberId) {
     setPrevCoachMemberId(memberId)
@@ -1212,7 +1214,7 @@ export default function BucketsPage() {
           negative={float < 0}
           cashSubtext={cashSubtext}
           tiles={heroTiles}
-          math={heroMath}
+          math={showHeroMath ? heroMath : null}
           hint={floatHint}
           bankSyncedLabel={bankSyncedLabel}
           canRefresh={canRefreshBalances}
