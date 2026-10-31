@@ -133,8 +133,8 @@ html {
 
   .sheet-backdrop-open {
     background-color: rgb(0 0 0 / 0.7);
-    /* Same barely-there blur as the header and footer. */
-    backdrop-filter: blur(2px);
+    /* Same light blur as the header and footer. */
+    backdrop-filter: blur(4px);
   }
 
   .sheet-panel {
