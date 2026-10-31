@@ -134,7 +134,7 @@ function AppShellLayout() {
     <div className="flex min-h-svh flex-col bg-black text-zinc-300">
       <header
         ref={headerRef}
-        className="app-header-glow sticky top-0 bg-black/85 backdrop-blur-xl"
+        className="app-header-glow sticky top-0 bg-black/85 backdrop-blur-md"
         style={{ zIndex: APP_CHROME_Z_INDEX }}
       >
         <div className="mx-auto flex max-w-md items-center justify-between px-4 py-2.5">
