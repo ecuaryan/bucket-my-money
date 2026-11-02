@@ -22,6 +22,8 @@ const STATUS_BAR_BLACK = '#000000'
 type HeaderGlowApi = {
   setFloat: (float: number) => void
   setAccent: (rgb: string | null) => void
+  /** Re-read the balance (a page changed money without knowing the new total). */
+  refresh: () => void
 }
 
 const HeaderGlowContext = createContext<HeaderGlowApi | null>(null)
@@ -39,6 +41,7 @@ export function HeaderGlowProvider({ children }: { children: ReactNode }) {
   const signedIn = auth.status === 'signedIn'
   const [float, setFloat] = useState<number | null>(null)
   const [accent, setAccent] = useState<string | null>(null)
+  const [refreshTick, setRefreshTick] = useState(0)
   // Bumped on every page report, so a slower read that started earlier never
   // overwrites a fresher balance a page already reported.
   const reports = useRef(0)
@@ -56,7 +59,7 @@ export function HeaderGlowProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [signedIn, pathname])
+  }, [signedIn, pathname, refreshTick])
 
   const glow = accent ?? ((float ?? 0) < 0 ? RED_GLOW_RGB : null)
   useEffect(() => {
@@ -89,6 +92,7 @@ export function HeaderGlowProvider({ children }: { children: ReactNode }) {
         setFloat(next)
       },
       setAccent,
+      refresh: () => setRefreshTick((tick) => tick + 1),
     }),
     [],
   )
@@ -108,6 +112,18 @@ export function useReportFloat(float: number | null) {
     if (api && float !== null) api.setFloat(float)
   }, [api, float])
 }
+
+/**
+ * For pages that change money but don't load the Unbucketed total (Admin money
+ * sources): call the returned function after a change so the glow follows.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useRefreshHeaderGlow(): () => void {
+  const api = useContext(HeaderGlowContext)
+  return api?.refresh ?? noop
+}
+
+function noop() {}
 
 /** Override the header glow with this page's accent (an "r g b" triplet) while mounted. */
 // eslint-disable-next-line react-refresh/only-export-components

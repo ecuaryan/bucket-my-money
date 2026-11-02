@@ -40,6 +40,7 @@ import { usePostgresChanges } from '@/hooks/usePostgresChanges'
 import { useFeatureFlag } from '@/hooks/FeatureFlagsProvider'
 import BitcoinKidsSection from '@/features/bitcoin/BitcoinKidsSection'
 import { useHideAmounts, usePeekTarget } from '@/lib/HideAmountsProvider'
+import { useReportFloat } from '@/hooks/HeaderGlowProvider'
 import type { Database } from '@/types/database'
 
 type Member = Pick<
@@ -197,6 +198,8 @@ export default function KidsPage() {
   }, [children, accounts, linkedChildIds, balanceBreakdown])
 
   const available = balanceBreakdown?.float ?? null
+  // Give and Take change Unbucketed: keep the header glow in step.
+  useReportFloat(available)
   const bankSyncedLabel = balanceBreakdown
     ? formatRelativeTime(balanceBreakdown.bankLastSyncedAt)
     : null

@@ -1,0 +1,62 @@
+/** User-facing copy — Sign-in: email, join code, PIN. Import from `@/lib/brand`. */
+
+import { householdAdminLabel } from './core'
+
+export const LOGIN_ALREADY_HAVE_ACCOUNT = 'Already have an account?'
+
+export const LOGIN_GET_STARTED = 'Get started'
+
+export const LOGIN_SIGNUP_TITLE = 'Create your account'
+
+export const LOGIN_SIGNUP_SUBTITLE =
+  'Confirm your email, then sign in and set up your buckets.'
+
+/** After sign-up when email confirmation is required before first sign-in. */
+export const LOGIN_SIGNUP_SUCCESS =
+  'Account created. Check your email to confirm, then sign in below.'
+
+export const LOGIN_SHARED_TITLE = 'Sharing a household?'
+
+export const LOGIN_SHARED_SUB =
+  'Use your household join code (in Admin), then your PIN.'
+
+// Reads as the shared-household path so it does not collide with the personal
+// "PIN" button on the email/password page.
+export const LOGIN_SHARED_CTA = 'Use a household join code →'
+
+export const JOIN_CODE_LABEL = 'Join code'
+
+export const JOIN_CODE_ENTER_PROMPT = 'Enter your household join code.'
+
+export const PIN_JOIN_PAGE_TITLE = 'Join your household'
+
+export const PIN_JOIN_PAGE_SUBTITLE =
+  'Enter your household join code from Admin (or scan the QR there).'
+
+export const PIN_UNBIND_JOIN_CODE_LINK = 'Use a different join code'
+
+export const PIN_UNBIND_JOIN_CODE_SHEET_TITLE = 'Use a different join code?'
+
+export const PIN_UNBIND_JOIN_CODE_SHEET_BODY =
+  'This device forgets the household code. Signing in here again will need the join code from Admin.'
+
+export const PIN_UNBIND_JOIN_CODE_CONFIRM = 'Forget this code'
+
+export const PIN_HOUSEHOLD_LOAD_ERROR_TITLE = 'Could not load household'
+
+export const PIN_MEMBER_NOT_SET_LABEL = 'PIN not set yet'
+
+export function pinPickerPendingLead(
+  adminName: string | null | undefined,
+  everyoneWaiting: boolean,
+): string {
+  const admin = householdAdminLabel(adminName)
+  if (everyoneWaiting) {
+    return `Waiting for ${admin} to set your PIN.`
+  }
+  return `Waiting for ${admin} to set remaining PINs.`
+}
+
+export function pinNoMembersYet(adminName: string | null | undefined): string {
+  return `No household members yet. Ask ${householdAdminLabel(adminName)} to add you and set your PIN.`
+}

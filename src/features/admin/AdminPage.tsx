@@ -72,6 +72,7 @@ import FamilyJoinSection from '@/features/admin/FamilyJoinSection'
 import MembersSection from '@/features/admin/MembersSection'
 import AppVersionFooter from '@/components/AppVersionFooter'
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
+import { useRefreshHeaderGlow } from '@/hooks/HeaderGlowProvider'
 import { useHideAmounts, usePeekTarget } from '@/lib/HideAmountsProvider'
 import { BusyOverlay } from '@/components/ui/BusyOverlay'
 import { ListSkeleton } from '@/components/ui/ListSkeleton'
@@ -212,6 +213,10 @@ export default function AdminPage() {
     }
   }, [addSourceOpen])
 
+  const refreshHeaderGlow = useRefreshHeaderGlow()
+  // The first load is the page opening (the header already read the balance);
+  // every later reload follows a money-source change that can flip Unbucketed.
+  const accountsLoadedRef = useRef(false)
   const loadAccounts = useCallback(async () => {
     setLoadError(null)
     try {
@@ -224,10 +229,12 @@ export default function AdminPage() {
         if (error) throw new Error(error.message)
         setAccounts(data ?? [])
       })
+      if (accountsLoadedRef.current) refreshHeaderGlow()
+      accountsLoadedRef.current = true
     } catch (e) {
       setLoadError(formatLoadErrorMessage(e, 'Could not load accounts.'))
     }
-  }, [])
+  }, [refreshHeaderGlow])
 
   const loadMembers = useCallback(async () => {
     try {

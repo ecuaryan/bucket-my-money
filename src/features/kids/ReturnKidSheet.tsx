@@ -73,10 +73,8 @@ export default function ReturnKidSheet({
       setSubmitError('Enter an amount greater than $0.')
       return
     }
-    if (overdraft && overdraftMessage) {
-      setSubmitError(overdraftMessage)
-      return
-    }
+    // The overdraft message already shows under the amount; don't repeat it.
+    if (overdraft) return
 
     setSubmitting(true)
     try {
@@ -184,7 +182,7 @@ export default function ReturnKidSheet({
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || overdraft}
           aria-describedby={amountLimitDescribedBy(
             'take-kid-amount-hint',
             availableHint,

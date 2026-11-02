@@ -1,6 +1,5 @@
 import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import {
-  HIDE_AMOUNTS_DETAIL,
   HIDE_AMOUNTS_LABEL,
   HIDE_AMOUNTS_PEEK_HINT,
   HIDE_AMOUNTS_SECTION_TITLE,
@@ -23,7 +22,6 @@ export default function DemoHideAmountsToggle() {
             <EyeOffIcon className="h-5 w-5 text-emerald-400" />
             {HIDE_AMOUNTS_SECTION_TITLE}
           </h2>
-          <p className="mt-1 text-xs text-zinc-500">{HIDE_AMOUNTS_DETAIL}</p>
           {hidden ? (
             <p className="mt-2 text-xs text-zinc-500">{HIDE_AMOUNTS_PEEK_HINT}</p>
           ) : null}

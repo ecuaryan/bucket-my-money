@@ -25,7 +25,6 @@ import {
   PIN_UNBIND_JOIN_CODE_SHEET_BODY,
   PIN_UNBIND_JOIN_CODE_SHEET_TITLE,
   PIN_MEMBER_NOT_SET_LABEL,
-  PIN_PICKER_AUTO_UPDATE_NOTE,
   pinNoMembersYet,
   pinPickerPendingLead,
 } from '@/lib/brand'
@@ -617,8 +616,6 @@ export default function FamilyLoginPage() {
                   householdAdminName,
                   pinReadyMembers.length === 0,
                 )}
-                <br />
-                {PIN_PICKER_AUTO_UPDATE_NOTE}
               </p>
               <PinPickerPollIndicator
                 intervalMs={PIN_ROSTER_POLL_MS}

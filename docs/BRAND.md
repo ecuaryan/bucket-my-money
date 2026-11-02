@@ -1,7 +1,8 @@
 # Brand and voice
 
-Working notes for product name and user-facing copy. Code imports strings from
-[`src/lib/brand.ts`](../src/lib/brand.ts).
+Working notes for product name and user-facing copy. Strings live in
+[`src/lib/brand/`](../src/lib/brand/), one file per feature; code imports them from
+the [`src/lib/brand.ts`](../src/lib/brand.ts) barrel (`@/lib/brand`).
 
 ## What we’re selling
 
@@ -76,8 +77,8 @@ If you're the kind of person who has ever looked at their bank account two days 
 - **Do not name Teller** (or other vendors) in user-facing UI — say read-only
   bank connection. For balance freshness say **refresh** (e.g. "Balances refreshed
   5m ago", Refresh button); reserve **read** for the safety assurance
-  (`BANK_READ_ONLY_ASSURANCE`: we read balances—we can't transfer, send, or
-  withdraw money). Teller stays accurate in this doc and § Bank link for
+  (we read balances—we can't transfer, send, or withdraw money; shown when
+  linking in `SIMPLEFIN_CONNECT_SHEET_INTRO`). Teller stays accurate in this doc and § Bank link for
   implementers.
 - Emphasize **which bucket covers a bank move**, not “families only” or income tracing.
 - Say **household** in UI when meaning “your group”; **family** is fine in
@@ -90,7 +91,7 @@ If you're the kind of person who has ever looked at their bank account two days 
   described as counting **against** the household balance — never as funding it.
 - DB role `member` → UI **Shared**; `child` → **Kid**; `admin` → **Admin**.
   See `src/lib/memberRoles.ts` and Admin strings in `brand.ts`.
-- **Household balance** (`HOUSEHOLD_BALANCE_LABEL` in `brand.ts`) is the
+- **Household balance** is the
   collective money pool the admin + Shared role co-own (the `member` role is
   still UI **Shared**—that’s the person; the pool they share is the **Household
   balance**). Say “household balance”—not “shared balance,” “adults,” or
@@ -100,8 +101,7 @@ If you're the kind of person who has ever looked at their bank account two days 
 - Say **household admin** (not “your admin”) when a non-admin needs the person
   who manages Admin. Use **Unbucketed** (`FLOAT_LABEL` in `brand.ts`)
   in the Buckets tab, Move money, History, and related Give copy; **Household
-  balance** in Admin assignment dropdowns (`HOUSEHOLD_BALANCE_LABEL`, not “pool”
-  in user copy). Matches SQL/RPC: `float`, `member_float()`, etc.
+  balance** (not “pool”) when naming what the adults share. Matches SQL/RPC: `float`, `member_float()`, etc.
 - Kid-facing copy: keep it plain and concrete. Describe money arriving as
   “when someone gives you money” (the Give flow on the Kids tab), and name the
   **household admin** (their name when known)—not “shared balance,” “parent,”
@@ -129,12 +129,11 @@ If you're the kind of person who has ever looked at their bank account two days 
   (or a **Run now**) would cross Unbucketed from **≥ 0 to negative**, confirm with a
   consequential `Sheet` first; skip confirm if Unbucketed is already red; automatic
   Auto-bucket runs skip confirm.
-- **Auto-bucket:** feature name **Auto-bucket** — subtitle *Organize your money
-  into buckets on the days you choose.* Guardrail: *You choose when and how much —
-  money moves into buckets automatically.* Not “scheduled set-aside,” “organize Unbucketed,” or
-  “automation.” Header **Auto-bucket**; section CTA **Add**; History
+- **Auto-bucket:** feature name **Auto-bucket** (no subtitle or guardrail line —
+  each rule card shows its schedule and **Run now**). Not “scheduled set-aside,”
+  “organize Unbucketed,” or “automation.” Header **Auto-bucket**; section CTA **Add**; History
   **Scheduled**. Manual dialog keeps **Set aside** (production). Constants:
-  `AUTO_ORGANIZE_*`, `HISTORY_SCHEDULED_MOVE_LABEL` in `brand.ts`. Schema:
+  `AUTO_ORGANIZE_*` in `brand.ts`. Schema:
   `auto_organizes`, `auto_organize_*` (see [AUTO_ORGANIZE.md](./AUTO_ORGANIZE.md)).
   UI says **Auto-bucket**; schema keeps `auto_organize*`.
   User-configured automatic organization ≠ auto-rebalance when the bank moves.
@@ -164,8 +163,8 @@ money at the bank.
 
 **`give_money` and `move_money` are virtual** — labels inside the app only.
 
-User-facing reassurance: `BANK_READ_ONLY_ASSURANCE`, `SIMPLEFIN_CONNECT_SHEET_INTRO`
-(shown when linking), `BUCKETS_LINK_BANK_*` in `brand.ts` — read-only;
+User-facing reassurance: `SIMPLEFIN_CONNECT_SHEET_INTRO` (shown when linking) —
+read-only;
 we read balances and cannot transfer, send, or withdraw money at the bank.
 Balance freshness comes from webhooks, a scheduled read-only cadence sweep, and
 the on-demand **Refresh** button — all read-only balance pulls, never money movement.
@@ -191,9 +190,9 @@ in `move_money` means the Unbucketed pool.
 | Returning sign-in divider | `LOGIN_ALREADY_HAVE_ACCOUNT` |
 | Sign-up | `LOGIN_SIGNUP_*`, `LOGIN_HOUSEHOLD_*` |
 | PIN path | `LOGIN_SHARED_*` |
-| Bank read-only note | `BANK_READ_ONLY_ASSURANCE` in Admin (`ADMIN_LINKED_ACCOUNTS_*`, link-bank confirm) |
+| Bank read-only note | `SIMPLEFIN_CONNECT_SHEET_INTRO` (connect sheet) |
 | Join code (Admin + PIN) | `JOIN_CODE_*`, `ADMIN_JOIN_CODE_*` |
-| Admin people & roles | `ADMIN_HOUSEHOLD_MEMBERS_*`, `memberRoles.ts` |
+| Admin people & roles | `ADMIN_HOUSEHOLD_MEMBERS_TITLE`, `ADMIN_ROLE_CONTEXT_*`, `adminMemberStatusLine()`, `memberRoles.ts` |
 | Admin linked accounts | `ADMIN_LINKED_ACCOUNTS_*` |
 | Assign linked account to kid | `adminAssignAccountToKidSheetTitle()`, `ADMIN_ASSIGN_ACCOUNT_TO_KID_*` |
 | Admin link-bank warning | `ADMIN_LINK_BANK_CONFIRM_*` |
@@ -207,11 +206,10 @@ in `move_money` means the Unbucketed pool.
 | Member actions | `adminMemberAddedSuccess()`, `adminPinSaveSuccess()`, … |
 | Admin email & password reset | `ADMIN_ACCOUNT_*` |
 | Household admin (hints) | `householdAdminLabel()`, `HOUSEHOLD_ADMIN_PHRASE` fallback |
-| Buckets tab: no linked accounts | `bucketsLinkBankMemberBody()` |
 | Buckets tab: member empty buckets | `bucketsMemberNoBucketsHint()` |
 | Buckets tab: kid Unbucketed hint | `bucketsKidFloatHint()` |
 | Unbucketed label (all UI) | `FLOAT_LABEL`, `FLOAT_LABEL_LOWER` |
-| Unbucketed over-bucketed hint | `floatOverbucketedHint()`, `FLOAT_NEGATIVE_HINT` |
+| Unbucketed over-bucketed hint | `floatOverbucketedHint()` |
 | Unbucketed short-with-cards hint | `floatShortWithCardsHint()` |
 | Unbucketed hero subtitle | `FLOAT_HERO_SUBTITLE`, `FLOAT_HERO_SUBTITLE_WITH_CARDS` |
 | Hero cards subtext clause | `floatCardsSubtextClause()` |
