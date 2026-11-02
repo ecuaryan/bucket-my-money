@@ -165,38 +165,16 @@ export const ADMIN_ROLE_CONTEXT_SHARED =
 
 export const KIDS_PAGE_TITLE = 'Kids'
 
-export const KIDS_PAGE_INTRO =
-  'Give kids without a linked account money here. Linked accounts follow the bank—not this app.'
-
-export const KIDS_VIRTUAL_SECTION_TITLE = 'No linked account'
-
-export const KIDS_LINKED_SECTION_TITLE = 'Linked accounts'
+/** Screen-reader / tooltip name for the bank icon on a linked kid's balance. */
+export const KIDS_LINKED_BALANCE_LABEL = 'Bank balance'
 
 /** Footer link to the Buckets Bank tab — used from the Kids and Admin pages. */
 export const VIEW_RECENT_BANK_ACTIVITY = 'View recent bank activity'
-
-export const KIDS_LINKED_SECTION_BODY =
-  'Money moves at the bank. Assign or change accounts in Admin → Household.'
-
-export function kidsLinkedSectionBody(
-  isAdmin: boolean,
-  adminName: string | null | undefined,
-): string {
-  if (isAdmin) return KIDS_LINKED_SECTION_BODY
-  return `Money moves at the bank. Ask ${householdAdminLabel(adminName)} to assign or change linked accounts.`
-}
-
-export const KIDS_LINKED_ONLY_BODY =
-  'Every kid in your household has a linked account—their balance comes from the bank. To give them money, transfer or deposit at your bank.'
 
 export const KIDS_GIVE_ACTION = 'Give'
 
 export function kidsGiveSheetTitle(kidName: string): string {
   return `Give to ${kidName}`
-}
-
-export function kidsGiveSheetIntro(availableLabel: string): string {
-  return `You have ${availableLabel} available from shared ${FLOAT_LABEL_LOWER} cash.`
 }
 
 export function kidsGiveOverdraftMessage(availableLabel: string): string {
@@ -223,11 +201,8 @@ export function kidsTakeSheetTitle(kidName: string): string {
   return `Take from ${kidName}`
 }
 
-export function kidsTakeSheetIntro(
-  kidName: string,
-  availableLabel: string,
-): string {
-  return `${kidName} has ${availableLabel} you can take back to shared ${FLOAT_LABEL_LOWER} cash. If some of it is set aside in their buckets, their ${FLOAT_LABEL_LOWER} goes negative and they choose which bucket covers it.`
+export function kidsTakeSheetIntro(kidName: string): string {
+  return `If it’s in ${kidName}’s buckets, their ${FLOAT_LABEL} goes negative until they choose which bucket covers it.`
 }
 
 /**
@@ -235,11 +210,8 @@ export function kidsTakeSheetIntro(
  * is takeable — typically leftovers from a stretch without a linked bank
  * that would otherwise double-count once the real account is back.
  */
-export function kidsTakeLinkedSheetIntro(
-  kidName: string,
-  availableLabel: string,
-): string {
-  return `${kidName} has ${availableLabel} of virtual money on top of their linked bank account. If that money is already in their real account, take it back so it isn't counted twice. Bank money itself moves at the bank.`
+export function kidsTakeLinkedSheetIntro(kidName: string): string {
+  return `This is app money on top of ${kidName}’s bank account. Take it back if it’s already in the bank, so it isn’t counted twice.`
 }
 
 export function kidsTakeOverdraftMessage(availableLabel: string): string {
@@ -260,17 +232,6 @@ export const KIDS_TAKE_FAILED = 'Take failed. Try again.'
 
 export function kidsTakeSuccessToast(amountLabel: string, kidName: string): string {
   return `Took ${amountLabel} from ${kidName} back to shared ${FLOAT_LABEL_LOWER} cash.`
-}
-
-export const KIDS_EMPTY_VIRTUAL_BODY =
-  'Add a kid in Admin → Household to track allowance or birthday money here.'
-
-export function kidsEmptyVirtualBody(
-  isAdmin: boolean,
-  adminName: string | null | undefined,
-): string {
-  if (isAdmin) return KIDS_EMPTY_VIRTUAL_BODY
-  return `Ask ${householdAdminLabel(adminName)} to add a kid if you want to track allowance or birthday money here.`
 }
 
 export const ADMIN_ROLE_CONTEXT_KID =
@@ -1228,21 +1189,10 @@ export function floatSourcesCountText(count: number): string | undefined {
   return `across ${count} money source${count === 1 ? '' : 's'}`
 }
 
-export const GIVE_ADD_SOURCE_TITLE = 'Add a money source first'
-
-export const GIVE_ADD_SOURCE_ADMIN_BODY =
-  'Give uses cash from the household balance in Buckets. Add a money source in Admin—a linked bank or just an amount—so we know how much you can give.'
-
 export function bucketsLinkBankMemberBody(
   adminName: string | null | undefined,
 ): string {
   return `No bank accounts are linked yet. Ask ${householdAdminLabel(adminName)} to connect a bank account so balances can refresh and your ${FLOAT_LABEL_LOWER} cash stays current.`
-}
-
-export function giveLinkBankMemberBody(
-  adminName: string | null | undefined,
-): string {
-  return `No bank accounts are linked yet. Ask ${householdAdminLabel(adminName)} to connect one before you can give.`
 }
 
 export function bucketsMemberNoBucketsHint(
@@ -1253,30 +1203,15 @@ export function bucketsMemberNoBucketsHint(
 
 // --- Give ---
 
-export const GIVE_SHARED_BALANCE_INTRO =
-  'Give money to other people in your household.'
-
-export const GIVE_SHARED_BALANCE_NO_ACCOUNTS_BODY =
-  'Give uses cash from the household balance in Buckets. Link a bank account in Admin first so we know how much you can give.'
-
-export const GIVE_KID_INTRO =
-  `Give your ${FLOAT_LABEL_LOWER} cash to another household member.`
+/** Give "To" option for a sibling with a bank account (disabled: they can't receive app money). */
+export function giveLinkedRecipientOption(name: string): string {
+  return `${name} · bank account`
+}
 
 export const GIVE_LINKED_KID_TITLE = 'Your money is in your bank account'
 
 export const GIVE_LINKED_KID_BODY =
   'Spending comes from your debit card. When you need to move money in or out, use your bank app or ask your household admin to transfer at the bank.'
-
-export const GIVE_LINKED_KIDS_EXCLUDED_HINT =
-  'Kids with a linked account aren’t listed—transfer or deposit at your bank to give them money.'
-
-export const GIVE_ADULT_LINKED_KIDS_ONLY_TITLE = 'Your kids have linked accounts'
-
-export const GIVE_ADULT_LINKED_KIDS_ONLY_BODY =
-  'Every kid in your household has their own linked account—their balance comes from the bank. To give them money, transfer or deposit at your bank.'
-
-export const GIVE_ADULT_LINKED_KIDS_ONLY_GIVE_FOR =
-  'Give is for kids who don’t have a linked account—you can track their money here instead.'
 
 export const GIVE_DB_NOT_READY_BODY =
   'Give is temporarily unavailable while the server finishes updating. Try again in a few minutes, then refresh.'

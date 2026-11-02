@@ -15,21 +15,12 @@ import {
   type BucketsBalanceBreakdown,
 } from '@/lib/availableBalance'
 import {
-  BUCKETS_ADD_SOURCE_LINK_ACTION,
-  BUCKETS_ADD_SOURCE_MANUAL_ACTION,
-  bucketsAddSourceMemberBody,
-  GIVE_ADD_SOURCE_ADMIN_BODY,
-  GIVE_ADD_SOURCE_TITLE,
-  GIVE_KID_INTRO,
-  GIVE_SHARED_BALANCE_INTRO,
   GIVE_DB_NOT_READY_BODY,
   GIVE_LINKED_KID_BODY,
   GIVE_LINKED_KID_TITLE,
-  GIVE_LINKED_KIDS_EXCLUDED_HINT,
   FLOAT_LABEL_LOWER,
+  giveLinkedRecipientOption,
 } from '@/lib/brand'
-import ManualSourceDialog from '@/features/admin/ManualSourceDialog'
-import { fetchHouseholdAdminName } from '@/lib/householdAdmin'
 import { subscribeHouseholdRosterRefresh } from '@/lib/householdRosterRefresh'
 import { filterGiveRecipients, isLinkedChild } from '@/lib/giveRecipients'
 import { fetchLinkedChildMemberIds, giveMoney } from '@/lib/give'
@@ -65,9 +56,6 @@ export default function GivePage() {
 
   const [members, setMembers] = useState<Member[] | null>(null)
   const [accounts, setAccounts] = useState<Account[] | null>(null)
-  const [householdAdminName, setHouseholdAdminName] = useState<string | null>(
-    null,
-  )
   const [available, setAvailable] = useState<number | null>(null)
   useReportFloat(available)
   const [balanceBreakdown, setBalanceBreakdown] =
@@ -80,7 +68,6 @@ export default function GivePage() {
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [manualSourceOpen, setManualSourceOpen] = useState(false)
   const [linkedChildIds, setLinkedChildIds] = useState<Set<string> | null>(null)
 
   const loadData = useCallback(async () => {
@@ -88,7 +75,7 @@ export default function GivePage() {
     setLoadError(null)
     try {
       await withAuthLockRetry(async () => {
-        const [membersRes, bucketsRes, accountsRes, adminName, linkedIds] =
+        const [membersRes, bucketsRes, accountsRes, linkedIds] =
           await Promise.all([
             supabase
               .from('family_members')
@@ -97,7 +84,6 @@ export default function GivePage() {
               .order('name'),
             supabase.from('buckets').select('allocated_amount'),
             supabase.from('accounts').select('*'),
-            fetchHouseholdAdminName(),
             fetchLinkedChildMemberIds(),
           ])
         if (membersRes.error) throw new Error(membersRes.error.message)
@@ -112,7 +98,6 @@ export default function GivePage() {
         setMembers(membersRes.data ?? [])
         setAccounts(accountRows)
         setLinkedChildIds(linkedIds)
-        setHouseholdAdminName(adminName)
         setBalanceBreakdown(breakdown)
         setBalanceUsesFallback(usedFallback)
         setAvailable(breakdown.float)
@@ -189,12 +174,13 @@ export default function GivePage() {
       linkedChildIds &&
       isLinkedChild(memberId, callerRole, linkedChildIds),
   )
-  const showLinkedKidsHint = Boolean(
-    linkedChildIds &&
-      linkedChildIds.size > 0 &&
-      !isLinkedChildUser &&
-      (isAdult || isChild),
-  )
+  // Siblings with a bank account can't receive app money: listed, but disabled.
+  const linkedRecipients = useMemo(() => {
+    if (!members || !linkedChildIds) return []
+    return members.filter(
+      (m) => m.id !== memberId && isLinkedChild(m.id, m.role, linkedChildIds),
+    )
+  }, [members, memberId, linkedChildIds])
 
   const amount = parseFloat(amountStr)
   const amountValid = Number.isFinite(amount) && amount > 0
@@ -300,98 +286,47 @@ export default function GivePage() {
     return <Navigate to="/" replace />
   }
 
-  const hasMoneySources = accounts.length > 0
-  // Allocated buckets count as organized money: show the real (possibly
-  // negative) balance instead of the getting-started CTA. Giving stays
-  // blocked by the overdraft guard when there is nothing available.
-  const hasAllocations = (balanceBreakdown?.bucketAllocated ?? 0) > 0
-  const showAddSourceCard = isAdult && !hasMoneySources && !hasAllocations
-  const canGive = giveEnabled && !showAddSourceCard
-
   const availableTone = available >= 0 ? HERO_TONE_POSITIVE : HERO_TONE_NEGATIVE
 
   return (
-    <>
-    <BusyOverlay
-      busy={submitting && !manualSourceOpen}
-      label="Giving…"
-    >
+    <BusyOverlay busy={submitting} label="Giving…">
       <div className="mx-auto max-w-md space-y-6">
       <header>
         <h1 className="text-xl font-semibold">Give</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          {isAdult ? GIVE_SHARED_BALANCE_INTRO : GIVE_KID_INTRO}
-        </p>
       </header>
 
-      {showAddSourceCard ? (
-        <section
-          className={`${HERO_RADIUS} px-4 py-4 ${HERO_TONE_POSITIVE}`}
-          aria-label="Add a money source"
+      <section
+        className={`${HERO_RADIUS} px-4 pt-3.5 pb-4 ${availableTone}`}
+        aria-label={`Your ${FLOAT_LABEL_LOWER} balance`}
+      >
+        <p className="text-[11.5px] font-semibold uppercase leading-4 tracking-[0.1em] opacity-75">
+          You can give
+        </p>
+        <p
+          className={
+            'mt-1 text-[32px] font-bold leading-[1.15] tracking-tight tabular-nums ' +
+            (available >= 0 ? 'text-emerald-300' : 'text-red-200')
+          }
         >
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-300/70">
-            Before you give
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-emerald-100">
-            {GIVE_ADD_SOURCE_TITLE}
-          </h2>
-          <p className="mt-2 text-sm text-emerald-200/80">
-            {member?.role === 'admin'
-              ? GIVE_ADD_SOURCE_ADMIN_BODY
-              : bucketsAddSourceMemberBody(householdAdminName)}
-          </p>
-          {member?.role === 'admin' ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setManualSourceOpen(true)}
-                className="inline-flex rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400"
-              >
-                {BUCKETS_ADD_SOURCE_MANUAL_ACTION}
-              </button>
-              <Link
-                to="/admin"
-                className="inline-flex rounded-lg border border-emerald-500/40 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/10"
-              >
-                {BUCKETS_ADD_SOURCE_LINK_ACTION}
-              </Link>
-            </div>
-          ) : null}
-        </section>
-      ) : (
-        <section
-          className={`${HERO_RADIUS} px-4 pt-3.5 pb-4 ${availableTone}`}
-          aria-label={`Your ${FLOAT_LABEL_LOWER} balance`}
-        >
-          <p className="text-[11.5px] font-semibold uppercase leading-4 tracking-[0.1em] opacity-75">
-            You can give
-          </p>
-          <p
-            className={
-              'mt-1 text-[32px] font-bold leading-[1.15] tracking-tight tabular-nums ' +
-              (available >= 0 ? 'text-emerald-300' : 'text-red-200')
-            }
-          >
-            {formatMoney(available)}
-          </p>
-          {showChildBreakdown && balanceBreakdown ? (
-            <dl className="mt-3 space-y-1 border-t border-current/10 pt-3 text-xs opacity-90">
-              {childTotal > 0 ? (
-                <div className="flex justify-between gap-4 tabular-nums">
-                  <dt>Total balance</dt>
-                  <dd>{formatMoney(childTotal)}</dd>
-                </div>
-              ) : null}
-              {balanceBreakdown.bucketAllocated > 0 ? (
-                <div className="flex justify-between gap-4 tabular-nums">
-                  <dt>In your buckets</dt>
-                  <dd>−{formatMoney(balanceBreakdown.bucketAllocated)}</dd>
-                </div>
-              ) : null}
-            </dl>
-          ) : null}
-        </section>
-      )}
+          {formatMoney(available)}
+        </p>
+        {showChildBreakdown && balanceBreakdown ? (
+          <dl className="mt-3 space-y-1 border-t border-current/10 pt-3 text-xs opacity-90">
+            {childTotal > 0 ? (
+              <div className="flex justify-between gap-4 tabular-nums">
+                <dt>Total balance</dt>
+                <dd>{formatMoney(childTotal)}</dd>
+              </div>
+            ) : null}
+            {balanceBreakdown.bucketAllocated > 0 ? (
+              <div className="flex justify-between gap-4 tabular-nums">
+                <dt>In your buckets</dt>
+                <dd>−{formatMoney(balanceBreakdown.bucketAllocated)}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
+      </section>
 
       {!giveEnabled && (
         <p className="rounded-2xl bg-amber-500/10 px-4 py-3 text-sm text-amber-200 ring-1 ring-amber-500/30">
@@ -399,7 +334,7 @@ export default function GivePage() {
         </p>
       )}
 
-      {canGive ? (
+      {giveEnabled ? (
         <form
           onSubmit={onSubmit}
           className="space-y-4 rounded-2xl bg-zinc-900 p-5 ring-1 ring-zinc-800"
@@ -418,12 +353,12 @@ export default function GivePage() {
                   {m.name}
                 </option>
               ))}
+              {linkedRecipients.map((m) => (
+                <option key={m.id} value={m.id} disabled>
+                  {giveLinkedRecipientOption(m.name)}
+                </option>
+              ))}
             </select>
-            {showLinkedKidsHint ? (
-              <p className="mt-2 text-xs text-zinc-500">
-                {GIVE_LINKED_KIDS_EXCLUDED_HINT}
-              </p>
-            ) : null}
           </label>
 
           <label className="block">
@@ -494,30 +429,9 @@ export default function GivePage() {
             {submitting ? 'Giving…' : 'Give'}
           </button>
         </form>
-      ) : !giveEnabled ? (
-        <p className="rounded-2xl bg-zinc-900 px-4 py-3 text-sm text-zinc-400 ring-1 ring-zinc-800">
-          {GIVE_DB_NOT_READY_BODY}
-        </p>
       ) : null}
-
-      <p className="text-center text-xs text-zinc-500">
-        Given money shows in{' '}
-        <Link to="/history" className="text-emerald-400 hover:underline">
-          History
-        </Link>
-        .
-      </p>
 
       </div>
     </BusyOverlay>
-      {member?.role === 'admin' ? (
-        <ManualSourceDialog
-          open={manualSourceOpen}
-          mode="create"
-          onClose={() => setManualSourceOpen(false)}
-          onSaved={loadData}
-        />
-      ) : null}
-    </>
   )
 }

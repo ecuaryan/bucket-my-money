@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { FLOAT_LABEL, KIDS_VIRTUAL_SECTION_TITLE } from '../../src/lib/brand'
+import { FLOAT_LABEL, KIDS_PAGE_TITLE } from '../../src/lib/brand'
 import { addMember, createAdminFamily, serviceClient } from '../db/fixtures'
 
 async function signInAdmin(
@@ -40,7 +40,7 @@ test.describe('Kids tab', () => {
 
     await expect(page.getByRole('heading', { name: 'Kids', exact: true })).toBeVisible()
     await expect(
-      page.getByRole('region', { name: KIDS_VIRTUAL_SECTION_TITLE }),
+      page.getByRole('region', { name: KIDS_PAGE_TITLE }),
     ).toBeVisible()
 
     const samRow = page.getByRole('listitem').filter({ hasText: 'Sam' })
