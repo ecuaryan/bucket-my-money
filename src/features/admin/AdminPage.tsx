@@ -16,16 +16,11 @@ import {
   ADMIN_ADD_SOURCE_CARD_OPTION,
   ADMIN_ADD_SOURCE_LINK_OPTION,
   ADMIN_ADD_SOURCE_MANUAL_OPTION,
-  ADMIN_CARD_COUNTS_AGAINST_NOTE,
-  ADMIN_LINKED_ACCOUNTS_EMPTY_DETAIL,
-  ADMIN_LINKED_ACCOUNTS_INTRO,
-  adminRemoveManualCardIntro,
-  ADMIN_MONEY_SOURCES_INTRO,
+  adminRemoveManualSourceBody,
   ADMIN_MANUAL_GROUP_TITLE,
   ADMIN_MONEY_SOURCES_SECTION_TITLE,
   ADMIN_PAGE_TABS_ARIA_LABEL,
   ADMIN_REMOVE_MANUAL_SOURCE_CONFIRM,
-  ADMIN_REMOVE_MANUAL_SOURCE_INTRO,
   ADMIN_UNLINK_INSTITUTION_CONFIRM,
   adminLinkedAccountsMemberGate,
   adminMoneySourceGroupExpandLabel,
@@ -76,7 +71,7 @@ import PlaidConnectSheet from '@/features/admin/PlaidConnectSheet'
 import FamilyJoinSection from '@/features/admin/FamilyJoinSection'
 import MembersSection from '@/features/admin/MembersSection'
 import AppVersionFooter from '@/components/AppVersionFooter'
-import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { useHideAmounts, usePeekTarget } from '@/lib/HideAmountsProvider'
 import { BusyOverlay } from '@/components/ui/BusyOverlay'
 import { ListSkeleton } from '@/components/ui/ListSkeleton'
@@ -309,11 +304,6 @@ export default function AdminPage() {
     [accounts, emptyEnrollmentMeta, plaidItemMeta],
   )
 
-  const hasLinkedBanks = useMemo(
-    () => groups.some((group) => group.provider !== null),
-    [groups],
-  )
-
   async function afterSimpleFinImport(imported: SimpleFinConfirmedAccount[]) {
     // No cards notice here (unlike the old Teller link flow): the admin just
     // classified each account cash vs card in the confirm step, so a card's
@@ -530,9 +520,6 @@ export default function AdminPage() {
       <header className="flex items-baseline justify-between">
         <div>
           <h1 className="text-xl font-semibold">Admin</h1>
-          <p className="text-xs text-zinc-400">
-            Read-only bank link and household settings.
-          </p>
         </div>
       </header>
 
@@ -562,15 +549,8 @@ export default function AdminPage() {
         }
       >
       <section aria-label="Money sources">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="sr-only text-base font-semibold">
-              {ADMIN_MONEY_SOURCES_SECTION_TITLE}
-            </h2>
-            <p className="mt-1 text-xs text-zinc-400">
-              {ADMIN_MONEY_SOURCES_INTRO}
-            </p>
-          </div>
+        <div className="mb-3 flex items-start justify-end gap-3">
+          <h2 className="sr-only">{ADMIN_MONEY_SOURCES_SECTION_TITLE}</h2>
           <div ref={addSourceMenuRef} className="relative shrink-0">
             <button
               type="button"
@@ -635,12 +615,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {hasLinkedBanks && (
-          <p className="mb-3 text-xs text-zinc-400">
-            {ADMIN_LINKED_ACCOUNTS_INTRO}
-          </p>
-        )}
-
         {loadError ? (
           <LoadErrorPanel
             title="Could not load money sources"
@@ -654,10 +628,6 @@ export default function AdminPage() {
           <div className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center">
             <p className="text-sm font-medium text-zinc-300">
               No money sources yet
-            </p>
-            <p className="mt-1 text-xs text-zinc-400">
-              Add a money source to link a bank or enter an amount manually.{' '}
-              {ADMIN_LINKED_ACCOUNTS_EMPTY_DETAIL}
             </p>
           </div>
         ) : (
@@ -789,92 +759,77 @@ export default function AdminPage() {
                   id={accountsPanelId}
                   className="divide-y divide-zinc-800"
                 >
-                  {group.accounts.map((a) => (
-                    <li
-                      key={a.id}
-                      className={
-                        group.isManual
-                          ? undefined
-                          : 'flex flex-col px-4 py-3'
-                      }
-                    >
-                      <div
-                        className={
-                          group.isManual
-                            ? 'flex items-center justify-between gap-3 px-4 py-2.5'
-                            : 'flex items-center justify-between gap-3'
-                        }
-                      >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-zinc-300">
-                          {a.account_name ?? 'Account'}
-                        </p>
-                        {/* Manual rows: the label IS the description — a raw
-                            "manual"/"credit_card" type line adds nothing. */}
-                        {!group.isManual ? (
-                          <p className="text-xs text-zinc-400">
-                            {/* A multi-bank connection card names each row's
-                                bank so the mix stays readable. */}
-                            {group.spansInstitutions && a.institution_name
-                              ? `${a.institution_name} · `
-                              : ''}
-                            {accountTypeLabel(a.account_type)}
-                          </p>
-                        ) : null}
-                        {isCreditCardAccount(a) ? (
-                          <p className="text-xs text-rose-300/80">
-                            {ADMIN_CARD_COUNTS_AGAINST_NOTE}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
+                  {group.accounts.map((a) => {
+                    const balance = isCreditCardAccount(a) ? (
+                      <p className="shrink-0 text-sm font-medium tabular-nums text-rose-300">
+                        {formatMoney(Number(a.current_balance))}{' '}
+                        <span className="text-xs font-normal text-rose-300/70">
+                          {ACCOUNT_CARD_OWED_SUFFIX}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="shrink-0 text-sm font-medium tabular-nums text-zinc-300">
+                        {formatMoney(Number(a.current_balance))}
+                      </p>
+                    )
+                    return (
+                      <li key={a.id}>
                         {group.isManual ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setManualDialog({
-                                  mode: 'edit',
-                                  kind: isCreditCardAccount(a)
-                                    ? 'card'
-                                    : 'cash',
-                                  accountId: a.id,
-                                  label:
-                                    a.account_name ??
-                                    a.institution_name ??
-                                    '',
-                                  amount: Number(a.current_balance),
-                                })
-                              }
-                              className="rounded-lg border border-zinc-600 px-2 py-1 text-xs font-semibold text-zinc-200"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => requestRemoveManualSource(a)}
-                              className="rounded-lg border border-red-500/30 px-2 py-1 text-xs font-semibold text-red-300"
-                            >
-                              Remove
-                            </button>
-                          </>
-                        ) : null}
-                        {isCreditCardAccount(a) ? (
-                          <p className="text-sm font-medium tabular-nums text-rose-300">
-                            {formatMoney(Number(a.current_balance))}{' '}
-                            <span className="text-xs font-normal text-rose-300/70">
-                              {ACCOUNT_CARD_OWED_SUFFIX}
+                          // Manual rows open their editor (which also removes).
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setManualDialog({
+                                mode: 'edit',
+                                kind: isCreditCardAccount(a) ? 'card' : 'cash',
+                                accountId: a.id,
+                                label: a.account_name ?? a.institution_name ?? '',
+                                amount: Number(a.current_balance),
+                              })
+                            }
+                            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition hover:bg-zinc-800/50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400"
+                          >
+                            <span className="min-w-0 truncate text-sm text-zinc-300">
+                              {a.account_name ?? 'Account'}
                             </span>
-                          </p>
+                            <span className="flex shrink-0 items-center gap-2">
+                              {balance}
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                                className="h-4 w-4 text-zinc-600"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </span>
+                          </button>
                         ) : (
-                          <p className="text-sm font-medium tabular-nums text-zinc-300">
-                            {formatMoney(Number(a.current_balance))}
-                          </p>
+                          <div className="flex items-center justify-between gap-3 px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm text-zinc-300">
+                                {a.account_name ?? 'Account'}
+                              </p>
+                              <p className="text-xs text-zinc-400">
+                                {/* A multi-bank connection card names each row's
+                                    bank so the mix stays readable. */}
+                                {group.spansInstitutions && a.institution_name
+                                  ? `${a.institution_name} · `
+                                  : ''}
+                                {accountTypeLabel(a.account_type)}
+                              </p>
+                            </div>
+                            {balance}
+                          </div>
                         )}
-                      </div>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    )
+                  })}
                 </ul>
                 ) : null}
               </li>
@@ -932,6 +887,12 @@ export default function AdminPage() {
           manualDialog?.mode === 'edit' ? manualDialog.amount : undefined
         }
         onClose={() => setManualDialog(null)}
+        onRemove={() => {
+          if (manualDialog?.mode !== 'edit') return
+          const account = accounts?.find((a) => a.id === manualDialog.accountId)
+          setManualDialog(null)
+          if (account) requestRemoveManualSource(account)
+        }}
         onSaved={async ({ label, mode }) => {
           toast.success(
             mode === 'create'
@@ -965,141 +926,39 @@ export default function AdminPage() {
       ) : null}
 
       {removeManualTarget ? (
-        <Sheet
-          open
+        <ConfirmSheet
+          title={adminRemoveManualSourceSheetTitle(removeManualTarget.label)}
+          body={adminRemoveManualSourceBody(
+            removeManualTarget.kind,
+            formatMoney(removeManualTarget.balance),
+          )}
+          confirmLabel={ADMIN_REMOVE_MANUAL_SOURCE_CONFIRM}
+          busyLabel="Removing…"
+          busy={removingManual}
+          error={removeManualError}
+          onConfirm={() => void confirmRemoveManualSource()}
           onClose={() => {
-            if (removingManual) return
             setRemoveManualTarget(null)
             setRemoveManualError(null)
           }}
-          aria-label={adminRemoveManualSourceSheetTitle(removeManualTarget.label)}
-        >
-          <header className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold text-zinc-300">
-              {adminRemoveManualSourceSheetTitle(removeManualTarget.label)}
-            </h2>
-            <button
-              type="button"
-              onClick={() => {
-                if (removingManual) return
-                setRemoveManualTarget(null)
-                setRemoveManualError(null)
-              }}
-              disabled={removingManual}
-              className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </header>
-
-          <div className="space-y-4">
-            <p className="text-sm text-zinc-400">
-              {removeManualTarget.kind === 'card'
-                ? adminRemoveManualCardIntro(
-                    formatMoney(removeManualTarget.balance),
-                  )
-                : ADMIN_REMOVE_MANUAL_SOURCE_INTRO}
-            </p>
-
-            {removeManualError ? (
-              <p
-                role="alert"
-                className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/30"
-              >
-                {removeManualError}
-              </p>
-            ) : null}
-
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  if (removingManual) return
-                  setRemoveManualTarget(null)
-                  setRemoveManualError(null)
-                }}
-                disabled={removingManual}
-                className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-400 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void confirmRemoveManualSource()}
-                disabled={removingManual}
-                className="flex-1 rounded-lg bg-red-500 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
-              >
-                {removingManual ? 'Removing…' : ADMIN_REMOVE_MANUAL_SOURCE_CONFIRM}
-              </button>
-            </div>
-          </div>
-        </Sheet>
+        />
       ) : null}
 
       {unlinkTarget ? (
-        <Sheet
-          open
+        <ConfirmSheet
+          title={adminUnlinkInstitutionSheetTitle(unlinkTarget.institutionName)}
+          body={
+            adminUnlinkInstitutionSheetIntro(unlinkTarget.accounts.length) +
+            (unlinkTarget.provider === 'simplefin'
+              ? ' ' + SIMPLEFIN_UNLINK_REVOKE_NOTE
+              : unlinkTarget.provider === 'plaid'
+                ? ' ' + PLAID_UNLINK_KEEPS_ITEM_NOTE
+                : '')
+          }
+          confirmLabel={ADMIN_UNLINK_INSTITUTION_CONFIRM}
+          onConfirm={() => void confirmUnlinkInstitution()}
           onClose={() => setUnlinkTarget(null)}
-          aria-label={adminUnlinkInstitutionSheetTitle(
-            unlinkTarget.institutionName,
-          )}
-        >
-          <header className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold text-zinc-300">
-              {adminUnlinkInstitutionSheetTitle(unlinkTarget.institutionName)}
-            </h2>
-            <button
-              type="button"
-              onClick={() => setUnlinkTarget(null)}
-              disabled={unlinkingKey !== null}
-              className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </header>
-
-          <div className="space-y-4">
-            <p className="text-sm text-zinc-400">
-              {adminUnlinkInstitutionSheetIntro(
-                unlinkTarget.institutionName,
-                unlinkTarget.accounts.length,
-              )}
-            </p>
-
-            {unlinkTarget.provider === 'simplefin' ? (
-              <p className="text-sm text-zinc-400">
-                {SIMPLEFIN_UNLINK_REVOKE_NOTE}
-              </p>
-            ) : null}
-
-            {unlinkTarget.provider === 'plaid' ? (
-              <p className="text-sm text-zinc-400">
-                {PLAID_UNLINK_KEEPS_ITEM_NOTE}
-              </p>
-            ) : null}
-
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setUnlinkTarget(null)}
-                disabled={unlinkingKey !== null}
-                className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-400 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void confirmUnlinkInstitution()}
-                disabled={unlinkingKey !== null}
-                className="flex-1 rounded-lg bg-red-500 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
-              >
-                {unlinkingKey !== null ? 'Unlinking…' : ADMIN_UNLINK_INSTITUTION_CONFIRM}
-              </button>
-            </div>
-          </div>
-        </Sheet>
+        />
       ) : null}
 
       <AppVersionFooter />

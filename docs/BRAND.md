@@ -164,8 +164,8 @@ money at the bank.
 
 **`give_money` and `move_money` are virtual** — labels inside the app only.
 
-User-facing reassurance: `BANK_READ_ONLY_ASSURANCE` (Admin money-source copy),
-`ADMIN_LINKED_ACCOUNTS_INTRO`, `BUCKETS_LINK_BANK_*` in `brand.ts` — read-only;
+User-facing reassurance: `BANK_READ_ONLY_ASSURANCE`, `SIMPLEFIN_CONNECT_SHEET_INTRO`
+(shown when linking), `BUCKETS_LINK_BANK_*` in `brand.ts` — read-only;
 we read balances and cannot transfer, send, or withdraw money at the bank.
 Balance freshness comes from webhooks, a scheduled read-only cadence sweep, and
 the on-demand **Refresh** button — all read-only balance pulls, never money movement.
@@ -215,7 +215,7 @@ in `move_money` means the Unbucketed pool.
 | Unbucketed short-with-cards hint | `floatShortWithCardsHint()` |
 | Unbucketed hero subtitle | `FLOAT_HERO_SUBTITLE`, `FLOAT_HERO_SUBTITLE_WITH_CARDS` |
 | Hero cards subtext clause | `floatCardsSubtextClause()` |
-| Credit-card surfaces (Admin/Bank) | `ACCOUNT_CARD_OWED_SUFFIX`, `ADMIN_CARD_COUNTS_AGAINST_NOTE`, `BREAKDOWN_CARD_DEBT_LABEL` |
+| Credit-card surfaces (Admin/Bank) | `ACCOUNT_CARD_OWED_SUFFIX`, `BREAKDOWN_CARD_DEBT_LABEL` |
 | Card linked notice | `LINKED_CARDS_NOTICE_*`, `linkedCardsNoticeBody()` |
 | Manual credit card forms | `MANUAL_CARD_*`, `ADMIN_ADD_SOURCE_CARD_OPTION` |
 | Onboarding coach | `ONBOARDING_COACH_*`, `onboardingCoachStepBody()` |

@@ -16,6 +16,9 @@ type Props = {
   closeOnBackdropClick?: boolean
 }
 
+/** Open sheets, oldest first: Escape closes only the top one (a confirm over an editor). */
+const openSheets: object[] = []
+
 /**
  * Form dialog: top-aligned on phones (stable with the keyboard), centered on
  * wider screens. Panel scrolls when content exceeds the visible viewport.
@@ -49,12 +52,15 @@ export function Sheet({
   useEffect(() => {
     if (!present) return
     acquireSheetScrollLock()
+    const token = {}
+    openSheets.push(token)
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCloseRef.current()
+      if (e.key === 'Escape' && openSheets.at(-1) === token) onCloseRef.current()
     }
     window.addEventListener('keydown', onKey)
     return () => {
       releaseSheetScrollLock()
+      openSheets.splice(openSheets.indexOf(token), 1)
       window.removeEventListener('keydown', onKey)
     }
   }, [present])

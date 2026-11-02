@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useAuth } from '@/lib/auth'
 import PinInput from '@/components/ui/PinInput'
 import { Sheet } from '@/components/ui/Sheet'
+import { SheetHeader } from '@/components/ui/SheetHeader'
 import { clearOwnPin, setOwnPin } from '@/lib/memberAuth'
 import { toast } from '@/lib/toast'
 import KeypadIcon from '@/components/ui/KeypadIcon'
@@ -119,12 +120,16 @@ export default function PinSettingsCard() {
         aria-label={hasPin ? 'Change your PIN' : 'Set your PIN'}
       >
         <form onSubmit={onSubmit} autoComplete="off">
-          <h3 className="text-lg font-semibold text-zinc-300">
-            {hasPin ? 'Change your PIN' : 'Set your PIN'}
-          </h3>
-          <p className="mt-1 text-xs text-zinc-400">
-            Enter a new 4-digit PIN. Your other devices will be signed out.
-          </p>
+          <SheetHeader onClose={closeSheet}>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-zinc-300">
+                {hasPin ? 'Change your PIN' : 'Set your PIN'}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Your other devices will be signed out.
+              </p>
+            </div>
+          </SheetHeader>
           {error && (
             <p
               role="alert"

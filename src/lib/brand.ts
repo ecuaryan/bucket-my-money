@@ -6,6 +6,10 @@
  * `OFFLINE_PAGE_BODY` → public/offline.html main paragraph;
  * `APP_NAME` → index.html `<title>` and offline.html title.
  */
+
+// Relative: brand.ts is also compiled for scripts that don't know the @/ alias.
+import { ACCOUNT_OWNER_LABEL, roleLabel } from './memberRoles'
+
 export const APP_NAME = 'Bucket My Money' as const
 
 /** PWA install sheet / home-screen label (keep short — matches NAV_BUCKETS_LABEL). */
@@ -120,9 +124,6 @@ export const PIN_JOIN_PAGE_SUBTITLE =
 
 export const ADMIN_JOIN_CODE_TITLE = 'Join code'
 
-export const ADMIN_JOIN_CODE_INTRO =
-  'Each phone or tablet enters this once, then signs in with an avatar and PIN. Set each person’s PIN before sharing the code.'
-
 export const ADMIN_JOIN_CODE_QR_ALT =
   'QR code to link a device with your household join code'
 
@@ -153,16 +154,12 @@ export const PIN_HOUSEHOLD_LOAD_ERROR_TITLE = 'Could not load household'
 
 export const ADMIN_HOUSEHOLD_MEMBERS_TITLE = 'Household members'
 
-export const ADMIN_HOUSEHOLD_MEMBERS_INTRO =
-  'New members sign in with a PIN. The account owner uses email and cannot be removed.'
-
-export const ADMIN_HOUSEHOLD_ROLES_HELP_TOGGLE = 'About household roles'
-
 /** Shown under the add-member role picker for the selected role. */
 export const ADMIN_ROLE_CONTEXT_ADMIN =
-  `Full household control—banks, members, and Auto-bucket. Shares buckets and ${FLOAT_LABEL_LOWER} cash with Shared members.`
+  'Everything Shared can do, plus banks, members, and Auto-bucket.'
 
-export const ADMIN_ROLE_CONTEXT_SHARED = `Shares household buckets and ${FLOAT_LABEL_LOWER} cash, and can see bank activity. Give to kids on the Kids tab.`
+export const ADMIN_ROLE_CONTEXT_SHARED =
+  'Shares the household buckets, sees bank activity, and can give to kids.'
 
 // --- Kids tab (adults) ---
 
@@ -277,16 +274,13 @@ export function kidsEmptyVirtualBody(
 }
 
 export const ADMIN_ROLE_CONTEXT_KID =
-  'Own buckets—not the household balance. Give on the Kids tab, or assign a linked account below.'
+  'Gets their own buckets, separate from the household’s money.'
 
 /** The household's collective money pool (admin + Shared role), used as the
  *  linked-account assignment owner vs a specific kid. Not the Admin "Household" tab. */
 export const HOUSEHOLD_BALANCE_LABEL = 'Household balance'
 
 /** Shown in the expanded roles reference, not under the add form. */
-export const ADMIN_ROLE_PIN_RESET_NOTE =
-  'You reset PINs for Shared and Kid members here.'
-
 export type HouseholdMemberRole = 'admin' | 'member' | 'child'
 
 export function adminRoleContext(role: HouseholdMemberRole): string {
@@ -305,21 +299,6 @@ export function adminRoleAddHint(role: HouseholdMemberRole): string {
   return adminRoleContext(role)
 }
 
-/** Collapsible reference — all roles at once when comparing options. */
-export const ADMIN_HOUSEHOLD_ROLES_HELP = [
-  { role: 'admin' as const, label: 'Admin', context: ADMIN_ROLE_CONTEXT_ADMIN },
-  { role: 'member' as const, label: 'Shared', context: ADMIN_ROLE_CONTEXT_SHARED },
-  { role: 'child' as const, label: 'Kid', context: ADMIN_ROLE_CONTEXT_KID },
-] as const
-
-/** Prompt when the signed-in admin has not set a PIN yet. */
-export const ADMIN_PIN_SETUP_CTA_TITLE = 'Sign in faster with a PIN'
-
-export const ADMIN_PIN_SETUP_CTA_BODY =
-  'Set a 4-digit PIN on this device and skip email next time—pick your name and enter your PIN.'
-
-export const ADMIN_PIN_SETUP_CTA_ACTION = 'Set your PIN'
-
 /** Admin PIN sheet title when the admin sets their own PIN. */
 export const ADMIN_PIN_SHEET_TITLE_SELF = 'Your PIN'
 
@@ -330,9 +309,42 @@ export function adminPinSheetTitle(memberName: string, isSelf: boolean): string 
 /** Explains sign-out behavior when saving (matches set-pin + client sign-out). */
 export function adminPinSheetBody(memberName: string, isSelf: boolean): string {
   if (isSelf) {
-    return '4 digits. We link this device for PIN sign-in. Saving signs you out on any other devices; this device stays signed in.'
+    return 'Saving signs you out on your other devices. This one stays signed in.'
   }
-  return `4 digits. Saving signs ${memberName} out on every device. They sign in again with this PIN. Other devices may look signed in until they open the app or the session refreshes.`
+  return `Saving signs ${memberName} out on every device. They sign in again with this PIN.`
+}
+
+export const ADMIN_ADD_MEMBER_LABEL = 'Add member'
+
+/** Screen-reader name for the role tabs in the Add member sheet. */
+export const ADMIN_MEMBER_ROLE_TABS_LABEL = 'Role'
+
+/**
+ * One quiet line under a member's name: role, then sign-in and kid-account
+ * facts, e.g. "Kid · PIN set · No linked account".
+ */
+export function adminMemberStatusLine(m: {
+  role: string
+  isAccountOwner: boolean
+  pinSet: boolean
+  pinLocked: boolean
+  failedAttempts: number
+  /** Kids only: whether a bank account is assigned to them. */
+  kidLinked: boolean | null
+}): string {
+  const parts = [roleLabel(m.role)]
+  if (m.isAccountOwner) parts.push(ACCOUNT_OWNER_LABEL)
+  parts.push(m.pinSet ? 'PIN set' : 'No PIN')
+  if (m.pinLocked) parts.push('Locked')
+  else if (m.failedAttempts > 0) {
+    parts.push(
+      `${m.failedAttempts} failed attempt${m.failedAttempts === 1 ? '' : 's'}`,
+    )
+  }
+  if (m.kidLinked !== null) {
+    parts.push(m.kidLinked ? 'Linked account' : 'No linked account')
+  }
+  return parts.join(' · ')
 }
 
 export function adminPinSaveSuccess(memberName: string, isSelf: boolean): string {
@@ -385,16 +397,6 @@ export function householdAdminLabel(
 }
 
 /** Always-shown lead for the Money sources section (banks + manual + cards). */
-export const ADMIN_MONEY_SOURCES_INTRO =
-  'Link a bank or card—or enter amounts by hand to try things out. Cash counts toward the money you organize; card balances count against it.'
-
-/** Read-only trust line, shown only once at least one bank is linked. The
- *  refresh and unlink actions are self-evident from the per-bank buttons. */
-export const ADMIN_LINKED_ACCOUNTS_INTRO = `Linked banks are read-only—${BANK_READ_ONLY_ASSURANCE}. Card balances count against your household balance—link the account that pays the card so payments net out.`
-
-export const ADMIN_LINKED_ACCOUNTS_EMPTY_DETAIL =
-  'Balances count toward the money you can organize into buckets.'
-
 /** Tag for a family-pool / shared account on the Bank tab. */
 export const BANK_ACCOUNT_SHARED_TAG = 'Shared'
 /** Fallback tag when an assigned member's name is unknown. */
@@ -448,14 +450,10 @@ export function adminUnlinkInstitutionSheetTitle(
   return `Unlink ${institutionName ?? 'this bank'}?`
 }
 
-export function adminUnlinkInstitutionSheetIntro(
-  institutionName: string | null,
-  accountCount: number,
-): string {
-  const label = institutionName ?? 'This bank'
-  const accounts =
-    accountCount === 1 ? '1 account' : `${accountCount} accounts`
-  return `${label} and ${accounts} will be removed from Bucket My Money. Balances will no longer be part of Buckets.`
+export function adminUnlinkInstitutionSheetIntro(accountCount: number): string {
+  return accountCount === 1
+    ? 'Its account leaves Bucket My Money.'
+    : `Its ${accountCount} accounts leave Bucket My Money.`
 }
 
 export const ADMIN_UNLINK_INSTITUTION_CONFIRM = 'Unlink bank'
@@ -464,12 +462,14 @@ export function adminRemoveManualSourceSheetTitle(label: string): string {
   return `Remove ${label}?`
 }
 
-export const ADMIN_REMOVE_MANUAL_SOURCE_INTRO =
-  'This manual amount will be removed from your money sources. Linked banks are not affected.'
-
-/** Removing a manual card makes the number go UP — name that consequence. */
-export function adminRemoveManualCardIntro(balanceLabel: string): string {
-  return `This card's balance will stop counting against your household balance—${FLOAT_LABEL} goes up by ${balanceLabel}. Linked banks are not affected.`
+/** Removing cash lowers Unbucketed; removing a card raises it — name which. */
+export function adminRemoveManualSourceBody(
+  kind: 'cash' | 'card',
+  balanceLabel: string,
+): string {
+  return kind === 'card'
+    ? `${FLOAT_LABEL} goes up by ${balanceLabel}.`
+    : `${FLOAT_LABEL} goes down by ${balanceLabel}.`
 }
 
 export const ADMIN_REMOVE_MANUAL_SOURCE_CONFIRM = 'Remove'
@@ -1086,8 +1086,6 @@ export function bucketsAddSourceMemberBody(
 }
 
 export const MANUAL_SOURCE_DIALOG_TITLE = 'Add a money source'
-export const MANUAL_SOURCE_DIALOG_BODY =
-  'Enter the amount you want to organize. Make it up, estimate it, or use your real balance—you can edit it anytime.'
 export const MANUAL_SOURCE_LABEL_PLACEHOLDER = 'Cash on hand'
 export const MANUAL_SOURCE_DEFAULT_LABEL = 'Cash on hand'
 
@@ -1099,8 +1097,6 @@ export const MANUAL_SOURCE_SUGGESTED_AMOUNT = 1000
 // balance (docs/CREDIT_CARDS.md).
 export const MANUAL_CARD_DIALOG_TITLE = 'Add a credit card'
 export const MANUAL_CARD_EDIT_DIALOG_TITLE = 'Edit credit card'
-export const MANUAL_CARD_DIALOG_BODY =
-  'Enter what you currently owe on the card. It counts against your household balance—update it whenever the balance changes.'
 export const MANUAL_CARD_LABEL_PLACEHOLDER = 'Credit card'
 export const MANUAL_CARD_DEFAULT_LABEL = 'Credit card'
 export const MANUAL_CARD_AMOUNT_LABEL = 'Balance owed'
@@ -1157,7 +1153,7 @@ export function simpleFinImportedSuccess(count: number): string {
 
 /** Unlink confirm for a SimpleFIN connection — no server-side revoke exists. */
 export const SIMPLEFIN_UNLINK_REVOKE_NOTE =
-  'This removes the accounts from Bucket My Money. To fully revoke access, also delete this app from your SimpleFIN Bridge account.'
+  'To fully revoke access, also delete this app in SimpleFIN Bridge.'
 
 // --- Plaid (flag-gated: owner's household only) ---
 // The Plaid team has 10 LIFETIME production Items (bank connections);
@@ -1185,7 +1181,7 @@ export const PLAID_RECONNECTED_SUCCESS = 'Bank reconnected.'
 
 /** Unlink confirm for a Plaid Item — detaches locally, keeps the slot. */
 export const PLAID_UNLINK_KEEPS_ITEM_NOTE =
-  'This removes the accounts from Bucket My Money but keeps the Plaid connection reserved, so re-adding this bank later won’t use another of the 10 lifetime slots.'
+  'Its Plaid connection stays reserved, so re-adding this bank won’t use another of the 10 lifetime slots.'
 
 /** Row/banner note when a Plaid Item needs a Link update-mode repair. */
 export const PLAID_RECONNECT_NEEDED_NOTE =
@@ -1201,9 +1197,6 @@ export const TELLER_SUNSET_ACTIVITY_NOTE =
 
 /** Per-row note on card accounts in Admin and the Bank tab. */
 export const ACCOUNT_CARD_OWED_SUFFIX = 'owed'
-export const ADMIN_CARD_COUNTS_AGAINST_NOTE =
-  'Counts against your household balance'
-
 export const BREAKDOWN_CASH_LABEL = 'Cash'
 export const BREAKDOWN_LINKED_CASH_LABEL = 'Linked cash'
 export const BREAKDOWN_MANUAL_CASH_LABEL = 'Manual cash'
