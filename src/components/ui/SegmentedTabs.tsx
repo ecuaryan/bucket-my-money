@@ -109,22 +109,17 @@ export function SegmentedTabs<T extends string>({
             }}
             className={
               'relative z-10 min-w-0 rounded-lg py-2 font-semibold transition-colors duration-200 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
-              (showIcons
-                ? // Content-sized (then sharing spare room), so the longest label is not
-                  // squeezed into an equal third.
-                  'flex-auto px-1 text-[13px] min-[380px]:px-2 min-[380px]:text-sm '
-                : 'flex-1 px-3 text-sm ') +
+              // Content-sized (then sharing spare room), so the longest label is not
+              // squeezed into an equal third; text and padding scale with the screen.
+              'flex-auto whitespace-nowrap px-[clamp(4px,2.1vw,8px)] text-[clamp(13px,3.7vw,14px)] ' +
               (selected
                 ? 'text-zinc-100'
                 : 'text-zinc-400 hover:text-zinc-300')
             }
           >
             {showIcons ? (
-              <span className="flex items-center justify-center gap-1 min-[380px]:gap-1.5">
-                {/* Hidden on very narrow screens, where the label needs the room. */}
-                <span className="hidden min-[340px]:contents">
-                  {renderIcon?.(option.value)}
-                </span>
+              <span className="flex items-center justify-center gap-[clamp(4px,1.6vw,6px)]">
+                {renderIcon?.(option.value)}
                 <span className="truncate">{option.label}</span>
               </span>
             ) : (

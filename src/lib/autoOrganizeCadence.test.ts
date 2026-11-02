@@ -21,7 +21,6 @@ import {
   normalizeMonthlyCadence,
   normalizeOnceMonthlyDay,
   defaultSecondDay,
-  formatTwiceMonthlyHint,
   normalizeTwiceDays,
   twiceDaysAfterFirstChange,
   twiceFirstDayOptions,
@@ -116,15 +115,6 @@ describe('twice-a-month days', () => {
     expect(normalizeTwiceDays({ first: 16, second: 0 })).toEqual({ first: 16, second: 0 })
     expect(normalizeTwiceDays({ first: 10, second: 10 })).toEqual({ first: 10, second: 25 })
     expect(normalizeTwiceDays({ first: 20, second: 31 })).toEqual({ first: 20, second: 0 })
-  })
-
-  it('writes a plain-language hint', () => {
-    expect(formatTwiceMonthlyHint({ first: 7, second: 22 })).toBe(
-      'Runs on the 7th and the 22nd of every month.',
-    )
-    expect(formatTwiceMonthlyHint({ first: 16, second: 0 })).toBe(
-      'Runs on the 16th and the last day of every month.',
-    )
   })
 })
 

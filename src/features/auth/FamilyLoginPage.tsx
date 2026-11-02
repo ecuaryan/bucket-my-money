@@ -11,7 +11,7 @@ import { AuthShell } from '@/components/AuthShell'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import { LoadingStatus } from '@/components/ui/LoadingStatus'
-import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import {
   APP_FORM_DATA_ATTR,
   APP_NAME,
@@ -21,12 +21,9 @@ import {
   PIN_JOIN_PAGE_SUBTITLE,
   PIN_JOIN_PAGE_TITLE,
   PIN_UNBIND_JOIN_CODE_CONFIRM,
-  PIN_UNBIND_JOIN_CODE_EFFECT_FORGET,
-  PIN_UNBIND_JOIN_CODE_EFFECT_REENTER,
   PIN_UNBIND_JOIN_CODE_LINK,
-  PIN_UNBIND_JOIN_CODE_SHEET_INTRO,
+  PIN_UNBIND_JOIN_CODE_SHEET_BODY,
   PIN_UNBIND_JOIN_CODE_SHEET_TITLE,
-  PIN_UNBIND_JOIN_CODE_WHAT_HAPPENS,
   PIN_MEMBER_NOT_SET_LABEL,
   PIN_PICKER_AUTO_UPDATE_NOTE,
   pinNoMembersYet,
@@ -703,53 +700,15 @@ export default function FamilyLoginPage() {
         {PIN_UNBIND_JOIN_CODE_LINK}
       </button>
       <FooterLinks from={from} />
-      <Sheet
+      <ConfirmSheet
         open={unbindConfirmOpen}
+        title={PIN_UNBIND_JOIN_CODE_SHEET_TITLE}
+        body={PIN_UNBIND_JOIN_CODE_SHEET_BODY}
+        confirmLabel={PIN_UNBIND_JOIN_CODE_CONFIRM}
+        tone="caution"
+        onConfirm={confirmUnbind}
         onClose={closeUnbindConfirm}
-        aria-label={PIN_UNBIND_JOIN_CODE_SHEET_TITLE}
-      >
-        <header className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold text-zinc-300">
-            {PIN_UNBIND_JOIN_CODE_SHEET_TITLE}
-          </h2>
-          <button
-            type="button"
-            onClick={closeUnbindConfirm}
-            className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </header>
-        <div className="space-y-4">
-          <p className="text-sm text-zinc-400">{PIN_UNBIND_JOIN_CODE_SHEET_INTRO}</p>
-          <div>
-            <h3 className="text-sm font-medium text-zinc-300">
-              {PIN_UNBIND_JOIN_CODE_WHAT_HAPPENS}
-            </h3>
-            <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-zinc-400">
-              <li>{PIN_UNBIND_JOIN_CODE_EFFECT_FORGET}</li>
-              <li>{PIN_UNBIND_JOIN_CODE_EFFECT_REENTER}</li>
-            </ul>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={closeUnbindConfirm}
-              className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-400"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={confirmUnbind}
-              className="flex-1 rounded-lg bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400"
-            >
-              {PIN_UNBIND_JOIN_CODE_CONFIRM}
-            </button>
-          </div>
-        </div>
-      </Sheet>
+      />
     </AuthShell>
   )
 }

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import {
   AUTO_ORGANIZE_ADD_LABEL,
   AUTO_ORGANIZE_ADD_REQUIRES_BUCKETS_HINT,
   AUTO_ORGANIZE_DELETE_LABEL,
-  autoOrganizeDeleteSheetBody,
+  AUTO_ORGANIZE_DELETE_SHEET_BODY,
   AUTO_ORGANIZE_DELETED_TOAST,
   AUTO_ORGANIZE_EDIT_LABEL,
   AUTO_ORGANIZE_EMPTY_BODY,
@@ -36,7 +37,6 @@ import {
   autoOrganizeDeleteSheetTitle,
   autoOrganizeBucketsSectionLabel,
   autoOrganizeKindLabel,
-  autoOrganizeKindSubtitle,
   autoOrganizeRunNowConfirmBodyForKind,
   autoOrganizeRunNowConfirmTitle,
   autoOrganizeSaveOffDestinationLabel,
@@ -61,7 +61,6 @@ import {
 } from '@/lib/autoOrganize'
 import { autoOrganizeRunNowLastRunContext } from '@/lib/autoOrganizeCadence'
 import AutoOrganizeEditor from '@/features/buckets/AutoOrganizeEditor'
-import AutoOrganizeKindChooser from '@/features/buckets/AutoOrganizeKindChooser'
 import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import { usePostgresChanges } from '@/hooks/usePostgresChanges'
 import { toast } from '@/lib/toast'
@@ -121,7 +120,7 @@ const lineAmountClassName =
   'shrink-0 text-sm font-semibold tabular-nums text-emerald-300'
 
 const runNowAmountGridClassName =
-  'grid grid-cols-[minmax(0,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)] items-baseline gap-x-2'
+  'grid grid-cols-[minmax(0,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)] items-baseline gap-x-2 px-2.5'
 
 const runNowAmountHeaderClassName =
   'text-right text-[10px] font-medium uppercase tracking-wide text-zinc-500'
@@ -167,7 +166,13 @@ function RunNowAmountRow({
   const movePrefix = moveOut ? '−' : '+'
 
   return (
-    <Tag className={runNowAmountGridClassName}>
+    <Tag
+      className={
+        // Striped like the card's bucket list.
+        `${runNowAmountGridClassName} rounded-lg py-1.5` +
+        (Tag === 'li' ? ' odd:bg-zinc-800/50' : '')
+      }
+    >
       <span className="truncate text-sm font-semibold text-zinc-300">{label}</span>
       <span className={`${runNowAmountCellClassName} text-zinc-500`}>
         {formatMoney(before)}
@@ -236,7 +241,6 @@ function AutoOrganizeCard({
     [row.lines, buckets, scopeOwnerId],
   )
   const isManual = row.auto_organize_type === 'manual'
-  const kindSubtitle = autoOrganizeKindSubtitle(kind, isManual)
   const lastRunContext = useMemo(() => {
     if (!row.lastRun) return null
     return autoOrganizeRunNowLastRunContext(row.lastRun, row.familyTimezone)
@@ -281,9 +285,6 @@ function AutoOrganizeCard({
               {autoOrganizeKindLabel(kind)}
             </span>
           </div>
-          {kindSubtitle ? (
-            <p className="mt-1 text-xs text-zinc-500">{kindSubtitle}</p>
-          ) : null}
           {kind === 'save_off' ? (
             <p className="mt-0.5 text-xs text-zinc-500">
               → {saveOffDestLabel}
@@ -559,8 +560,6 @@ export default function AutoOrganizeSection({
   const [rows, setRows] = useState<AutoOrganizeWithDetails[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
-  const [editorKind, setEditorKind] = useState<AutoOrganizeKind>('organize')
-  const [kindChooserOpen, setKindChooserOpen] = useState(false)
   const [editing, setEditing] = useState<AutoOrganizeWithDetails | null>(null)
   const [runConfirm, setRunConfirm] = useState<AutoOrganizeWithDetails | null>(
     null,
@@ -784,12 +783,6 @@ export default function AutoOrganizeSection({
 
   function openAddFlow() {
     setEditing(null)
-    setKindChooserOpen(true)
-  }
-
-  function openEditorWithKind(kind: AutoOrganizeKind) {
-    setEditorKind(kind)
-    setKindChooserOpen(false)
     setEditorOpen(true)
   }
 
@@ -885,7 +878,6 @@ export default function AutoOrganizeSection({
           busyId={busyId}
           onEdit={() => {
             setEditing(row)
-            setEditorKind(row.auto_organize_kind as AutoOrganizeKind)
             setEditorOpen(true)
           }}
           onRunNow={() => setRunConfirm(row)}
@@ -894,15 +886,8 @@ export default function AutoOrganizeSection({
         />
       ))}
 
-      <AutoOrganizeKindChooser
-        open={kindChooserOpen}
-        onClose={() => setKindChooserOpen(false)}
-        onSelect={openEditorWithKind}
-      />
-
       <AutoOrganizeEditor
         open={editorOpen}
-        kind={editorKind}
         initial={editing}
         buckets={scopeBuckets}
         allAutoOrganizes={rows ?? []}
@@ -966,7 +951,7 @@ export default function AutoOrganizeSection({
                   </p>
                   <div className="mt-2">
                     <RunNowAmountHeader />
-                    <ul className="space-y-2">
+                    <ul className="space-y-0.5">
                     {runConfirmComputed.lineMoves.map((row) => (
                         <RunNowAmountRow
                           key={row.lineId}
@@ -1054,59 +1039,16 @@ export default function AutoOrganizeSection({
         ) : null}
       </Sheet>
 
-      <Sheet
-        open={deleteConfirm !== null}
-        onClose={() => setDeleteConfirm(null)}
-        aria-label={
-          deleteConfirm
-            ? autoOrganizeDeleteSheetTitle(rowDisplayName(deleteConfirm))
-            : 'Confirm delete'
-        }
-      >
-        {deleteConfirm ? (
-          <>
-            <header className="mb-4 flex items-baseline justify-between">
-              <h2 className="text-lg font-semibold text-zinc-300">
-                {autoOrganizeDeleteSheetTitle(rowDisplayName(deleteConfirm))}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setDeleteConfirm(null)}
-                disabled={busyId === deleteConfirm.id}
-                className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </header>
-            <div className="space-y-4">
-              <p className="text-sm text-zinc-300">
-                {autoOrganizeDeleteSheetBody(
-                  deleteConfirm.auto_organize_type === 'manual',
-                )}
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={busyId === deleteConfirm.id}
-                  className="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === deleteConfirm.id}
-                  onClick={() => void confirmDelete()}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
-                >
-                  {AUTO_ORGANIZE_DELETE_LABEL}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : null}
-      </Sheet>
+      {deleteConfirm ? (
+        <ConfirmSheet
+          title={autoOrganizeDeleteSheetTitle(rowDisplayName(deleteConfirm))}
+          body={AUTO_ORGANIZE_DELETE_SHEET_BODY}
+          confirmLabel={AUTO_ORGANIZE_DELETE_LABEL}
+          busy={busyId === deleteConfirm.id}
+          onConfirm={() => void confirmDelete()}
+          onClose={() => setDeleteConfirm(null)}
+        />
+      ) : null}
     </section>
   )
 }

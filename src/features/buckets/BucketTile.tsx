@@ -26,7 +26,7 @@ export default function BucketTile({ emoji }: Props) {
       aria-hidden={emoji ? undefined : true}
       style={style}
       className={
-        'grid h-7 w-7 shrink-0 place-items-center rounded-[9px] text-sm leading-none min-[360px]:h-8 min-[360px]:w-8 min-[360px]:rounded-[10px] min-[360px]:text-base ' +
+        'grid size-[clamp(28px,8.9vw,32px)] shrink-0 place-items-center rounded-[clamp(9px,2.8vw,10px)] text-[clamp(14px,4.4vw,16px)] leading-none ' +
         (hue === null
           ? 'bg-gradient-to-br from-zinc-800 to-zinc-900 ring-1 ring-inset ring-white/5'
           : '')
@@ -42,7 +42,7 @@ export default function BucketTile({ emoji }: Props) {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className="h-3.5 w-3.5 text-zinc-600 min-[360px]:h-4 min-[360px]:w-4"
+          className="size-[clamp(14px,4.4vw,16px)] text-zinc-600"
         >
           <path d="M4 6.5 6 19.2c.2 1.2 2.9 2.3 6 2.3s5.8-1.1 6-2.3L20 6.5" />
           <ellipse cx="12" cy="6.5" rx="8" ry="2.5" />

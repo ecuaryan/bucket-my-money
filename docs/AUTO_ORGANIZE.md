@@ -10,7 +10,7 @@ household buckets on calendar days the user chooses.
 **Status:** **Shipped (v1)** — migrations `00000000000048`–`00000000000050`, Buckets tab UI,
 pg_cron scheduler, History **Scheduled** label.  
 **Auto top-up / save-off:** **Shipped** — migration `00000000000058`, three `auto_organize_kind`
-values, kind chooser on Add.  
+values, kind tabs at the top of a new rule.  
 **Kid self-serve:** **Shipped** — migration `00000000000076`, `auto_organizes.owner_member_id`
 (null = household pool, a member id = that kid's private rule). Kids author Auto-bucket rules over
 their **own** buckets and Unbucketed; the rules are invisible to admins and shared members. Works the
@@ -101,8 +101,14 @@ kind). Rows use **`auto_organize_kind`**: `organize` | `top_up` | `save_off`.
   `now()`), so History sorts each tick's rows by real execution order instead of randomly
   by `id`.
 
-Kind is chosen on **Add** (chooser sheet) and **locked after create** — Edit changes amounts and
-schedule only.
+Kind is chosen with the tabs at the top of a new rule and **locked after create** — Edit changes
+amounts and schedule only. Switching kinds before saving swaps in that kind's default schedule
+unless you already changed it.
+
+**Editor has no helper text.** Each bucket row shows its balance, and for top_up/save_off the live
+result (**Adds $40**, **Moves $60**, **At target**); the footer shows **If it ran now** and
+**Next run** (**Runs when you choose** for Manual only). Explain behavior through those values, not
+hints.
 
 ---
 
@@ -394,7 +400,7 @@ per-bucket split).
 
 | Surface | Total |
 | --- | --- |
-| **Auto-bucket editor** | **Running total** updates as lines change; sticky/footer so it stays visible while scrolling lines. Label e.g. **Total per run · $1,240.00** |
+| **Auto-bucket editor** | **If it ran now** total in the footer updates as lines change, plus a per-bucket preview on each row |
 | **Auto-bucket card** (admin + Shared) | Same total on every card — not buried in line list |
 | **Run now** confirm sheet | Total + Current \| Move \| Will be grid per bucket and Unbucketed |
 | **Review** step (before save) | *Deferred* — editor saves directly |

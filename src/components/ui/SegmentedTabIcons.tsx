@@ -12,7 +12,7 @@ const svgProps = {
   strokeLinecap: 'round',
   strokeLinejoin: 'round',
   'aria-hidden': true,
-  className: 'h-[15px] w-[15px] shrink-0 min-[380px]:h-4 min-[380px]:w-4',
+  className: 'size-[clamp(15px,4.2vw,16px)] shrink-0',
 } as const
 
 function BucketIcon() {

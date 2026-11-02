@@ -130,22 +130,8 @@ export const ADMIN_JOIN_CODE_COPY_CODE_ARIA = 'Copy join code'
 
 export const ADMIN_JOIN_CODE_ROTATE_SHEET_TITLE = 'Generate a new join code?'
 
-export const ADMIN_JOIN_CODE_ROTATE_SHEET_INTRO =
-  'Use this if the current code may have been shared with the wrong people. The old code stops working immediately.'
-
-export const ADMIN_JOIN_CODE_ROTATE_WHAT_HAPPENS = 'What happens'
-
-export const ADMIN_JOIN_CODE_ROTATE_EFFECT_STAY_SIGNED_IN =
-  'People already signed in can keep using the app until they sign out.'
-
-export const ADMIN_JOIN_CODE_ROTATE_EFFECT_SIGN_IN_AGAIN =
-  'After sign-out, each device needs the new code once, then the same PIN as before.'
-
-export const ADMIN_JOIN_CODE_ROTATE_EFFECT_OLD_LINKS =
-  'Old QR codes and links no longer work for linking devices.'
-
-export const ADMIN_JOIN_CODE_ROTATE_EFFECT_SHARE =
-  'Share the new code or QR with everyone in your household after you generate it.'
+export const ADMIN_JOIN_CODE_ROTATE_SHEET_BODY =
+  'The current code and QR stop working right away. Devices already signed in stay signed in.'
 
 export const ADMIN_JOIN_CODE_ROTATE_CONFIRM = 'Generate new code'
 
@@ -156,16 +142,8 @@ export const PIN_UNBIND_JOIN_CODE_LINK = 'Use a different join code'
 
 export const PIN_UNBIND_JOIN_CODE_SHEET_TITLE = 'Use a different join code?'
 
-export const PIN_UNBIND_JOIN_CODE_SHEET_INTRO =
-  'This device will forget the current household code. Anyone signing in here again will need the join code from Admin—not just their PIN.'
-
-export const PIN_UNBIND_JOIN_CODE_WHAT_HAPPENS = 'What happens'
-
-export const PIN_UNBIND_JOIN_CODE_EFFECT_FORGET =
-  'The saved join code is removed from this phone or tablet.'
-
-export const PIN_UNBIND_JOIN_CODE_EFFECT_REENTER =
-  'To sign in again, someone must enter the current join code once, then use their PIN as usual.'
+export const PIN_UNBIND_JOIN_CODE_SHEET_BODY =
+  'This device forgets the household code. Signing in here again will need the join code from Admin.'
 
 export const PIN_UNBIND_JOIN_CODE_CONFIRM = 'Forget this code'
 
@@ -462,13 +440,6 @@ export const ADMIN_LINK_BANK_CONFIRM_SHEET_TITLE = 'Link a new bank?'
 export const ADMIN_LINK_BANK_CONFIRM_SHEET_INTRO =
   'Link bank is for a new institution—not for changing accounts at a bank you already linked.'
 
-export const ADMIN_LINK_BANK_CONFIRM_WHAT_TO_KNOW = 'Before you continue'
-
-export const ADMIN_LINK_BANK_CONFIRM_EFFECTS = [
-  'To add or remove accounts at an existing bank, Unlink it and link again with the full set you want.',
-  'Using Link bank for an institution that is already connected can duplicate enrollments.',
-] as const
-
 export const ADMIN_LINK_BANK_CONFIRM_ACTION = 'Link bank anyway'
 
 export function adminUnlinkInstitutionSheetTitle(
@@ -547,50 +518,28 @@ export function adminRemoveMemberSheetTitle(name: string): string {
   return `Remove ${name}?`
 }
 
-export const ADMIN_REMOVE_MEMBER_SHEET_INTRO =
-  'They will lose access to the app on every device. This cannot be undone.'
-
-export const ADMIN_REMOVE_MEMBER_WHAT_HAPPENS = 'What happens'
-
-export const ADMIN_REMOVE_MEMBER_EFFECT_SIGN_OUT =
-  'They are signed out everywhere immediately.'
-
-export const ADMIN_REMOVE_MEMBER_EFFECT_READD =
-  'To use the app again, add them back to the household and set a new PIN.'
-
-export const ADMIN_REMOVE_KID_EFFECT_BUCKETS =
-  `Their personal buckets are removed. No cash is lost—that money stays in your household and shows as ${FLOAT_LABEL_LOWER} in Buckets.`
-
-export const ADMIN_REMOVE_KID_EFFECT_ACCOUNTS =
-  `Any bank accounts assigned to them become household accounts and count toward ${FLOAT_LABEL}.`
-
-export const ADMIN_REMOVE_SHARED_EFFECT_LOGIN =
-  'Their PIN and sign-in are deleted.'
-
-export const ADMIN_REMOVE_ADMIN_EFFECT_ACCESS =
-  'They lose admin access—banks, members, and Auto-bucket settings.'
-
-export const ADMIN_REMOVE_ADMIN_EFFECT_LOGIN =
-  'Their PIN and sign-in are deleted.'
-
-export function adminAssignAccountToKidSheetTitle(kidName: string): string {
-  return `Assign account to ${kidName}?`
+/** Remove-member confirm: what removal does for this role, in one or two sentences. */
+export function adminRemoveMemberSheetBody(name: string, role: string): string {
+  if (role === 'child') {
+    return `${name} is signed out everywhere. Their bucket money returns to ${FLOAT_LABEL}, and their linked accounts move to the household.`
+  }
+  if (role === 'admin') {
+    return `${name} is signed out everywhere and loses admin access. This can't be undone.`
+  }
+  return `${name} is signed out everywhere and their PIN is deleted. This can't be undone.`
 }
 
-export function adminAssignAccountToKidSheetIntro(kidName: string): string {
-  return `This bank account will count toward ${kidName}'s balance—not the household balance.`
+export function adminAssignAccountToKidSheetTitle(
+  kidName: string,
+  accountLabel?: string | null,
+): string {
+  return `Assign ${accountLabel ?? 'account'} to ${kidName}?`
 }
 
-export const ADMIN_ASSIGN_ACCOUNT_TO_KID_WHAT_CHANGES = 'What changes'
-
-/** Shown before assigning a linked account to a kid (Give rules, bank-based balance). */
-export const ADMIN_ASSIGN_ACCOUNT_TO_KID_EFFECTS = [
-  'Giving is turned off for this kid—you can’t give them money here, and they can’t give to others in the app.',
-  'Their balance follows this linked account (debit card spending updates automatically).',
-  'Moving money in or out happens at the bank—transfers and deposits, not in the app.',
-  'To let this kid give again, unassign all linked accounts.',
-  'If they already have virtual money in the app that\u2019s also sitting in this account, Take it back from the Kids page after assigning so it isn\u2019t counted twice.',
-] as const
+/** Assign confirm: the balance follows the bank, giving turns off, and the double-count fix. */
+export function adminAssignAccountToKidSheetBody(kidName: string): string {
+  return `${kidName}'s balance will follow this account, and giving in the app turns off for them. If any of their app money is already in this account, take it back on the Kids tab so it isn't counted twice.`
+}
 
 export function adminAssignAccountToKidConfirm(kidName: string): string {
   return `Assign to ${kidName}`
@@ -625,77 +574,30 @@ export function bucketsDeleteBucketSheetTitle(name: string): string {
   return `Delete ${name}?`
 }
 
-export function bucketsDeleteBucketSheetIntro(formattedAmount: string): string {
-  return `This bucket has ${formattedAmount} in it.`
+/** Delete-bucket confirm: where the money goes and that History keeps the moves. */
+export function bucketsDeleteBucketSheetBody(formattedAmount: string | null): string {
+  return formattedAmount
+    ? `${formattedAmount} returns to ${FLOAT_LABEL}. Past moves stay in History.`
+    : 'Past moves stay in History.'
 }
-
-export const BUCKETS_DELETE_BUCKET_WHAT_HAPPENS = 'What happens'
-
-export function bucketsDeleteBucketEffectFloat(
-  formattedAmount: string,
-): string {
-  return `${formattedAmount} returns to ${FLOAT_LABEL}. Cash is not lost.`
-}
-
-export const BUCKETS_DELETE_BUCKET_EFFECT_LABEL =
-  'The bucket label is removed—you can’t move money to it anymore.'
-
-export const BUCKETS_DELETE_BUCKET_EFFECT_HISTORY =
-  `The return to ${FLOAT_LABEL} and past moves stay in History with this bucket’s name.`
 
 export function bucketsDeleteBucketConfirm(name: string): string {
   return `Delete ${name}`
 }
 
-/** Delete blocked: bucket still listed on a scheduled rule. */
-export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_INTRO =
-  'This bucket is still included in a scheduled rule that moves money here.'
-
-export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_INTRO_MANUAL =
-  'This bucket is still included in a manual-only rule that moves money here.'
-
-export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_ACTION_HINT =
-  'This will remove the bucket from the following and delete it. Schedules with no buckets left are deleted too.'
-
-export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_ACTION_HINT_MANUAL =
-  'This will remove the bucket from the following rules and delete it. Rules with no buckets left are deleted too.'
-
-export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_USED_IN_LABEL =
-  'Bucket is included in:'
+/** Delete confirm when the bucket is still in Auto-bucket rules (listed below it). */
+export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_BODY =
+  'It’s in these Auto-bucket rules. Deleting removes it from each, and a rule left with no buckets is deleted too.'
 
 export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_CONFIRM_LABEL = 'Remove and delete'
 
+/** Delete failed on an Auto-bucket reference; delete removes it from rules itself. */
+export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_BLOCK =
+  'Could not delete bucket. Try again — delete removes this bucket from any schedules automatically.'
+
+/** Rule lookup failed: the delete still cleans up rules server-side. */
 export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_LOAD_FALLBACK =
-  'Deleting will still remove this bucket from any schedules it appears on.'
-
-export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_LOAD_FALLBACK_MANUAL =
-  'Deleting will still remove this bucket from any Auto-bucket rules it appears on.'
-
-export function bucketsDeleteBucketAutoOrganizeIntro(allManualOnly: boolean): string {
-  return allManualOnly
-    ? BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_INTRO_MANUAL
-    : BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_INTRO
-}
-
-export function bucketsDeleteBucketAutoOrganizeActionHint(allManualOnly: boolean): string {
-  return allManualOnly
-    ? BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_ACTION_HINT_MANUAL
-    : BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_ACTION_HINT
-}
-
-export function bucketsDeleteBucketAutoOrganizeLoadFallback(allManualOnly: boolean): string {
-  return allManualOnly
-    ? BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_LOAD_FALLBACK_MANUAL
-    : BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_LOAD_FALLBACK
-}
-
-/** @deprecated Use BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_CONFIRM_LABEL */
-export function bucketsDeleteBucketRemoveFromAutoOrganizeAndDelete(
-  bucketName: string,
-): string {
-  void bucketName
-  return BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_CONFIRM_LABEL
-}
+  'Deleting also removes it from any Auto-bucket rules.'
 
 export function bucketsDeleteBucketAutoOrganizeConfirmAriaLabel(
   bucketName: string,
@@ -705,14 +607,6 @@ export function bucketsDeleteBucketAutoOrganizeConfirmAriaLabel(
 
 export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_SUBMITTING_LABEL =
   'Removing…'
-
-/** @deprecated Use bucketsDeleteBucketAutoOrganizeIntro — kept for error fallback text. */
-export const BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_BLOCK =
-  'Could not delete bucket. Try again — delete removes this bucket from any schedules automatically.'
-
-export function bucketsDeleteBucketEmptyIntro(name: string): string {
-  return `${name} is empty.`
-}
 
 /** Screen-reader label for the reorder grip popover (visual uses the grip icon). */
 export const BUCKETS_REORDER_POPOVER_LABEL =
@@ -854,34 +748,12 @@ export const AUTO_ORGANIZE_KIND_TOPUP_LABEL = 'Auto top-up'
 
 export const AUTO_ORGANIZE_KIND_SAVEOFF_LABEL = 'Auto save-off'
 
-export const AUTO_ORGANIZE_KIND_ORGANIZE_DESC =
-  'Set aside into buckets on a schedule or when you run it — think rent, groceries, or whatever you fund.'
+/** Screen-reader name for the kind tabs at the top of a new rule. */
+export const AUTO_ORGANIZE_KIND_TABS_LABEL = 'Rule type'
 
-export const AUTO_ORGANIZE_KIND_TOPUP_DESC =
-  'Top up buckets to your targets on a schedule or when you run it — think month start or payday.'
-
-export const AUTO_ORGANIZE_KIND_SAVEOFF_DESC =
-  "Move what's left wherever you want on a schedule or when you run it — think month end or after payday."
-
-export const AUTO_ORGANIZE_KIND_CHOOSER_TITLE = 'What would you like to add?'
-
-export const AUTO_ORGANIZE_ORGANIZE_SUBTITLE =
-  'Set aside into buckets on a schedule.'
-
-export const AUTO_ORGANIZE_ORGANIZE_SUBTITLE_MANUAL =
-  'Set aside into buckets when you run it.'
-
-export const AUTO_ORGANIZE_TOPUP_SUBTITLE =
-  'Brings each bucket back to your target amount.'
-
-export const AUTO_ORGANIZE_TOPUP_SUBTITLE_MANUAL =
-  'Brings each bucket back to your target when you run it.'
-
-export const AUTO_ORGANIZE_SAVEOFF_SUBTITLE =
-  'Leaves what you choose in each bucket and moves the rest on a schedule.'
-
-export const AUTO_ORGANIZE_SAVEOFF_SUBTITLE_MANUAL =
-  'Leaves what you choose and moves the rest when you run it.'
+/** Kind tab labels: short forms of the kind names, so three fit on a phone. */
+export const AUTO_ORGANIZE_KIND_TOPUP_TAB_LABEL = 'Top-up'
+export const AUTO_ORGANIZE_KIND_SAVEOFF_TAB_LABEL = 'Save-off'
 
 export const AUTO_ORGANIZE_TOPUP_FILL_TO_LABEL = 'Fill to'
 
@@ -904,21 +776,6 @@ export const AUTO_ORGANIZE_AT_TARGET_LABEL = 'At target'
 
 /** @deprecated use AUTO_ORGANIZE_AT_TARGET_LABEL */
 export const AUTO_ORGANIZE_TOPUP_AT_TARGET_LABEL = AUTO_ORGANIZE_AT_TARGET_LABEL
-
-export const AUTO_ORGANIZE_TOPUP_DIFFERENCE_HINT =
-  "Adds only what's needed to reach your target."
-
-export const AUTO_ORGANIZE_SAVEOFF_BUCKETS_HINT =
-  'Leave blank to skip a bucket. Enter $0 to sweep its full balance each run.'
-
-export const AUTO_ORGANIZE_SAVEOFF_EXPLAINER_HINT =
-  'Money above what you leave moves to your destination below. $0 means sweep everything.'
-
-export const AUTO_ORGANIZE_SAVEOFF_KEEP_ZERO_ROW_HINT =
-  'Sweeps the full balance each run.'
-
-export const AUTO_ORGANIZE_SAVEOFF_DESTINATION_HINT =
-  'Unbucketed or another bucket — wherever the extra should go.'
 
 export const AUTO_ORGANIZE_RUN_NOW_NOTHING_TO_MOVE = AUTO_ORGANIZE_NOTHING_TO_MOVE_NOW_LABEL
 
@@ -976,30 +833,6 @@ export function autoOrganizeHistoryNote(
   displayName: string,
 ): string {
   return `${autoOrganizeKindLabel(kind)} · ${displayName}`
-}
-
-export function autoOrganizeKindSubtitle(
-  kind: AutoOrganizeKind,
-  manual = false,
-): string {
-  if (manual) {
-    switch (kind) {
-      case 'top_up':
-        return AUTO_ORGANIZE_TOPUP_SUBTITLE_MANUAL
-      case 'save_off':
-        return AUTO_ORGANIZE_SAVEOFF_SUBTITLE_MANUAL
-      default:
-        return AUTO_ORGANIZE_ORGANIZE_SUBTITLE_MANUAL
-    }
-  }
-  switch (kind) {
-    case 'top_up':
-      return AUTO_ORGANIZE_TOPUP_SUBTITLE
-    case 'save_off':
-      return AUTO_ORGANIZE_SAVEOFF_SUBTITLE
-    default:
-      return AUTO_ORGANIZE_ORGANIZE_SUBTITLE
-  }
 }
 
 export function autoOrganizeSaveOffDestinationLabel(
@@ -1091,17 +924,7 @@ export function autoOrganizeDeleteSheetTitle(displayName: string): string {
   return `Delete ${displayName}?`
 }
 
-export const AUTO_ORGANIZE_DELETE_SHEET_BODY =
-  'This stops future Auto-bucket runs. Past moves stay in History.'
-
-export const AUTO_ORGANIZE_DELETE_SHEET_BODY_MANUAL =
-  'This removes the rule. Past moves stay in History.'
-
-export function autoOrganizeDeleteSheetBody(isManual: boolean): string {
-  return isManual
-    ? AUTO_ORGANIZE_DELETE_SHEET_BODY_MANUAL
-    : AUTO_ORGANIZE_DELETE_SHEET_BODY
-}
+export const AUTO_ORGANIZE_DELETE_SHEET_BODY = 'Past moves stay in History.'
 
 export const AUTO_ORGANIZE_DELETED_TOAST = 'Deleted.'
 
@@ -1111,23 +934,14 @@ export const AUTO_ORGANIZE_SAVE_LABEL = 'Save'
 
 export const AUTO_ORGANIZE_SAVED_TOAST = 'Saved.'
 
-export const AUTO_ORGANIZE_SAVE_REQUIRES_AMOUNT_HINT =
-  'Enter an amount for at least one bucket to save.'
-
 export const AUTO_ORGANIZE_ADD_REQUIRES_BUCKETS_HINT =
   'Create a shared bucket first.'
-
-export const AUTO_ORGANIZE_NAME_HINT =
-  'Leave blank to use Manual only or the frequency summary as the name.'
 
 export const AUTO_ORGANIZE_FREQUENCY_MANUAL_LABEL = 'Manual only'
 
 export const AUTO_ORGANIZE_MANUAL_CADENCE_SUMMARY = 'Manual only'
 
 export const AUTO_ORGANIZE_MANUAL_NEXT_RUN_LABEL = 'Runs when you choose'
-
-export const AUTO_ORGANIZE_MANUAL_EDITOR_HINT =
-  'Only runs when you tap Run now on the card.'
 
 export const AUTO_ORGANIZE_FREQUENCY_LABEL = 'Frequency'
 
@@ -1145,9 +959,6 @@ export function autoOrganizeNamePlaceholder(kind: AutoOrganizeKind): string {
 }
 
 export const AUTO_ORGANIZE_BUCKETS_LABEL = 'Buckets'
-
-export const AUTO_ORGANIZE_BUCKETS_HINT =
-  'Leave blank for buckets that should not receive money on this run.'
 
 export const AUTO_ORGANIZE_NO_BUCKETS_ERROR =
   'Enter an amount for at least one bucket.'
@@ -1175,19 +986,7 @@ export const AUTO_ORGANIZE_INTERVAL_START_LABEL = 'Starts on'
 /** Read-only anchor once the interval start date is in the past. */
 export const AUTO_ORGANIZE_INTERVAL_STARTED_LABEL = 'Started on'
 
-export const AUTO_ORGANIZE_INTERVAL_STARTED_HINT =
-  'The start date is fixed once the schedule has begun.'
-
-export const AUTO_ORGANIZE_INTERVAL_START_HINT =
-  'Pick a date from tomorrow through the next 2 years. To move money today, save first — then use Run now on the card.'
-
 export const AUTO_ORGANIZE_TIMEZONE_LABEL = 'Timezone'
-
-export const AUTO_ORGANIZE_TIMEZONE_HINT =
-  'Scheduled runs happen around 3 AM in this timezone.'
-
-export const AUTO_ORGANIZE_TIMEZONE_HINT_MANUAL =
-  "Run now uses today's date in this timezone."
 
 export const AUTO_ORGANIZE_START_DATE_TODAY_ERROR =
   'Start date can’t be today. Pick a later date, or save and use Run now on the card.'
@@ -1200,13 +999,9 @@ export const AUTO_ORGANIZE_START_DATE_TOO_FAR_ERROR =
 
 export const AUTO_ORGANIZE_ONCE_MONTHLY_DAY_LABEL = 'Day of the month'
 
-export const AUTO_ORGANIZE_ONCE_MONTHLY_LAST_DAY_HINT =
-  'Runs on the last calendar day every month — the 28th, 29th, 30th, or 31st, depending on the month.'
-
 export const AUTO_ORGANIZE_DISCARD_TITLE = 'Discard changes?'
 
-export const AUTO_ORGANIZE_DISCARD_BODY =
-  'You have unsaved changes. Discard them and close?'
+export const AUTO_ORGANIZE_DISCARD_BODY = 'Your changes to this rule will be lost.'
 
 export const AUTO_ORGANIZE_DISCARD_CONFIRM = 'Discard'
 
@@ -1574,16 +1369,11 @@ export function bucketGroupDeleteTitle(name: string | null): string {
   return name ? `Delete group “${name}”?` : 'Delete this group?'
 }
 
-export function bucketGroupDeleteIntro(bucketCount: number): string {
-  if (bucketCount === 0) return 'This group is empty, so nothing else changes.'
-  return `The ${bucketCount === 1 ? '1 bucket' : `${bucketCount} buckets`} inside will stay exactly as they are and move to Ungrouped.`
+export function bucketGroupDeleteBody(bucketCount: number): string {
+  if (bucketCount === 0) return 'No buckets or money are affected.'
+  const buckets = bucketCount === 1 ? 'Its bucket moves' : `Its ${bucketCount} buckets move`
+  return `${buckets} to ${BUCKET_GROUP_UNGROUPED}. No money moves.`
 }
-
-export const BUCKET_GROUP_DELETE_WHAT_HAPPENS = [
-  'Only the group label is removed.',
-  'Your buckets and their balances are not touched.',
-  'No money moves and History is unchanged.',
-] as const
 export const BUCKET_GROUP_EMPTY_HINT = 'Empty — drag a bucket here'
 
 /** Group heading summary: "3 buckets · $400" (amount omitted when nothing is in it). */

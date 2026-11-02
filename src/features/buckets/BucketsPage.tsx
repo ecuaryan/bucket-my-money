@@ -19,19 +19,11 @@ import {
   bucketsAddSourceMemberBody,
   bucketsDeleteBucketAutoOrganizeConfirmAriaLabel,
   bucketsDeleteBucketConfirm,
-  bucketsDeleteBucketEffectFloat,
-  bucketsDeleteBucketEmptyIntro,
-  bucketsDeleteBucketSheetIntro,
+  bucketsDeleteBucketSheetBody,
   bucketsDeleteBucketSheetTitle,
+  BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_BODY,
   BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_CONFIRM_LABEL,
-  BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_SUBMITTING_LABEL,
-  BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_USED_IN_LABEL,
-  bucketsDeleteBucketAutoOrganizeActionHint,
-  bucketsDeleteBucketAutoOrganizeIntro,
-  bucketsDeleteBucketAutoOrganizeLoadFallback,
-  BUCKETS_DELETE_BUCKET_EFFECT_HISTORY,
-  BUCKETS_DELETE_BUCKET_EFFECT_LABEL,
-  BUCKETS_DELETE_BUCKET_WHAT_HAPPENS,
+  BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_LOAD_FALLBACK,
   bucketsKidFloatHint,
   BUCKETS_DB_UPDATE_PENDING_BODY,
   bucketsMemberNoBucketsHint,
@@ -46,7 +38,7 @@ import ManualSourceDialog from '@/features/admin/ManualSourceDialog'
 import OnboardingCoachCard from '@/features/buckets/OnboardingCoachCard'
 import FloatHero from '@/features/buckets/FloatHero'
 import SuggestedBucketChips from '@/features/buckets/SuggestedBucketChips'
-import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { isCashAccount, isLinkedAccount } from '@/lib/accounts'
 import BucketsPageSkeleton from '@/components/BucketsPageSkeleton'
 import { useContentFade } from '@/hooks/useContentFade'
@@ -496,13 +488,8 @@ export default function BucketsPage() {
     return specs
   }, [familyId, memberId, canSeeAutoOrganize, isAdmin])
 
-  const deleteAutoOrganizeRefsAllManual = useMemo(
-    () =>
-      deleteAutoOrganizeRefs != null &&
-      deleteAutoOrganizeRefs.length > 0 &&
-      deleteAutoOrganizeRefs.every((ref) => ref.autoOrganizeType === 'manual'),
-    [deleteAutoOrganizeRefs],
-  )
+  const deleteHasAutoOrganizeRefs =
+    deleteAutoOrganizeRefs != null && deleteAutoOrganizeRefs.length > 0
 
   usePostgresChanges(
     accessToken,
@@ -1495,153 +1482,47 @@ export default function BucketsPage() {
         />
       )}
       {deleteTarget ? (
-        <Sheet
-          open
+        <ConfirmSheet
+          title={bucketsDeleteBucketSheetTitle(deleteTarget.name)}
+          body={
+            deleteAutoOrganizeRefsLoadError
+              ? BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_LOAD_FALLBACK
+              : deleteHasAutoOrganizeRefs
+                ? BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_BODY
+                : bucketsDeleteBucketSheetBody(
+                    Number(deleteTarget.allocated_amount) > 0
+                      ? formatMoney(Number(deleteTarget.allocated_amount))
+                      : null,
+                  )
+          }
+          confirmLabel={
+            deleteHasAutoOrganizeRefs
+              ? BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_CONFIRM_LABEL
+              : bucketsDeleteBucketConfirm(deleteTarget.name)
+          }
+          confirmAriaLabel={
+            deleteHasAutoOrganizeRefs || deleteAutoOrganizeRefsLoadError
+              ? bucketsDeleteBucketAutoOrganizeConfirmAriaLabel(deleteTarget.name)
+              : undefined
+          }
+          busyLabel="Deleting…"
+          busy={deletingBucket}
+          error={deleteAutoOrganizeRefsLoadError ?? deleteError}
+          onConfirm={() =>
+            void (deleteHasAutoOrganizeRefs || deleteAutoOrganizeRefsLoadError
+              ? confirmRemoveFromAutoOrganizeAndDelete()
+              : confirmDeleteBucket())
+          }
           onClose={closeDeleteConfirm}
-          aria-label={bucketsDeleteBucketSheetTitle(deleteTarget.name)}
         >
-          <header className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold text-zinc-300">
-              {bucketsDeleteBucketSheetTitle(deleteTarget.name)}
-            </h2>
-            <button
-              type="button"
-              onClick={closeDeleteConfirm}
-              disabled={deletingBucket}
-              className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </header>
-
-          <div className="space-y-4">
-            {deleteAutoOrganizeRefsLoadError ? (
-              <>
-                <p
-                  role="alert"
-                  className="break-words rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200 ring-1 ring-inset ring-amber-500/30"
-                >
-                  {deleteAutoOrganizeRefsLoadError}
-                </p>
-                <p className="text-sm text-zinc-400">
-                  {bucketsDeleteBucketAutoOrganizeLoadFallback(
-                    deleteAutoOrganizeRefsAllManual,
-                  )}
-                </p>
-              </>
-            ) : deleteAutoOrganizeRefs && deleteAutoOrganizeRefs.length > 0 ? (
-              <>
-                <p className="text-sm text-zinc-300">
-                  {bucketsDeleteBucketAutoOrganizeIntro(
-                    deleteAutoOrganizeRefsAllManual,
-                  )}
-                </p>
-                <p className="text-sm text-zinc-400">
-                  {bucketsDeleteBucketAutoOrganizeActionHint(
-                    deleteAutoOrganizeRefsAllManual,
-                  )}
-                </p>
-                <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200 ring-1 ring-inset ring-amber-500/30">
-                  <p className="text-xs font-medium text-amber-200/80">
-                    {BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_USED_IN_LABEL}
-                  </p>
-                  <ul className="mt-2 space-y-1">
-                    {deleteAutoOrganizeRefs.map((ref) => (
-                      <li key={ref.id}>{ref.name}</li>
-                    ))}
-                  </ul>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-zinc-400">
-                  {Number(deleteTarget.allocated_amount) > 0
-                    ? bucketsDeleteBucketSheetIntro(
-                        formatMoney(Number(deleteTarget.allocated_amount)),
-                      )
-                    : bucketsDeleteBucketEmptyIntro(deleteTarget.name)}
-                </p>
-
-                <div>
-                  <h3 className="text-sm font-medium text-zinc-300">
-                    {BUCKETS_DELETE_BUCKET_WHAT_HAPPENS}
-                  </h3>
-                  <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-zinc-400">
-                    <li>
-                      {bucketsDeleteBucketEffectFloat(
-                        formatMoney(Number(deleteTarget.allocated_amount)),
-                      )}
-                    </li>
-                    <li>{BUCKETS_DELETE_BUCKET_EFFECT_LABEL}</li>
-                    <li>{BUCKETS_DELETE_BUCKET_EFFECT_HISTORY}</li>
-                  </ul>
-                </div>
-              </>
-            )}
-
-            {deleteError ? (
-              <p
-                role="alert"
-                className="break-words rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300 ring-1 ring-inset ring-red-500/30"
-              >
-                {deleteError}
-              </p>
-            ) : null}
-
-            <div
-              className={
-                (deleteAutoOrganizeRefs && deleteAutoOrganizeRefs.length > 0) ||
-                deleteAutoOrganizeRefsLoadError
-                  ? 'flex flex-col gap-2 pt-1'
-                  : 'flex gap-2 pt-1'
-              }
-            >
-              <button
-                type="button"
-                onClick={closeDeleteConfirm}
-                disabled={deletingBucket}
-                className={
-                  (deleteAutoOrganizeRefs && deleteAutoOrganizeRefs.length > 0) ||
-                  deleteAutoOrganizeRefsLoadError
-                    ? 'w-full rounded-lg border border-zinc-700 py-2.5 text-sm text-zinc-400 disabled:opacity-50'
-                    : 'flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-400 disabled:opacity-50'
-                }
-              >
-                Cancel
-              </button>
-              {(deleteAutoOrganizeRefs && deleteAutoOrganizeRefs.length > 0) ||
-              deleteAutoOrganizeRefsLoadError ? (
-                <button
-                  type="button"
-                  onClick={() => void confirmRemoveFromAutoOrganizeAndDelete()}
-                  disabled={deletingBucket}
-                  aria-label={bucketsDeleteBucketAutoOrganizeConfirmAriaLabel(
-                    deleteTarget.name,
-                  )}
-                  className="w-full rounded-lg bg-red-500 px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white transition hover:bg-red-400 disabled:opacity-50"
-                >
-                  {deletingBucket
-                    ? BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_SUBMITTING_LABEL
-                    : deleteAutoOrganizeRefsLoadError
-                      ? bucketsDeleteBucketConfirm(deleteTarget.name)
-                      : BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_CONFIRM_LABEL}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void confirmDeleteBucket()}
-                  disabled={deletingBucket}
-                  className="flex-1 rounded-lg bg-red-500 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
-                >
-                  {deletingBucket
-                    ? 'Deleting…'
-                    : bucketsDeleteBucketConfirm(deleteTarget.name)}
-                </button>
-              )}
-            </div>
-          </div>
-        </Sheet>
+          {deleteHasAutoOrganizeRefs && !deleteAutoOrganizeRefsLoadError ? (
+            <ul className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200 ring-1 ring-inset ring-amber-500/30">
+              {deleteAutoOrganizeRefs?.map((ref) => (
+                <li key={ref.id}>{ref.name}</li>
+              ))}
+            </ul>
+          ) : null}
+        </ConfirmSheet>
       ) : null}
 
       {isAdmin ? (
