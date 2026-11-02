@@ -120,8 +120,8 @@ export default function ReturnKidSheet({
 
         <p className="text-sm text-zinc-400">
           {linkedKid
-            ? kidsTakeLinkedSheetIntro(kidName, availableLabel)
-            : kidsTakeSheetIntro(kidName, availableLabel)}
+            ? kidsTakeLinkedSheetIntro(kidName)
+            : kidsTakeSheetIntro(kidName)}
         </p>
 
         <label className="block">

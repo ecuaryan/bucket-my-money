@@ -18,7 +18,6 @@ export type KidsPageCache = {
   accounts: Account[]
   balanceBreakdown: BucketsBalanceBreakdown
   linkedChildIds: string[]
-  householdAdminName: string | null
   savedAt: number
 }
 

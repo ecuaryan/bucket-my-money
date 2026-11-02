@@ -11,7 +11,6 @@ const data = (): Omit<KidsPageCache, 'savedAt'> => ({
   accounts: [],
   balanceBreakdown: { float: 12.5 } as unknown as KidsPageCache['balanceBreakdown'],
   linkedChildIds: ['k1'],
-  householdAdminName: 'Alex',
 })
 
 beforeEach(() => sessionStorage.clear())
@@ -25,7 +24,6 @@ describe('kids page cache', () => {
     expect(cached?.linkedChildIds).toEqual(['k1'])
     expect(new Set(cached?.linkedChildIds).has('k1')).toBe(true)
     expect(cached?.balanceBreakdown.float).toBe(12.5)
-    expect(cached?.householdAdminName).toBe('Alex')
   })
 
   it('is private to one member and one household', () => {

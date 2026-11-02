@@ -1,4 +1,9 @@
-import { KIDS_GIVE_ACTION, KIDS_TAKE_ACTION } from '@/lib/brand'
+import { SegmentedTabIcon } from '@/components/ui/SegmentedTabIcons'
+import {
+  KIDS_GIVE_ACTION,
+  KIDS_LINKED_BALANCE_LABEL,
+  KIDS_TAKE_ACTION,
+} from '@/lib/brand'
 import type { LinkedKidRow, VirtualKidRow } from '@/lib/kidsPageModel'
 
 type VirtualKidRowProps = {
@@ -68,7 +73,13 @@ export function LinkedKidRow({ kid, formatMoney, onTake }: LinkedKidRowProps) {
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-200">
           {kid.name}
         </span>
-        <span className="shrink-0 text-sm tabular-nums text-zinc-300">
+        <span className="flex shrink-0 items-center gap-1.5 text-sm tabular-nums text-zinc-300">
+          {/* The bank icon marks a balance that comes from the bank, which is
+              why this row has no Give. */}
+          <span className="text-zinc-500" title={KIDS_LINKED_BALANCE_LABEL}>
+            <SegmentedTabIcon tab="bank" />
+          </span>
+          <span className="sr-only">{KIDS_LINKED_BALANCE_LABEL}:</span>
           {formatMoney(kid.amount)}
         </span>
         {canTake ? (

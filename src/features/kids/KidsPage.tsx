@@ -14,26 +14,25 @@ import {
   type BucketsBalanceBreakdown,
 } from '@/lib/availableBalance'
 import {
-  kidsEmptyVirtualBody,
+  floatRefreshedLabel,
+  FLOAT_REFRESH_BALANCES_LABEL,
   kidsGiveSuccessToast,
-  kidsLinkedSectionBody,
   kidsTakeSuccessToast,
-  KIDS_LINKED_ONLY_BODY,
-  KIDS_LINKED_SECTION_TITLE,
   REFRESH_BALANCES_ERROR,
   VIEW_RECENT_BANK_ACTIVITY,
-  KIDS_PAGE_INTRO,
   KIDS_PAGE_TITLE,
-  KIDS_VIRTUAL_SECTION_TITLE,
 } from '@/lib/brand'
-import { fetchHouseholdAdminName } from '@/lib/householdAdmin'
 import { subscribeHouseholdRosterRefresh } from '@/lib/householdRosterRefresh'
 import { formatErrorMessage } from '@/lib/errorMessage'
 import { formatRelativeTime } from '@/lib/relativeTime'
 import { refreshAllBankBalances } from '@/lib/bankProviders'
 import { refreshBalancesErrorMessage, refreshThrottledMessage } from '@/lib/bankLink'
-import RefreshIconButton from '@/components/ui/RefreshIconButton'
-import { buildKidsPageModel, type VirtualKidRow as VirtualKidRowData } from '@/lib/kidsPageModel'
+import RefreshIcon from '@/components/ui/RefreshIcon'
+import {
+  buildKidsPageModel,
+  type LinkedKidRow as LinkedKidRowData,
+  type VirtualKidRow as VirtualKidRowData,
+} from '@/lib/kidsPageModel'
 import { fetchLinkedChildMemberIds } from '@/lib/give'
 import { toast } from '@/lib/toast'
 import { supabase } from '@/lib/supabase'
@@ -48,6 +47,9 @@ type Member = Pick<
   'id' | 'name' | 'role'
 >
 type Account = Database['public']['Tables']['accounts']['Row']
+type KidListRow =
+  | { type: 'virtual'; kid: VirtualKidRowData }
+  | { type: 'linked'; kid: LinkedKidRowData }
 
 export default function KidsPage() {
   const { formatMoney } = useHideAmounts()
@@ -77,9 +79,6 @@ export default function KidsPage() {
   const [linkedChildIds, setLinkedChildIds] = useState<Set<string> | null>(
     cached ? new Set(cached.linkedChildIds) : null,
   )
-  const [householdAdminName, setHouseholdAdminName] = useState<string | null>(
-    cached?.householdAdminName ?? null,
-  )
   const [loadError, setLoadError] = useState<string | null>(null)
   const [fundKid, setFundKid] = useState<VirtualKidRowData | null>(null)
   // Take target: virtual kids cap at their total balance; linked kids cap
@@ -105,7 +104,7 @@ export default function KidsPage() {
     setLoadError(null)
     try {
       await withAuthLockRetry(async () => {
-        const [childrenRes, bucketsRes, accountsRes, linkedIds, adminName] =
+        const [childrenRes, bucketsRes, accountsRes, linkedIds] =
           await Promise.all([
             supabase
               .from('family_members')
@@ -115,7 +114,6 @@ export default function KidsPage() {
             supabase.from('buckets').select('allocated_amount'),
             supabase.from('accounts').select('*'),
             fetchLinkedChildMemberIds(),
-            fetchHouseholdAdminName(),
           ])
         if (childrenRes.error) throw new Error(childrenRes.error.message)
         if (bucketsRes.error) throw new Error(bucketsRes.error.message)
@@ -130,7 +128,6 @@ export default function KidsPage() {
         setChildren(kids)
         setAccounts(accountRows)
         setLinkedChildIds(linkedIds)
-        setHouseholdAdminName(adminName)
         setBalanceBreakdown(breakdown)
         servingCacheRef.current = false
         if (familyId && memberId) {
@@ -139,7 +136,6 @@ export default function KidsPage() {
             accounts: accountRows,
             balanceBreakdown: breakdown,
             linkedChildIds: [...linkedIds],
-            householdAdminName: adminName,
           })
         }
       })
@@ -204,9 +200,24 @@ export default function KidsPage() {
   const bankSyncedLabel = balanceBreakdown
     ? formatRelativeTime(balanceBreakdown.bankLastSyncedAt)
     : null
-  const linkedOnly = Boolean(
-    model && model.virtualKids.length === 0 && model.linkedKids.length > 0,
-  )
+  // One list grouped by type, each by name (children load sorted by name):
+  // kids you give to first, then kids whose balance comes from the bank.
+  const kidRows = useMemo((): KidListRow[] => {
+    if (!model || !children) return []
+    const virtualById = new Map(model.virtualKids.map((k) => [k.memberId, k]))
+    const linkedById = new Map(model.linkedKids.map((k) => [k.memberId, k]))
+    return [
+      ...children.flatMap((child): KidListRow[] => {
+        const kid = virtualById.get(child.id)
+        return kid ? [{ type: 'virtual', kid }] : []
+      }),
+      ...children.flatMap((child): KidListRow[] => {
+        const kid = linkedById.get(child.id)
+        return kid ? [{ type: 'linked', kid }] : []
+      }),
+    ]
+  }, [model, children])
+  const hasLinkedKids = (model?.linkedKids.length ?? 0) > 0
 
   function handleGiveSuccess(kid: VirtualKidRowData, amount: number) {
     toast.success(kidsGiveSuccessToast(formatMoney(amount), kid.name))
@@ -270,93 +281,71 @@ export default function KidsPage() {
   return (
     <div className={'space-y-6 ' + (contentFade ?? '')}>
       <header>
-        <h1 className="text-xl font-semibold">{KIDS_PAGE_TITLE}</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          {linkedOnly ? KIDS_LINKED_ONLY_BODY : KIDS_PAGE_INTRO}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold">{KIDS_PAGE_TITLE}</h1>
+          {hasLinkedKids ? (
+            <button
+              type="button"
+              onClick={() => void handleRefreshBalances()}
+              disabled={syncing}
+              aria-label={FLOAT_REFRESH_BALANCES_LABEL}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] leading-4 text-zinc-400 transition hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span className="whitespace-nowrap">
+                {bankSyncedLabel
+                  ? floatRefreshedLabel(bankSyncedLabel)
+                  : FLOAT_REFRESH_BALANCES_LABEL}
+              </span>
+              <RefreshIcon spinning={syncing} className="h-3 w-3 shrink-0" />
+            </button>
+          ) : null}
+        </div>
+        {refreshError ? (
+          <p className="mt-1.5 text-right text-[11px] text-red-300/80">
+            {refreshError}
+          </p>
+        ) : null}
       </header>
 
-      {model.virtualKids.length > 0 ? (
-        <section
-          className="overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-zinc-800"
-          aria-label={KIDS_VIRTUAL_SECTION_TITLE}
-        >
-          <h2 className="border-b border-zinc-800 px-4 py-3 text-sm font-semibold text-zinc-300">
-            {KIDS_VIRTUAL_SECTION_TITLE}
-          </h2>
-          <ul className="divide-y divide-zinc-800">
-            {model.virtualKids.map((kid) => (
+      <section
+        className="overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-zinc-800"
+        aria-label={KIDS_PAGE_TITLE}
+      >
+        <ul className="divide-y divide-zinc-800">
+          {kidRows.map((row) =>
+            row.type === 'virtual' ? (
               <VirtualKidRow
-                key={kid.memberId}
-                kid={kid}
+                key={row.kid.memberId}
+                kid={row.kid}
                 formatMoney={formatMoney}
-                onGive={() => setFundKid(kid)}
+                onGive={() => setFundKid(row.kid)}
                 onTake={() =>
                   setReturnKid({
-                    memberId: kid.memberId,
-                    name: kid.name,
-                    cap: kid.amount,
+                    memberId: row.kid.memberId,
+                    name: row.kid.name,
+                    cap: row.kid.amount,
                     linked: false,
                   })
                 }
               />
-            ))}
-          </ul>
-        </section>
-      ) : !linkedOnly ? (
-        <section
-          className="rounded-2xl bg-zinc-900 px-4 py-5 ring-1 ring-zinc-800"
-          aria-label="No kids without a linked account"
-        >
-          <p className="text-sm text-zinc-400">
-            {kidsEmptyVirtualBody(isAdmin, householdAdminName)}
-          </p>
-        </section>
-      ) : null}
-
-      {model.linkedKids.length > 0 ? (
-        <section
-          className="overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-zinc-800"
-          aria-label={KIDS_LINKED_SECTION_TITLE}
-        >
-          <div className="border-b border-zinc-800 px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-sm font-semibold text-zinc-300">
-                {KIDS_LINKED_SECTION_TITLE}
-              </h2>
-              <RefreshIconButton
-                busy={syncing}
-                onClick={() => void handleRefreshBalances()}
-                className="-mt-0.5 text-zinc-400 hover:text-zinc-200"
-              />
-            </div>
-            <p className="mt-1 text-xs text-zinc-500">
-              {kidsLinkedSectionBody(isAdmin, householdAdminName)}
-              {bankSyncedLabel ? ` · Synced ${bankSyncedLabel}` : ''}
-            </p>
-            {refreshError ? (
-              <p className="mt-1.5 text-[11px] text-red-300/80">
-                {refreshError}
-              </p>
-            ) : null}
-          </div>
-          <ul className="divide-y divide-zinc-800">
-            {model.linkedKids.map((kid) => (
+            ) : (
               <LinkedKidRow
-                key={kid.memberId}
-                kid={kid}
+                key={row.kid.memberId}
+                kid={row.kid}
                 formatMoney={formatMoney}
                 onTake={() =>
                   setReturnKid({
-                    memberId: kid.memberId,
-                    name: kid.name,
-                    cap: kid.giveNet,
+                    memberId: row.kid.memberId,
+                    name: row.kid.name,
+                    cap: row.kid.giveNet,
                     linked: true,
                   })
                 }
               />
-            ))}
-          </ul>
+            ),
+          )}
+        </ul>
+        {hasLinkedKids ? (
           <div className="border-t border-zinc-800 px-4 py-3">
             <Link
               to="/?tab=bank"
@@ -365,8 +354,8 @@ export default function KidsPage() {
               {VIEW_RECENT_BANK_ACTIVITY} →
             </Link>
           </div>
-        </section>
-      ) : null}
+        ) : null}
+      </section>
 
       {bitcoinEnabled && familyId ? (
         <BitcoinKidsSection

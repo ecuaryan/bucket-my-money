@@ -10,7 +10,6 @@ import {
   KIDS_GIVE_SUBMITTING,
   kidsGiveAvailableHint,
   kidsGiveOverdraftMessage,
-  kidsGiveSheetIntro,
   kidsGiveSheetTitle,
 } from '@/lib/brand'
 import { giveMoney } from '@/lib/give'
@@ -49,10 +48,7 @@ export default function FundKidSheet({
   const overdraftMessage = overdraft
     ? kidsGiveOverdraftMessage(availableLabel)
     : null
-  const availableHint =
-    available >= 0 && !overdraft
-      ? kidsGiveAvailableHint(availableLabel)
-      : null
+  const availableHint = !overdraft ? kidsGiveAvailableHint(availableLabel) : null
 
   function handleClose() {
     if (submitting) return
@@ -114,10 +110,6 @@ export default function FundKidSheet({
             ×
           </button>
         </header>
-
-        <p className="text-sm text-zinc-400">
-          {kidsGiveSheetIntro(availableLabel)}
-        </p>
 
         <label className="block">
           <FieldLabel spacing="tight">Amount</FieldLabel>

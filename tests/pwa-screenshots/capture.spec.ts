@@ -4,8 +4,7 @@ import { expect, test } from '@playwright/test'
 import {
   NAV_BUCKETS_LABEL,
   floatOverbucketedHint,
-  KIDS_VIRTUAL_SECTION_TITLE,
-  KIDS_LINKED_SECTION_TITLE,
+  KIDS_PAGE_TITLE,
 } from '../../src/lib/brand'
 import {
   applyPwaScreenshotRebalance,
@@ -51,19 +50,10 @@ test('capture PWA install screenshots', async ({ page }) => {
   await expect(page).toHaveURL('/kids')
   await waitForNavSettled(page, 'Kids')
   await page.getByRole('heading', { name: 'Kids', exact: true }).waitFor()
-  const virtualSection = page.getByRole('region', {
-    name: KIDS_VIRTUAL_SECTION_TITLE,
-  })
-  await virtualSection.waitFor()
-  for (const kid of PWA_SCREENSHOT_VIRTUAL_KIDS) {
-    await virtualSection.getByText(kid.name, { exact: true }).waitFor()
-  }
-  const linkedSection = page.getByRole('region', {
-    name: KIDS_LINKED_SECTION_TITLE,
-  })
-  await linkedSection.waitFor()
-  for (const kid of PWA_SCREENSHOT_LINKED_KIDS) {
-    await linkedSection.getByText(kid.name, { exact: true }).waitFor()
+  const kidsList = page.getByRole('region', { name: KIDS_PAGE_TITLE })
+  await kidsList.waitFor()
+  for (const kid of [...PWA_SCREENSHOT_VIRTUAL_KIDS, ...PWA_SCREENSHOT_LINKED_KIDS]) {
+    await kidsList.getByText(kid.name, { exact: true }).waitFor()
   }
   await page.screenshot({ path: join(outputDir, 'kids.png') })
 
