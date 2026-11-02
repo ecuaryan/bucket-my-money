@@ -86,12 +86,7 @@ import {
 import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import { scrollFocusedIntoView } from '@/lib/keyboardViewport'
 import { sanitizeAmountInput } from '@/lib/amountInput'
-import type { Database } from '@/types/database'
-
-type Bucket = Pick<
-  Database['public']['Tables']['buckets']['Row'],
-  'id' | 'name' | 'allocated_amount'
->
+import { type Bucket, type BucketDraft, defaultCadenceForKind, scheduleForKind, cadenceFromInitial, bucketDraftsFromBuckets, snapshotFromState, buildSnapshot } from '@/features/buckets/autoOrganizeEditorState'
 
 type Props = {
   open: boolean
@@ -107,20 +102,6 @@ type Props = {
   householdTimezone?: string | null
   onClose: () => void
   onSaved: () => void | Promise<void>
-}
-
-type BucketDraft = { bucketId: string; amountStr: string }
-
-type EditorSnapshot = {
-  kind: AutoOrganizeKind
-  name: string
-  familyTimezone: string
-  cadence: AutoOrganizeCadence
-  monthlyMode: MonthlyMode
-  twiceDays: TwiceMonthlyDays
-  monthlyOnceDay: number
-  bucketDrafts: BucketDraft[]
-  destinationBucketId: string | null
 }
 
 const fieldInputClassName =
@@ -140,108 +121,6 @@ const KIND_OPTIONS = [
   { value: 'top_up', label: AUTO_ORGANIZE_KIND_TOPUP_TAB_LABEL },
   { value: 'save_off', label: AUTO_ORGANIZE_KIND_SAVEOFF_TAB_LABEL },
 ] as const satisfies readonly { value: AutoOrganizeKind; label: string }[]
-
-function defaultCadenceForKind(
-  kind: AutoOrganizeKind,
-  timeZone: string,
-): AutoOrganizeCadence {
-  switch (kind) {
-    case 'top_up':
-      return {
-        autoOrganizeType: 'monthly',
-        startDate: null,
-        intervalCount: null,
-        intervalUnit: null,
-        daysOfMonth: [1],
-      }
-    case 'save_off':
-      return {
-        autoOrganizeType: 'monthly',
-        startDate: null,
-        intervalCount: null,
-        intervalUnit: null,
-        daysOfMonth: [0],
-      }
-    default:
-      return {
-        autoOrganizeType: 'interval',
-        startDate: tomorrowIsoInTimeZone(timeZone),
-        intervalCount: 2,
-        intervalUnit: 'week',
-        daysOfMonth: null,
-      }
-  }
-}
-
-/** Default schedule state for a kind, in the editor's monthly/twice form. */
-function scheduleForKind(kind: AutoOrganizeKind, timeZone: string) {
-  const cadence = normalizeMonthlyCadence(defaultCadenceForKind(kind, timeZone))
-  const schedule = monthlyScheduleFromDays(cadence.daysOfMonth)
-  return {
-    cadence,
-    monthlyMode: schedule.mode,
-    twiceDays: schedule.twice,
-    monthlyOnceDay: schedule.onceDay,
-  }
-}
-
-function cadenceFromInitial(
-  initial: AutoOrganizeWithDetails | null,
-  kind: AutoOrganizeKind,
-  timeZone: string,
-): AutoOrganizeCadence {
-  if (!initial) {
-    return defaultCadenceForKind(kind, timeZone)
-  }
-  return {
-    autoOrganizeType: initial.auto_organize_type as AutoOrganizeCadence['autoOrganizeType'],
-    startDate: initial.start_date,
-    intervalCount: initial.interval_count,
-    intervalUnit: initial.interval_unit as AutoOrganizeCadence['intervalUnit'],
-    daysOfMonth: initial.days_of_month,
-  }
-}
-
-function bucketDraftsFromBuckets(
-  buckets: Bucket[],
-  lines: AutoOrganizeWithDetails['lines'] | undefined,
-): BucketDraft[] {
-  const amountByBucketId = new Map(
-    (lines ?? []).map((line) => [line.bucket_id, String(Number(line.amount))]),
-  )
-  return buckets.map((bucket) => ({
-    bucketId: bucket.id,
-    amountStr: amountByBucketId.get(bucket.id) ?? '',
-  }))
-}
-
-function snapshotFromState(state: EditorSnapshot): string {
-  return JSON.stringify(state)
-}
-
-function buildSnapshot(
-  kind: AutoOrganizeKind,
-  name: string,
-  familyTimezone: string,
-  cadence: AutoOrganizeCadence,
-  monthlyMode: MonthlyMode,
-  twiceDays: TwiceMonthlyDays,
-  monthlyOnceDay: number,
-  bucketDrafts: BucketDraft[],
-  destinationBucketId: string | null,
-): EditorSnapshot {
-  return {
-    kind,
-    name,
-    familyTimezone,
-    cadence,
-    monthlyMode,
-    twiceDays,
-    monthlyOnceDay,
-    bucketDrafts,
-    destinationBucketId,
-  }
-}
 
 export default function AutoOrganizeEditor({
   open,

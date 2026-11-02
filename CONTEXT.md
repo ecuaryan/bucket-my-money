@@ -129,7 +129,7 @@ UI labels: **Admin**, **Shared**, **Kid** (`memberRoles.ts`). DB/API values rema
 
 **Naming:** Users see **Unbucketed** (`FLOAT_LABEL` in `brand.ts`) — everyday
 cash not in buckets. Code, SQL, RPC JSON, and DB columns use **`float`**
-(same pool; `NULL` bucket id in `move_money`). See [docs/BRAND.md § Naming](./docs/BRAND.md#naming-display-vs-code).
+(same pool; `NULL` bucket id in `move_money`). See [docs/BRAND.md § Ubiquitous language](./docs/BRAND.md#ubiquitous-language-unbucketed).
 
 **The invariant:**
 > Sum of all bucket allocations + sum of all unbucketed balances across every member = total cash from all money sources (linked bank balances + manual amounts) − credit card balances (linked or manual).

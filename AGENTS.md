@@ -25,21 +25,14 @@ Entry point for AI coding agents (and humans) working in this repo.
    and the full **Product narrative** (word-for-word). User-facing strings live in
    `src/lib/brand/<feature>.ts` (core, auth, admin, kids, buckets, autoBucket,
    bank, history); always import from the `@/lib/brand` barrel.
-8. **[docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)** — **bank providers**:
-   SimpleFIN is the active connector (user pays SimpleFIN Bridge directly);
-   Plaid is live behind the `plaid` feature flag (owner's household only —
-   10 lifetime trial Items, protected by detach/update-mode guardrails);
-   Teller is quiesced (API withdrawn July 2026 — code/rows stay, balances
-   frozen). `accounts` is the
-   provider-neutral core; per-provider credential tables are service-role
-   only; client code goes through `src/lib/bankProviders.ts` dispatch. SQL/TS
-   for "linked" is `source <> 'manual'` / `isLinkedAccount()`.
-9. **[docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md)** — **feature flags**:
-   owner-controlled, per-household, read-only in the client. How to add a flag
-   (registry in `src/lib/featureFlags.ts`), read one (`useFeatureFlag`), and
-   enable one for a household via Supabase. Live flags: `bitcoin` (Bitcoin
-   tracking) and `plaid` (Plaid connector — also re-checked server-side by the
-   Plaid Edge Functions).
+8. **[docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)** — SimpleFIN (active),
+   Plaid (`plaid` flag, owner's household, 10 lifetime Items), Teller (quiesced).
+   `accounts` is provider-neutral; per-provider credential tables are
+   service-role only. Client code goes through `src/lib/bankProviders.ts`;
+   "linked" is `source <> 'manual'` / `isLinkedAccount()`.
+9. **[docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md)** — per-household flags,
+   read-only in the client (`useFeatureFlag`, registry in
+   `src/lib/featureFlags.ts`). Live: `bitcoin`, `plaid`.
 
 ## Operating principles for this codebase
 
@@ -81,9 +74,15 @@ Entry point for AI coding agents (and humans) working in this repo.
   [docs/AUTO_ORGANIZE.md § Naming](./docs/AUTO_ORGANIZE.md#naming).
 - **Money writes only via RPCs.** `move_money` and `give_money`; extend
   `tests/db/` when changing balance logic.
-- **Destructive / consequential UI:** confirm with `Sheet` + `brand.ts` copy when
-  the action has real impact (money, access, hard-to-undo state)—not for trivial
-  reversible edits. Never `window.confirm` (breaks in Cursor’s browser).
+- **No subtitles or helper text.** Cut taglines, intros, hints, and secondary
+  labels; if a screen needs one to make sense, fix the layout (clear labels, live
+  values or previews, disabled options, icons). Allowed: field labels, a one-line
+  empty state with its action, a confirm's consequence sentence, and facts that
+  keep a number honest. See [docs/BRAND.md § Voice](./docs/BRAND.md#voice).
+- **Sheets:** form/content sheets use `SheetHeader` (title + × close).
+  Consequential actions (money, access, hard-to-undo state) confirm with
+  `ConfirmSheet` (question title, one or two consequence sentences, Cancel +
+  action) — not for trivial reversible edits. Never `window.confirm`.
 - **Portfolio / PWA marketing assets:** significant UI/UX changes to the
   captured surfaces require refreshing install screenshots
   (`npm run pwa:screenshots`) and the README demo GIF (`npm run pwa:gifs`) in
