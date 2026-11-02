@@ -11,7 +11,6 @@ import {
   AUTO_ORGANIZE_EDIT_LABEL,
   AUTO_ORGANIZE_EMPTY_BODY,
   AUTO_ORGANIZE_ESTIMATED_TOTAL_LABEL,
-  AUTO_ORGANIZE_GUARDRAIL,
   AUTO_ORGANIZE_LOAD_ERROR_TITLE,
   AUTO_ORGANIZE_LOADING_ARIA_LABEL,
   AUTO_ORGANIZE_NOTHING_TO_MOVE_NOW_LABEL,
@@ -813,9 +812,6 @@ export default function AutoOrganizeSection({
           >
             {AUTO_ORGANIZE_SECTION_TITLE}
           </h2>
-          <p className={embedded ? 'text-xs text-zinc-400' : 'mt-1 text-xs text-zinc-400'}>
-            {AUTO_ORGANIZE_GUARDRAIL}
-          </p>
         </div>
         {canAuthor && rows && !empty ? (
           <div className="flex shrink-0 flex-col items-end gap-1">

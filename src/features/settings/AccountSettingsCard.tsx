@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth'
 import {
-  ADMIN_ACCOUNT_INTRO,
   ADMIN_ACCOUNT_RESET_HINT,
   ADMIN_ACCOUNT_RESET_LINK_SENT,
   ADMIN_ACCOUNT_RESET_SENT,
@@ -59,7 +58,6 @@ export default function AccountSettingsCard() {
         <MailIcon className="h-5 w-5 text-emerald-400" />
         {ADMIN_ACCOUNT_TITLE}
       </h2>
-      <p className="mt-1 text-xs text-zinc-500">{ADMIN_ACCOUNT_INTRO}</p>
 
       <p className="mt-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
         Email
@@ -87,7 +85,6 @@ export default function AccountSettingsCard() {
           >
             {submitting ? 'Sending…' : ADMIN_ACCOUNT_SEND_RESET}
           </button>
-          <p className="mt-2 text-xs text-zinc-500">{ADMIN_ACCOUNT_RESET_HINT}</p>
         </>
       )}
     </section>

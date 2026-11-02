@@ -23,7 +23,8 @@ Entry point for AI coding agents (and humans) working in this repo.
    cadence, `auto_organize_*` schema/RPCs, cron, roles, History.
 7. **[docs/BRAND.md](./docs/BRAND.md)** — product voice, Unbucketed terminology,
    and the full **Product narrative** (word-for-word). User-facing strings live in
-   `src/lib/brand.ts`.
+   `src/lib/brand/<feature>.ts` (core, auth, admin, kids, buckets, autoBucket,
+   bank, history); always import from the `@/lib/brand` barrel.
 8. **[docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)** — **bank providers**:
    SimpleFIN is the active connector (user pays SimpleFIN Bridge directly);
    Plaid is live behind the `plaid` feature flag (owner's household only —
@@ -134,6 +135,7 @@ Entry point for AI coding agents (and humans) working in this repo.
 | Admin / family management       | `src/features/admin/`                 |
 | Supabase client / Teller helpers / invariant helper | `src/lib/` (`auth.tsx`, `buckets.ts`, `accounts.ts`, …) |
 | Shared React hooks              | `src/hooks/`                          |
+| User-facing copy                | `src/lib/brand/<feature>.ts` (import via `@/lib/brand`) |
 | Unit tests (Vitest)             | `src/**/*.test.ts` (colocate with code) |
 | DB-mirrored TS types (generated) | `src/types/database.ts`              |
 | SQL migrations                  | `supabase/migrations/`                |

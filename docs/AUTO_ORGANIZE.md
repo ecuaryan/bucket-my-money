@@ -242,7 +242,6 @@ schema or RPCs.
 | Concept | UI (when shown) | Postgres / RPC / TS |
 | --- | --- | --- |
 | Feature section | **Auto-bucket** | — |
-| Section guardrail | *You choose when and how much — on a schedule or when you tap Run now.* | `AUTO_ORGANIZE_GUARDRAIL` |
 | Empty state | *Set up moves, top-ups, or save-offs — on a schedule or when you choose.* | `AUTO_ORGANIZE_EMPTY_BODY` |
 | Manual-only frequency | **Manual only** | `auto_organize_type = 'manual'` |
 | Manual card next-run line | **Runs when you choose** | `AUTO_ORGANIZE_MANUAL_NEXT_RUN_LABEL` |
@@ -258,7 +257,6 @@ schema or RPCs.
 | Cron job name | — | **`run-due-auto-organizes`** |
 | Future kind | — | **`auto_organize_kind`**: `organize` \| `top_up` \| `save_off` |
 | save-off destination | — | **`destination_bucket_id`** (null = Unbucketed) |
-| History actor (automatic) | **Scheduled** | `HISTORY_SCHEDULED_MOVE_LABEL` |
 | Manual move dialog | **Set aside** / **Use from bucket** / **Move money** | unchanged |
 
 **Say in UI:** organize your money, auto-bucket, days you choose.  
@@ -386,9 +384,9 @@ At large scale: optional denormalized `next_run_on` column + index.
 
 ## UI — Buckets tab
 
-Section **Auto-bucket** below Unbucketed card. Always show `AUTO_ORGANIZE_GUARDRAIL`
-under the header (admin + Shared) so the feature is not confused with auto-rebalance
-when the bank moves.
+Section **Auto-bucket** below Unbucketed card. No guardrail line: each card shows
+its schedule (or **Runs when you choose**) and a **Run now** button, which already
+says it runs only when chosen — not when the bank moves.
 
 **Empty state (admin):** `AUTO_ORGANIZE_EMPTY_BODY` + **Add** CTA.
 

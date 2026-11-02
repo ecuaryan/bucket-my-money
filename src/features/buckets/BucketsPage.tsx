@@ -10,7 +10,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import {
-  BUCKETS_ADD_SOURCE_ADMIN_BODY,
   BUCKETS_ADD_SOURCE_LINK_ACTION,
   BUCKETS_ADD_SOURCE_MANUAL_ACTION,
   BUCKETS_ADD_SOURCE_TITLE,
@@ -30,6 +29,7 @@ import {
   FLOAT_HERO_SUBTITLE,
   FLOAT_HERO_SUBTITLE_WITH_CARDS,
   floatOverbucketedHint,
+  floatOverSetAsideForKidsHint,
   FLOAT_CARD_PAYMENT_LAG_NOTE,
   floatShortWithCardsHint,
   FLOAT_LABEL,
@@ -1054,10 +1054,12 @@ export default function BucketsPage() {
   const isAdult = !isChild
   const childTotal = isChild ? childTotalBalance(balanceBreakdown) : 0
   const hasMoneySources = accounts.length > 0
-  // Once money is in a bucket it is "organized" — show the negative red
-  // negative float rebalance signal rather than the getting-started CTA. Only
-  // adults with nothing set up at all (no sources, nothing allocated) see it.
-  const hasAllocations = balanceBreakdown.bucketAllocated > 0
+  // Once money is in a bucket or set aside for a kid it is "organized" — show
+  // the (possibly red) Unbucketed hero rather than the getting-started CTA, so
+  // the page matches the header glow. Only adults with nothing set up at all
+  // (no sources, nothing allocated) see the CTA.
+  const hasAllocations =
+    balanceBreakdown.bucketAllocated > 0 || balanceBreakdown.childrenSetAside > 0
   const coachState = getOnboardingCoachState({
     hasMoneySources,
     bucketCount: buckets.length,
@@ -1113,7 +1115,11 @@ export default function BucketsPage() {
             (mayBeCardPaymentLag(float, balanceBreakdown)
               ? ' ' + FLOAT_CARD_PAYMENT_LAG_NOTE
               : '')
-          : floatOverbucketedHint(formatMoney(Math.abs(float)))
+          : !isChild &&
+              balanceBreakdown.bucketAllocated === 0 &&
+              balanceBreakdown.childrenSetAside > 0
+            ? floatOverSetAsideForKidsHint(formatMoney(Math.abs(float)))
+            : floatOverbucketedHint(formatMoney(Math.abs(float)))
         : cashSubtext || heroTiles
           ? null
           : isChild
@@ -1167,15 +1173,10 @@ export default function BucketsPage() {
           <h2 className="mt-1 text-lg font-semibold text-emerald-100">
             {BUCKETS_ADD_SOURCE_TITLE}
           </h2>
-          <p className="mt-2 text-sm text-emerald-200/80">
-            {isAdmin
-              ? BUCKETS_ADD_SOURCE_ADMIN_BODY
-              : bucketsAddSourceMemberBody(householdAdminName)}
-          </p>
-          {balanceBreakdown.bucketAllocated > 0 ? (
-            <p className="mt-2 text-xs text-emerald-200/60">
-              {formatMoney(balanceBreakdown.bucketAllocated)} allocated
-              across {buckets.length} bucket{buckets.length === 1 ? '' : 's'}.
+          {/* Admins get the two actions; others learn who can add one. */}
+          {!isAdmin ? (
+            <p className="mt-2 text-sm text-emerald-200/80">
+              {bucketsAddSourceMemberBody(householdAdminName)}
             </p>
           ) : null}
           {isAdmin ? (
