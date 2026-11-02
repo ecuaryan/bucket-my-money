@@ -753,7 +753,7 @@ function BucketRowContent({
             : '')
         }
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2 min-[360px]:gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-[clamp(8px,2.8vw,10px)]">
           <BucketTile emoji={emoji} />
           <p className="min-w-0 truncate text-sm font-medium text-zinc-300">
             {label}
@@ -827,7 +827,7 @@ function BucketRowOverlay({
     >
       <DragHandle className="cursor-grabbing text-zinc-400" tabIndex={-1} />
       <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-1.5 py-1">
-        <div className="flex min-w-0 flex-1 items-center gap-2 min-[360px]:gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-[clamp(8px,2.8vw,10px)]">
           <BucketTile emoji={overlayName.emoji} />
           <p className="truncate text-sm font-medium text-zinc-300">
             {overlayName.label}

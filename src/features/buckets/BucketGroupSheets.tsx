@@ -1,14 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { ClearableInput } from '@/components/ui/ClearableInput'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { Sheet } from '@/components/ui/Sheet'
 import {
   BUCKET_GROUP_CREATE_HINT,
   BUCKET_GROUP_CREATE_TITLE,
-  BUCKET_GROUP_DELETE_WHAT_HAPPENS,
   BUCKET_GROUP_NAME_LABEL,
   BUCKET_GROUP_NAME_PLACEHOLDER,
   BUCKET_GROUP_RENAME_TITLE,
-  bucketGroupDeleteIntro,
+  bucketGroupDeleteBody,
   bucketGroupDeleteTitle,
 } from '@/lib/brand'
 import { BUCKET_GROUP_NAME_MAX_LENGTH } from '@/lib/bucketGroups'
@@ -137,7 +137,7 @@ type DeleteSheetProps = {
   onConfirm: () => Promise<void>
 }
 
-/** Confirmation that spells out exactly what deleting a group does (and doesn't). */
+/** Deleting a group only removes the label; its buckets move to Ungrouped. */
 export function BucketGroupDeleteSheet({
   name,
   bucketCount,
@@ -146,8 +146,6 @@ export function BucketGroupDeleteSheet({
 }: DeleteSheetProps) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const title = bucketGroupDeleteTitle(name)
-
   async function handleConfirm() {
     setDeleting(true)
     setError(null)
@@ -160,39 +158,15 @@ export function BucketGroupDeleteSheet({
   }
 
   return (
-    <Sheet open onClose={deleting ? () => {} : onClose} aria-label={title}>
-      <SheetHeader title={title} onClose={onClose} disabled={deleting} />
-      <div className="space-y-4">
-        <p className="text-sm text-zinc-300">{bucketGroupDeleteIntro(bucketCount)}</p>
-        <ul className="space-y-1 rounded-lg bg-zinc-950 px-3 py-2 text-sm text-zinc-400 ring-1 ring-inset ring-zinc-800">
-          {BUCKET_GROUP_DELETE_WHAT_HAPPENS.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        {error && (
-          <p role="alert" className="text-sm text-red-300">
-            {error}
-          </p>
-        )}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={deleting}
-            className="flex-1 rounded-lg px-4 py-2 text-sm font-medium text-zinc-300 ring-1 ring-inset ring-zinc-700 transition hover:bg-zinc-800 disabled:opacity-50"
-          >
-            Keep group
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleConfirm()}
-            disabled={deleting}
-            className="flex-1 rounded-lg bg-red-500/90 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {deleting ? 'Deleting…' : 'Delete group'}
-          </button>
-        </div>
-      </div>
-    </Sheet>
+    <ConfirmSheet
+      title={bucketGroupDeleteTitle(name)}
+      body={bucketGroupDeleteBody(bucketCount)}
+      confirmLabel="Delete group"
+      busyLabel="Deleting…"
+      busy={deleting}
+      error={error}
+      onConfirm={() => void handleConfirm()}
+      onClose={onClose}
+    />
   )
 }

@@ -11,15 +11,6 @@ import {
   disambiguateAutoOrganizeLabels,
   orderAutoOrganizeLinesByBuckets,
 } from '@/lib/autoOrganize'
-import {
-  AUTO_ORGANIZE_ORGANIZE_SUBTITLE,
-  AUTO_ORGANIZE_ORGANIZE_SUBTITLE_MANUAL,
-  AUTO_ORGANIZE_SAVEOFF_SUBTITLE,
-  AUTO_ORGANIZE_SAVEOFF_SUBTITLE_MANUAL,
-  AUTO_ORGANIZE_TOPUP_SUBTITLE,
-  AUTO_ORGANIZE_TOPUP_SUBTITLE_MANUAL,
-  autoOrganizeKindSubtitle,
-} from '@/lib/brand'
 
 describe('computeLineMoveAmount', () => {
   it('organize uses fixed amount', () => {
@@ -347,32 +338,6 @@ describe('disambiguateAutoOrganizeLabels', () => {
       { id: 'a', name: 'Every 2 weeks (1)' },
       { id: 'b', name: 'Every 2 weeks (2)' },
     ])
-  })
-})
-
-describe('autoOrganizeKindSubtitle', () => {
-  it('uses manual copy for organize and save-off when not scheduled', () => {
-    expect(autoOrganizeKindSubtitle('organize', true)).toBe(
-      AUTO_ORGANIZE_ORGANIZE_SUBTITLE_MANUAL,
-    )
-    expect(autoOrganizeKindSubtitle('save_off', true)).toBe(
-      AUTO_ORGANIZE_SAVEOFF_SUBTITLE_MANUAL,
-    )
-    expect(autoOrganizeKindSubtitle('top_up', true)).toBe(
-      AUTO_ORGANIZE_TOPUP_SUBTITLE_MANUAL,
-    )
-  })
-
-  it('uses scheduled copy when manual flag is false', () => {
-    expect(autoOrganizeKindSubtitle('organize', false)).toBe(
-      AUTO_ORGANIZE_ORGANIZE_SUBTITLE,
-    )
-    expect(autoOrganizeKindSubtitle('save_off', false)).toBe(
-      AUTO_ORGANIZE_SAVEOFF_SUBTITLE,
-    )
-    expect(autoOrganizeKindSubtitle('top_up', false)).toBe(
-      AUTO_ORGANIZE_TOPUP_SUBTITLE,
-    )
   })
 })
 

@@ -1,15 +1,13 @@
 import { useState } from 'react'
-import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import {
-  ADMIN_ASSIGN_ACCOUNT_TO_KID_EFFECTS,
-  ADMIN_ASSIGN_ACCOUNT_TO_KID_WHAT_CHANGES,
   ADMIN_KID_ADD_LINKED_ACCOUNT_LABEL,
   ADMIN_KID_LINKED_ACCOUNTS_LABEL,
   ADMIN_KID_LINKED_ACCOUNT_NONE_AVAILABLE,
   ADMIN_KID_NO_LINKED_ACCOUNTS_HINT,
   adminAssignAccountToKidConfirm,
-  adminAssignAccountToKidSheetIntro,
+  adminAssignAccountToKidSheetBody,
   adminAssignAccountToKidSheetTitle,
   adminUnassignLinkedAccountAria,
 } from '@/lib/brand'
@@ -215,74 +213,16 @@ function AssignConfirmSheet({
   onConfirm: () => void
 }) {
   return (
-    <Sheet
-      open
+    <ConfirmSheet
+      title={adminAssignAccountToKidSheetTitle(kidName, pendingAssign.accountLabel)}
+      body={adminAssignAccountToKidSheetBody(kidName)}
+      confirmLabel={adminAssignAccountToKidConfirm(kidName)}
+      busyLabel="Assigning…"
+      busy={saving}
+      error={confirmError}
+      tone="caution"
+      onConfirm={onConfirm}
       onClose={onClose}
-      aria-label={adminAssignAccountToKidSheetTitle(kidName)}
-    >
-      <header className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold text-zinc-300">
-          {adminAssignAccountToKidSheetTitle(kidName)}
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saving}
-          className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-          aria-label="Close"
-        >
-          ×
-        </button>
-      </header>
-
-      <div className="space-y-4">
-        <p className="text-sm text-zinc-400">
-          {adminAssignAccountToKidSheetIntro(kidName)}
-        </p>
-        <p className="text-sm text-zinc-500">
-          Account:{' '}
-          <span className="text-zinc-300">{pendingAssign.accountLabel}</span>
-        </p>
-
-        <div>
-          <h3 className="text-sm font-medium text-zinc-300">
-            {ADMIN_ASSIGN_ACCOUNT_TO_KID_WHAT_CHANGES}
-          </h3>
-          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-zinc-400">
-            {ADMIN_ASSIGN_ACCOUNT_TO_KID_EFFECTS.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
-
-        {confirmError ? (
-          <p
-            role="alert"
-            className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/30"
-          >
-            {confirmError}
-          </p>
-        ) : null}
-
-        <div className="flex gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-400 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={saving}
-            className="flex-1 rounded-lg bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:opacity-50"
-          >
-            {saving ? 'Assigning…' : adminAssignAccountToKidConfirm(kidName)}
-          </button>
-        </div>
-      </div>
-    </Sheet>
+    />
   )
 }

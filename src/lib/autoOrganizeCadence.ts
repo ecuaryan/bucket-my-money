@@ -172,11 +172,6 @@ export function twiceSecondDayOptions(firstDay: number): { value: number; label:
 }
 
 /** "Runs on the 7th and 22nd of every month." (the last day reads "the last day"). */
-export function formatTwiceMonthlyHint(days: TwiceMonthlyDays): string {
-  const phrase = (day: number) => (day === 0 ? 'the last day' : `the ${formatDayOfMonth(day)}`)
-  return `Runs on ${phrase(days.first)} and ${phrase(days.second)} of every month.`
-}
-
 export function formatTwiceMonthlyDayLabels(days: number[]): string {
   return [...days]
     .sort((a, b) => (a === 0 ? 99 : a) - (b === 0 ? 99 : b))

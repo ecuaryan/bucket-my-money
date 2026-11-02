@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { useAuth } from '@/lib/auth'
 import { bindDeviceForPinSignIn } from '@/lib/familyDevice'
 import {
@@ -7,14 +7,9 @@ import {
   ADMIN_JOIN_CODE_INTRO,
   ADMIN_JOIN_CODE_QR_ALT,
   ADMIN_JOIN_CODE_ROTATE_CONFIRM,
-  ADMIN_JOIN_CODE_ROTATE_EFFECT_OLD_LINKS,
-  ADMIN_JOIN_CODE_ROTATE_EFFECT_SHARE,
-  ADMIN_JOIN_CODE_ROTATE_EFFECT_SIGN_IN_AGAIN,
-  ADMIN_JOIN_CODE_ROTATE_EFFECT_STAY_SIGNED_IN,
-  ADMIN_JOIN_CODE_ROTATE_SHEET_INTRO,
+  ADMIN_JOIN_CODE_ROTATE_SHEET_BODY,
   ADMIN_JOIN_CODE_ROTATE_SHEET_TITLE,
   ADMIN_JOIN_CODE_ROTATE_SUCCESS,
-  ADMIN_JOIN_CODE_ROTATE_WHAT_HAPPENS,
   ADMIN_JOIN_CODE_TITLE,
 } from '@/lib/brand'
 import { formatLoadErrorMessage, withAuthLockRetry } from '@/lib/authLockError'
@@ -229,72 +224,18 @@ export default function FamilyJoinSection() {
         </div>
       </div>
 
-      <Sheet
+      <ConfirmSheet
         open={confirmOpen}
+        title={ADMIN_JOIN_CODE_ROTATE_SHEET_TITLE}
+        body={ADMIN_JOIN_CODE_ROTATE_SHEET_BODY}
+        confirmLabel={ADMIN_JOIN_CODE_ROTATE_CONFIRM}
+        busyLabel="Generating…"
+        busy={rotating}
+        error={rotateError}
+        tone="caution"
+        onConfirm={() => void confirmRotate()}
         onClose={closeRotateConfirm}
-        aria-label={ADMIN_JOIN_CODE_ROTATE_SHEET_TITLE}
-      >
-        <header className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold text-zinc-300">
-            {ADMIN_JOIN_CODE_ROTATE_SHEET_TITLE}
-          </h2>
-          <button
-            type="button"
-            onClick={closeRotateConfirm}
-            disabled={rotating}
-            className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </header>
-
-        <div className="space-y-4">
-          <p className="text-sm text-zinc-400">
-            {ADMIN_JOIN_CODE_ROTATE_SHEET_INTRO}
-          </p>
-
-          <div>
-            <h3 className="text-sm font-medium text-zinc-300">
-              {ADMIN_JOIN_CODE_ROTATE_WHAT_HAPPENS}
-            </h3>
-            <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-zinc-400">
-              <li>{ADMIN_JOIN_CODE_ROTATE_EFFECT_STAY_SIGNED_IN}</li>
-              <li>{ADMIN_JOIN_CODE_ROTATE_EFFECT_SIGN_IN_AGAIN}</li>
-              <li>{ADMIN_JOIN_CODE_ROTATE_EFFECT_OLD_LINKS}</li>
-              <li>{ADMIN_JOIN_CODE_ROTATE_EFFECT_SHARE}</li>
-            </ul>
-          </div>
-
-          {rotateError ? (
-            <p
-              role="alert"
-              className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/30"
-            >
-              {rotateError}
-            </p>
-          ) : null}
-
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={closeRotateConfirm}
-              disabled={rotating}
-              className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-400 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void confirmRotate()}
-              disabled={rotating}
-              className="flex-1 rounded-lg bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:opacity-50"
-            >
-              {rotating ? 'Generating…' : ADMIN_JOIN_CODE_ROTATE_CONFIRM}
-            </button>
-          </div>
-        </div>
-      </Sheet>
+      />
     </section>
   )
 }

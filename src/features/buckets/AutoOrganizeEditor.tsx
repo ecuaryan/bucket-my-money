@@ -1,58 +1,52 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { ClearableInput } from '@/components/ui/ClearableInput'
 import {
-  AUTO_ORGANIZE_BUCKETS_HINT,
+  AUTO_ORGANIZE_AT_TARGET_LABEL,
   AUTO_ORGANIZE_DISCARD_BODY,
   AUTO_ORGANIZE_DISCARD_CANCEL,
   AUTO_ORGANIZE_DISCARD_CONFIRM,
   AUTO_ORGANIZE_DISCARD_TITLE,
-  AUTO_ORGANIZE_EDIT_LABEL,
   AUTO_ORGANIZE_ESTIMATED_TOTAL_LABEL,
   AUTO_ORGANIZE_FREQUENCY_LABEL,
   AUTO_ORGANIZE_FREQUENCY_OPTIONS,
-  AUTO_ORGANIZE_INTERVAL_START_HINT,
   AUTO_ORGANIZE_INTERVAL_START_LABEL,
   AUTO_ORGANIZE_INTERVAL_STARTED_LABEL,
-  AUTO_ORGANIZE_INTERVAL_STARTED_HINT,
-  AUTO_ORGANIZE_MANUAL_EDITOR_HINT,
-  AUTO_ORGANIZE_NAME_HINT,
+  AUTO_ORGANIZE_KIND_ORGANIZE_LABEL,
+  AUTO_ORGANIZE_KIND_SAVEOFF_TAB_LABEL,
+  AUTO_ORGANIZE_KIND_TABS_LABEL,
+  AUTO_ORGANIZE_KIND_TOPUP_TAB_LABEL,
+  AUTO_ORGANIZE_MANUAL_NEXT_RUN_LABEL,
   AUTO_ORGANIZE_NEXT_RUN_LABEL,
   AUTO_ORGANIZE_NO_BUCKETS_ERROR,
   AUTO_ORGANIZE_NOTHING_TO_MOVE_NOW_LABEL,
   AUTO_ORGANIZE_ONCE_MONTHLY_DAY_LABEL,
-  AUTO_ORGANIZE_ONCE_MONTHLY_LAST_DAY_HINT,
   AUTO_ORGANIZE_TWICE_FIRST_DAY_LABEL,
   AUTO_ORGANIZE_TWICE_SECOND_DAY_LABEL,
   AUTO_ORGANIZE_SAVE_LABEL,
   AUTO_ORGANIZE_SAVED_TOAST,
-  AUTO_ORGANIZE_SAVE_REQUIRES_AMOUNT_HINT,
-  AUTO_ORGANIZE_SAVEOFF_BUCKETS_HINT,
-  AUTO_ORGANIZE_SAVEOFF_DESTINATION_HINT,
   AUTO_ORGANIZE_SAVEOFF_DESTINATION_LABEL,
   AUTO_ORGANIZE_SAVEOFF_DEST_FLOAT_LABEL,
-  AUTO_ORGANIZE_SAVEOFF_EXPLAINER_HINT,
   AUTO_ORGANIZE_SAVEOFF_KEEP_LABEL,
-  AUTO_ORGANIZE_SAVEOFF_KEEP_ZERO_ROW_HINT,
   AUTO_ORGANIZE_START_DATE_TODAY_ERROR,
   AUTO_ORGANIZE_START_DATE_PAST_ERROR,
   AUTO_ORGANIZE_START_DATE_TOO_FAR_ERROR,
-  AUTO_ORGANIZE_TIMEZONE_HINT,
-  AUTO_ORGANIZE_TIMEZONE_HINT_MANUAL,
   AUTO_ORGANIZE_TIMEZONE_LABEL,
-  AUTO_ORGANIZE_TOPUP_DIFFERENCE_HINT,
   AUTO_ORGANIZE_TOPUP_FILL_TO_LABEL,
-  AUTO_ORGANIZE_TOTAL_PER_RUN_LABEL,
   autoOrganizeBucketsSectionLabel,
   autoOrganizeKindLabel,
-  autoOrganizeKindSubtitle,
   autoOrganizeNamePlaceholder,
+  autoOrganizeSaveOffMovesNowLabel,
+  autoOrganizeTopUpAddsNowLabel,
   type AutoOrganizeKind,
   type AutoOrganizeFrequencySelection,
 } from '@/lib/brand'
 import {
   sweepThenFillNotesByBucket,
+  autoOrganizeLineMoveAtRun,
   computeTotalPerRun,
   fetchFamilyTimezone,
   saveAutoOrganize,
@@ -71,7 +65,6 @@ import {
   applyFrequencySelection,
   daysOfMonthFromSchedule,
   formatEditorNextRunSummary,
-  formatTwiceMonthlyHint,
   frequencySelectionFromCadence,
   isIntervalFrequencySelection,
   isManualFrequencySelection,
@@ -101,7 +94,7 @@ type Bucket = Pick<
 
 type Props = {
   open: boolean
-  kind: AutoOrganizeKind
+  /** null = create (kind picked in the editor); a row = edit (kind fixed). */
   initial: AutoOrganizeWithDetails | null
   buckets: Bucket[]
   /** For sweep-then-fill overlap notes when editing. */
@@ -141,6 +134,12 @@ const bucketRowGridClassName =
 const scheduleRowGridClassName =
   'grid grid-cols-1 gap-3 sm:grid-cols-2'
 
+const KIND_OPTIONS = [
+  { value: 'organize', label: AUTO_ORGANIZE_KIND_ORGANIZE_LABEL },
+  { value: 'top_up', label: AUTO_ORGANIZE_KIND_TOPUP_TAB_LABEL },
+  { value: 'save_off', label: AUTO_ORGANIZE_KIND_SAVEOFF_TAB_LABEL },
+] as const satisfies readonly { value: AutoOrganizeKind; label: string }[]
+
 function defaultCadenceForKind(
   kind: AutoOrganizeKind,
   timeZone: string,
@@ -170,6 +169,18 @@ function defaultCadenceForKind(
         intervalUnit: 'week',
         daysOfMonth: null,
       }
+  }
+}
+
+/** Default schedule state for a kind, in the editor's monthly/twice form. */
+function scheduleForKind(kind: AutoOrganizeKind, timeZone: string) {
+  const cadence = normalizeMonthlyCadence(defaultCadenceForKind(kind, timeZone))
+  const schedule = monthlyScheduleFromDays(cadence.daysOfMonth)
+  return {
+    cadence,
+    monthlyMode: schedule.mode,
+    twiceDays: schedule.twice,
+    monthlyOnceDay: schedule.onceDay,
   }
 }
 
@@ -233,7 +244,6 @@ function buildSnapshot(
 
 export default function AutoOrganizeEditor({
   open,
-  kind,
   initial,
   buckets,
   allAutoOrganizes = [],
@@ -254,8 +264,9 @@ export default function AutoOrganizeEditor({
   )
   const [baselineSnapshot, setBaselineSnapshot] = useState('')
   const [name, setName] = useState('')
+  const [draftKind, setDraftKind] = useState<AutoOrganizeKind>('organize')
   const [cadence, setCadence] = useState<AutoOrganizeCadence>(() =>
-    defaultCadenceForKind(kind, browserTimezone),
+    defaultCadenceForKind('organize', browserTimezone),
   )
   const [monthlyMode, setMonthlyMode] = useState<MonthlyMode>('twice')
   // First day + the day it follows (+15). The second stays editable.
@@ -319,18 +330,18 @@ export default function AutoOrganizeEditor({
       })
       if (cancelled) return
 
-      const effectiveKindForInit: AutoOrganizeKind =
-        (initialSnap?.auto_organize_kind as AutoOrganizeKind | undefined) ?? kind
+      const nextKind: AutoOrganizeKind =
+        (initialSnap?.auto_organize_kind as AutoOrganizeKind | undefined) ??
+        'organize'
       const nextCadence = normalizeMonthlyCadence(
-        cadenceFromInitial(initialSnap, effectiveKindForInit, nextTimezone),
+        cadenceFromInitial(initialSnap, nextKind, nextTimezone),
       )
       const schedule = monthlyScheduleFromDays(nextCadence.daysOfMonth)
       const nextName = initialSnap?.name ?? ''
       const nextBuckets = bucketDraftsFromBuckets(bucketsSnap, initialSnap?.lines)
-      const nextDest =
-        initialSnap?.destination_bucket_id ??
-        (kind === 'save_off' ? null : null)
+      const nextDest = initialSnap?.destination_bucket_id ?? null
 
+      setDraftKind(nextKind)
       setFamilyTimezone(nextTimezone)
       setName(nextName)
       setCadence(nextCadence)
@@ -343,7 +354,7 @@ export default function AutoOrganizeEditor({
       setBaselineSnapshot(
         snapshotFromState(
           buildSnapshot(
-            kind,
+            nextKind,
             nextName,
             nextTimezone,
             nextCadence,
@@ -360,10 +371,9 @@ export default function AutoOrganizeEditor({
     return () => {
       cancelled = true
     }
-  }, [open, initialId, kind])
+  }, [open, initialId])
 
-  const effectiveKind: AutoOrganizeKind =
-    (initial?.auto_organize_kind as AutoOrganizeKind | undefined) ?? kind
+  const effectiveKind = draftKind
 
   const sourceBuckets = useMemo(() => {
     if (effectiveKind !== 'save_off') return buckets
@@ -438,17 +448,8 @@ export default function AutoOrganizeEditor({
     initial?.id,
   ])
 
-  const title = initial
-    ? AUTO_ORGANIZE_EDIT_LABEL
-    : autoOrganizeKindLabel(effectiveKind)
-  const totalLabel = totalIsEstimate
-    ? AUTO_ORGANIZE_ESTIMATED_TOTAL_LABEL
-    : AUTO_ORGANIZE_TOTAL_PER_RUN_LABEL
+  const title = autoOrganizeKindLabel(effectiveKind)
   const bucketsSectionLabel = autoOrganizeBucketsSectionLabel(effectiveKind)
-  const bucketsHint =
-    effectiveKind === 'save_off'
-      ? AUTO_ORGANIZE_SAVEOFF_BUCKETS_HINT
-      : AUTO_ORGANIZE_BUCKETS_HINT
   const amountColumnLabel =
     effectiveKind === 'top_up'
       ? AUTO_ORGANIZE_TOPUP_FILL_TO_LABEL
@@ -478,7 +479,7 @@ export default function AutoOrganizeEditor({
     return AUTO_ORGANIZE_START_DATE_PAST_ERROR
   }
   const saveNextRunSummary = useMemo(() => {
-    if (isManual) return null
+    if (isManual) return AUTO_ORGANIZE_MANUAL_NEXT_RUN_LABEL
 
     if (
       isIntervalFrequencySelection(frequencySelection) &&
@@ -589,6 +590,41 @@ export default function AutoOrganizeEditor({
     onClose()
   }
 
+  function changeKind(next: AutoOrganizeKind) {
+    if (next === draftKind) return
+    // An untouched schedule follows the kind's default (set-asides every 2
+    // weeks, top-ups on the 1st, save-offs on the last day).
+    const current = { cadence, monthlyMode, twiceDays, monthlyOnceDay }
+    const untouched =
+      JSON.stringify(current) ===
+      JSON.stringify(scheduleForKind(draftKind, familyTimezone))
+    const schedule = untouched ? scheduleForKind(next, familyTimezone) : current
+    if (untouched) {
+      setCadence(schedule.cadence)
+      setMonthlyMode(schedule.monthlyMode)
+      setTwiceDays(schedule.twiceDays)
+      setMonthlyOnceDay(schedule.monthlyOnceDay)
+    }
+    if (!isDirty) {
+      setBaselineSnapshot(
+        snapshotFromState(
+          buildSnapshot(
+            next,
+            name,
+            familyTimezone,
+            schedule.cadence,
+            schedule.monthlyMode,
+            schedule.twiceDays,
+            schedule.monthlyOnceDay,
+            bucketDrafts,
+            destinationBucketId,
+          ),
+        ),
+      )
+    }
+    setDraftKind(next)
+  }
+
   function confirmDiscard() {
     setDiscardOpen(false)
     onClose()
@@ -654,205 +690,113 @@ export default function AutoOrganizeEditor({
     }
   }
 
+  const frequencySelect = (
+    <label className="block min-w-0">
+      <FieldLabel>{AUTO_ORGANIZE_FREQUENCY_LABEL}</FieldLabel>
+      <select
+        value={frequencySelection}
+        onChange={(e) =>
+          setFrequencySelection(e.target.value as AutoOrganizeFrequencySelection)
+        }
+        className={fieldInputClassName}
+      >
+        {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+
   return (
     <>
       <Sheet open={open} onClose={requestClose} aria-label={title}>
-        <header className="mb-4 flex items-baseline justify-between">
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-zinc-300">{title}</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              {autoOrganizeKindSubtitle(effectiveKind, isManual)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={requestClose}
-            disabled={submitting}
-            className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </header>
+        {initial ? (
+          <h2 className="mb-4 text-lg font-semibold text-zinc-300">{title}</h2>
+        ) : (
+          <SegmentedTabs
+            value={effectiveKind}
+            options={KIND_OPTIONS}
+            onChange={changeKind}
+            ariaLabel={AUTO_ORGANIZE_KIND_TABS_LABEL}
+            className="mb-4"
+          />
+        )}
 
-        <div className="space-y-4">
-            <label className="block">
-              <FieldLabel optional>Name</FieldLabel>
+        <div
+          className="space-y-4"
+          {...(initial
+            ? {}
+            : {
+                id: `segmented-panel-${effectiveKind}`,
+                role: 'tabpanel',
+                'aria-labelledby': `segmented-tab-${effectiveKind}`,
+              })}
+        >
+          <label className="block">
+            <FieldLabel optional>Name</FieldLabel>
             <ClearableInput
               value={name}
               onValueChange={setName}
               placeholder={autoOrganizeNamePlaceholder(effectiveKind)}
               inputClassName={fieldInputClassName}
             />
-            <p className="mt-1 text-xs text-zinc-500">{AUTO_ORGANIZE_NAME_HINT}</p>
-          </label>
-
-          <label className="block">
-            <FieldLabel>{AUTO_ORGANIZE_TIMEZONE_LABEL}</FieldLabel>
-            <select
-              value={familyTimezone}
-              onChange={(e) => setFamilyTimezone(e.target.value)}
-              className={fieldInputClassName}
-            >
-              {timezoneOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-zinc-500">
-              {isManual
-                ? AUTO_ORGANIZE_TIMEZONE_HINT_MANUAL
-                : AUTO_ORGANIZE_TIMEZONE_HINT}
-            </p>
           </label>
 
           {isManual ? (
-            <div>
+            frequencySelect
+          ) : isIntervalFrequencySelection(frequencySelection) ? (
+            <div className={scheduleRowGridClassName}>
+              {frequencySelect}
+              <div className="block min-w-0">
+                <FieldLabel>
+                  {intervalStartLocked
+                    ? AUTO_ORGANIZE_INTERVAL_STARTED_LABEL
+                    : AUTO_ORGANIZE_INTERVAL_START_LABEL}
+                </FieldLabel>
+                {intervalStartLocked && cadence.startDate ? (
+                  <p
+                    className={`${fieldInputClassName} text-zinc-400`}
+                    aria-readonly="true"
+                  >
+                    {formatShortIsoDateLabel(cadence.startDate)}
+                  </p>
+                ) : (
+                  <input
+                    type="date"
+                    min={intervalStartMin}
+                    max={intervalStartMax}
+                    value={cadence.startDate ?? ''}
+                    onChange={(e) => setIntervalStartDate(e.target.value)}
+                    onBlur={clearIntervalStartDateErrorIfValid}
+                    className={fieldInputClassName}
+                  />
+                )}
+              </div>
+            </div>
+          ) : frequencySelection === 'monthly-once' ? (
+            <div className={scheduleRowGridClassName}>
+              {frequencySelect}
               <label className="block min-w-0">
-                <FieldLabel>{AUTO_ORGANIZE_FREQUENCY_LABEL}</FieldLabel>
+                <FieldLabel>{AUTO_ORGANIZE_ONCE_MONTHLY_DAY_LABEL}</FieldLabel>
                 <select
-                  value={frequencySelection}
-                  onChange={(e) =>
-                    setFrequencySelection(
-                      e.target.value as AutoOrganizeFrequencySelection,
-                    )
-                  }
+                  value={monthlyOnceDay}
+                  onChange={(e) => setMonthlyOnceDay(Number(e.target.value))}
                   className={fieldInputClassName}
                 >
-                  {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
+                  {AUTO_ORGANIZE_ONCE_MONTHLY_DAY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
               </label>
-              <p className="mt-1 text-xs text-zinc-500">
-                {AUTO_ORGANIZE_MANUAL_EDITOR_HINT}
-              </p>
-            </div>
-          ) : isIntervalFrequencySelection(frequencySelection) ? (
-            <div>
-              <div className={scheduleRowGridClassName}>
-                <label className="block min-w-0">
-                  <FieldLabel>{AUTO_ORGANIZE_FREQUENCY_LABEL}</FieldLabel>
-                  <select
-                    value={frequencySelection}
-                    onChange={(e) =>
-                      setFrequencySelection(
-                        e.target.value as AutoOrganizeFrequencySelection,
-                      )
-                    }
-                    className={fieldInputClassName}
-                  >
-                    {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="block min-w-0">
-                  <FieldLabel>
-                    {intervalStartLocked
-                      ? AUTO_ORGANIZE_INTERVAL_STARTED_LABEL
-                      : AUTO_ORGANIZE_INTERVAL_START_LABEL}
-                  </FieldLabel>
-                  {intervalStartLocked && cadence.startDate ? (
-                    <p
-                      className={`${fieldInputClassName} text-zinc-400`}
-                      aria-readonly="true"
-                    >
-                      {formatShortIsoDateLabel(cadence.startDate)}
-                    </p>
-                  ) : (
-                    <input
-                      type="date"
-                      min={intervalStartMin}
-                      max={intervalStartMax}
-                      value={cadence.startDate ?? ''}
-                      onChange={(e) => setIntervalStartDate(e.target.value)}
-                      onBlur={clearIntervalStartDateErrorIfValid}
-                      className={fieldInputClassName}
-                    />
-                  )}
-                </div>
-              </div>
-              {!intervalStartLocked ? (
-                <p className="mt-1 text-xs text-zinc-500">
-                  {AUTO_ORGANIZE_INTERVAL_START_HINT}
-                </p>
-              ) : (
-                <p className="mt-1 text-xs text-zinc-500">
-                  {AUTO_ORGANIZE_INTERVAL_STARTED_HINT}
-                </p>
-              )}
-            </div>
-          ) : frequencySelection === 'monthly-once' ? (
-            <div>
-              <div className={scheduleRowGridClassName}>
-                <label className="block min-w-0">
-                  <FieldLabel>{AUTO_ORGANIZE_FREQUENCY_LABEL}</FieldLabel>
-                  <select
-                    value={frequencySelection}
-                    onChange={(e) =>
-                      setFrequencySelection(
-                        e.target.value as AutoOrganizeFrequencySelection,
-                      )
-                    }
-                    className={fieldInputClassName}
-                  >
-                    {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block min-w-0">
-                  <FieldLabel>{AUTO_ORGANIZE_ONCE_MONTHLY_DAY_LABEL}</FieldLabel>
-                  <select
-                    value={monthlyOnceDay}
-                    onChange={(e) =>
-                      setMonthlyOnceDay(Number(e.target.value))
-                    }
-                    className={fieldInputClassName}
-                  >
-                    {AUTO_ORGANIZE_ONCE_MONTHLY_DAY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              {monthlyOnceDay === 0 ? (
-                <p className="mt-1 text-xs text-zinc-500">
-                  {AUTO_ORGANIZE_ONCE_MONTHLY_LAST_DAY_HINT}
-                </p>
-              ) : null}
             </div>
           ) : (
-            <div>
+            <>
+              {frequencySelect}
               <div className={scheduleRowGridClassName}>
-                <label className="block min-w-0">
-                  <FieldLabel>{AUTO_ORGANIZE_FREQUENCY_LABEL}</FieldLabel>
-                  <select
-                    value={frequencySelection}
-                    onChange={(e) =>
-                      setFrequencySelection(
-                        e.target.value as AutoOrganizeFrequencySelection,
-                      )
-                    }
-                    className={fieldInputClassName}
-                  >
-                    {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <label className="block min-w-0">
                   <FieldLabel>{AUTO_ORGANIZE_TWICE_FIRST_DAY_LABEL}</FieldLabel>
                   <select
@@ -871,8 +815,6 @@ export default function AutoOrganizeEditor({
                     ))}
                   </select>
                 </label>
-              </div>
-              <div className={scheduleRowGridClassName + ' mt-3'}>
                 <label className="block min-w-0">
                   <FieldLabel>{AUTO_ORGANIZE_TWICE_SECOND_DAY_LABEL}</FieldLabel>
                   <select
@@ -892,45 +834,56 @@ export default function AutoOrganizeEditor({
                     ))}
                   </select>
                 </label>
-                <p className="self-end pb-2 text-xs text-zinc-500">
-                  {formatTwiceMonthlyHint(twiceDays)}
-                </p>
               </div>
-            </div>
+            </>
           )}
-
 
           <div className="border-t border-zinc-800 pt-4 pb-4">
             <FieldLabel>{bucketsSectionLabel}</FieldLabel>
-            <p className="mt-1 text-xs text-zinc-500">{bucketsHint}</p>
-            {effectiveKind === 'top_up' ? (
-              <p className="mt-1 text-xs text-zinc-500">
-                {AUTO_ORGANIZE_TOPUP_DIFFERENCE_HINT}
-              </p>
-            ) : null}
-            {effectiveKind === 'save_off' ? (
-              <p className="mt-1 text-xs text-zinc-500">
-                {AUTO_ORGANIZE_SAVEOFF_EXPLAINER_HINT}
-              </p>
-            ) : null}
             <div className="mt-2 space-y-2">
               {sourceBuckets.map((bucket) => {
                 const amountStr =
                   bucketDrafts.find((row) => row.bucketId === bucket.id)
                     ?.amountStr ?? ''
                 const sweepThenFillNote = sweepThenFillNotes.get(bucket.id)
-                const saveOffKeepAmount = parseFloat(amountStr)
-                const showSaveOffSweepAllHint =
-                  effectiveKind === 'save_off' &&
-                  amountStr.trim() !== '' &&
-                  Number.isFinite(saveOffKeepAmount) &&
-                  saveOffKeepAmount === 0
+                const balance = Number(bucket.allocated_amount)
+                const entered =
+                  amountStr.trim() !== '' && Number.isFinite(parseFloat(amountStr))
+                const move = entered
+                  ? autoOrganizeLineMoveAtRun(effectiveKind, {
+                      bucket_id: bucket.id,
+                      amount: parseFloat(amountStr),
+                      bucket_allocated_amount: balance,
+                    })
+                  : 0
+                const showPreview =
+                  entered && effectiveKind !== 'organize'
                 return (
                   <div key={bucket.id}>
                     <div className={bucketRowGridClassName}>
-                      <span className="truncate text-sm text-zinc-300">
-                        {bucket.name}
-                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-zinc-300">
+                          {bucket.name}
+                        </p>
+                        <p className="truncate text-xs tabular-nums text-zinc-500">
+                          {formatMoney(balance)}
+                          {showPreview ? (
+                            move === 0 ? (
+                              <> · {AUTO_ORGANIZE_AT_TARGET_LABEL}</>
+                            ) : effectiveKind === 'top_up' ? (
+                              <span className="font-medium text-emerald-300/90">
+                                {' '}
+                                · {autoOrganizeTopUpAddsNowLabel(move, formatMoney)}
+                              </span>
+                            ) : (
+                              <span className="font-medium text-rose-300/90">
+                                {' '}
+                                · {autoOrganizeSaveOffMovesNowLabel(move, formatMoney)}
+                              </span>
+                            )
+                          ) : null}
+                        </p>
+                      </div>
                       <div className="min-w-0">
                         {amountColumnLabel ? (
                           <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-zinc-500">
@@ -957,11 +910,6 @@ export default function AutoOrganizeEditor({
                         />
                       </div>
                     </div>
-                    {showSaveOffSweepAllHint ? (
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {AUTO_ORGANIZE_SAVEOFF_KEEP_ZERO_ROW_HINT}
-                      </p>
-                    ) : null}
                     {sweepThenFillNote ? (
                       <p className="mt-1 text-xs text-amber-200/80">
                         {sweepThenFillNote}
@@ -990,18 +938,30 @@ export default function AutoOrganizeEditor({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-zinc-500">
-                {AUTO_ORGANIZE_SAVEOFF_DESTINATION_HINT}
-              </p>
             </label>
           ) : null}
+
+          <label className="block">
+            <FieldLabel>{AUTO_ORGANIZE_TIMEZONE_LABEL}</FieldLabel>
+            <select
+              value={familyTimezone}
+              onChange={(e) => setFamilyTimezone(e.target.value)}
+              className={fieldInputClassName}
+            >
+              {timezoneOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="mt-4 space-y-2 border-t border-zinc-800 pt-3">
           <div className="rounded-xl bg-zinc-950 px-3 py-2 ring-1 ring-inset ring-zinc-700">
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                {totalLabel}
+                {AUTO_ORGANIZE_ESTIMATED_TOTAL_LABEL}
               </p>
               <p className="text-xl font-semibold tabular-nums text-zinc-100">
                 {totalIsEstimate && totalPerRun === 0 ? (
@@ -1030,12 +990,6 @@ export default function AutoOrganizeEditor({
             ) : null}
           </div>
 
-          {parsedBuckets.length === 0 ? (
-            <p className="text-xs text-zinc-500">
-              {AUTO_ORGANIZE_SAVE_REQUIRES_AMOUNT_HINT}
-            </p>
-          ) : null}
-
           {error ? (
             <p
               className="break-words rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300 ring-1 ring-inset ring-red-500/30"
@@ -1056,7 +1010,7 @@ export default function AutoOrganizeEditor({
             </button>
             <button
               type="button"
-              disabled={submitting || parsedBuckets.length === 0}
+              disabled={submitting}
               onClick={() => void onSubmit()}
               className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -1066,34 +1020,15 @@ export default function AutoOrganizeEditor({
         </div>
       </Sheet>
 
-      <Sheet
+      <ConfirmSheet
         open={discardOpen}
+        title={AUTO_ORGANIZE_DISCARD_TITLE}
+        body={AUTO_ORGANIZE_DISCARD_BODY}
+        confirmLabel={AUTO_ORGANIZE_DISCARD_CONFIRM}
+        cancelLabel={AUTO_ORGANIZE_DISCARD_CANCEL}
+        onConfirm={confirmDiscard}
         onClose={() => setDiscardOpen(false)}
-        aria-label={AUTO_ORGANIZE_DISCARD_TITLE}
-      >
-        <h3 className="text-base font-semibold text-zinc-100">
-          {AUTO_ORGANIZE_DISCARD_TITLE}
-        </h3>
-        <p className="mt-2 text-sm text-zinc-400">
-          {AUTO_ORGANIZE_DISCARD_BODY}
-        </p>
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setDiscardOpen(false)}
-            className="flex-1 rounded-lg border border-zinc-600 px-4 py-2 text-sm font-semibold text-zinc-200"
-          >
-            {AUTO_ORGANIZE_DISCARD_CANCEL}
-          </button>
-          <button
-            type="button"
-            onClick={confirmDiscard}
-            className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-          >
-            {AUTO_ORGANIZE_DISCARD_CONFIRM}
-          </button>
-        </div>
-      </Sheet>
+      />
     </>
   )
 }
