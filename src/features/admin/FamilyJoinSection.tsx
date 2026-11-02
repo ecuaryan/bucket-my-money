@@ -4,7 +4,6 @@ import { useAuth } from '@/lib/auth'
 import { bindDeviceForPinSignIn } from '@/lib/familyDevice'
 import {
   ADMIN_JOIN_CODE_COPY_CODE_ARIA,
-  ADMIN_JOIN_CODE_INTRO,
   ADMIN_JOIN_CODE_QR_ALT,
   ADMIN_JOIN_CODE_ROTATE_CONFIRM,
   ADMIN_JOIN_CODE_ROTATE_SHEET_BODY,
@@ -124,7 +123,6 @@ export default function FamilyJoinSection() {
   return (
     <section aria-label="Household join code">
       <h2 className="text-base font-semibold">{ADMIN_JOIN_CODE_TITLE}</h2>
-      <p className="mt-1 text-xs text-zinc-400">{ADMIN_JOIN_CODE_INTRO}</p>
 
       {loadError && (
         <div className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300 ring-1 ring-red-500/30">

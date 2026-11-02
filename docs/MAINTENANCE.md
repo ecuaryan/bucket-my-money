@@ -59,7 +59,7 @@ switch — no reset needed.
 | `rebalance` | `rebalance@bmm.dev` | $200 cash, $450 allocated (negative Unbucketed) |
 | `pin-household` | `pin-household@bmm.dev` | Like `household`, PIN **0000** on Alex and Sam |
 | `linked-kid` | `linked-kid@bmm.dev` | Kid with assigned manual account — Send blocked |
-| `admin-no-pin` | `admin-no-pin@bmm.dev` | Admin only, no PIN — green PIN setup CTA |
+| `admin-no-pin` | `admin-no-pin@bmm.dev` | Admin only, no PIN — PIN setup in Settings |
 | `kid-view` | `kid-view@bmm.dev` | Admin + kid (PIN **0000**), no shared member |
 | `many-buckets` | `many-buckets@bmm.dev` | 15 pool buckets — scroll and reorder |
 | `history` | `history@bmm.dev` | ~40 moves and sends — History volume |

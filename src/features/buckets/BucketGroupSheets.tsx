@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { ClearableInput } from '@/components/ui/ClearableInput'
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { Sheet } from '@/components/ui/Sheet'
+import { SheetHeader } from '@/components/ui/SheetHeader'
 import {
   BUCKET_GROUP_CREATE_HINT,
   BUCKET_GROUP_CREATE_TITLE,
@@ -12,33 +13,6 @@ import {
   bucketGroupDeleteTitle,
 } from '@/lib/brand'
 import { BUCKET_GROUP_NAME_MAX_LENGTH } from '@/lib/bucketGroups'
-
-function SheetHeader({
-  title,
-  onClose,
-  disabled,
-}: {
-  title: string
-  onClose: () => void
-  disabled?: boolean
-}) {
-  return (
-    <header className="mb-4 flex items-baseline justify-between gap-3">
-      <h2 className="min-w-0 truncate text-lg font-semibold text-zinc-300">
-        {title}
-      </h2>
-      <button
-        type="button"
-        onClick={onClose}
-        disabled={disabled}
-        aria-label="Close"
-        className="shrink-0 rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-50"
-      >
-        ×
-      </button>
-    </header>
-  )
-}
 
 type NameSheetProps = {
   mode: 'create' | 'rename'

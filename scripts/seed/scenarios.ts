@@ -92,7 +92,7 @@ export function listScenarios(): { id: SeedTarget; description: string }[] {
     },
     {
       id: 'admin-no-pin',
-      description: 'Admin only, no PIN set — green “Sign in faster with a PIN” CTA on Admin',
+      description: 'Admin only, no PIN set — PIN setup in Settings',
     },
     {
       id: 'kid-view',

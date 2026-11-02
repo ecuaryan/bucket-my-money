@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
+import { SheetHeader } from '@/components/ui/SheetHeader'
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs'
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { FieldLabel } from '@/components/ui/FieldLabel'
@@ -712,17 +713,22 @@ export default function AutoOrganizeEditor({
   return (
     <>
       <Sheet open={open} onClose={requestClose} aria-label={title}>
-        {initial ? (
-          <h2 className="mb-4 text-lg font-semibold text-zinc-300">{title}</h2>
-        ) : (
-          <SegmentedTabs
-            value={effectiveKind}
-            options={KIND_OPTIONS}
-            onChange={changeKind}
-            ariaLabel={AUTO_ORGANIZE_KIND_TABS_LABEL}
-            className="mb-4"
-          />
-        )}
+        <SheetHeader
+          title={title}
+          onClose={requestClose}
+          disabled={submitting}
+          centerClose={!initial}
+        >
+          {initial ? undefined : (
+            <SegmentedTabs
+              value={effectiveKind}
+              options={KIND_OPTIONS}
+              onChange={changeKind}
+              ariaLabel={AUTO_ORGANIZE_KIND_TABS_LABEL}
+              className="min-w-0 flex-1"
+            />
+          )}
+        </SheetHeader>
 
         <div
           className="space-y-4"
