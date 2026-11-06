@@ -2,6 +2,7 @@ import { seedAdminEmail, SEED_PIN } from './constants'
 import { GOLDEN_BUCKET_NAMES } from './golden'
 import {
   PWA_SCREENSHOT_ADMIN_DISPLAY_NAME,
+  PWA_SCREENSHOT_BUCKET_GROUPS,
   PWA_SCREENSHOT_BUCKETS,
   PWA_SCREENSHOT_MANUAL_SOURCE,
   PWA_SCREENSHOT_SCENARIO_ID,
@@ -512,8 +513,10 @@ async function seedPwaScreenshots(id: ScenarioId): Promise<SeedResult> {
   )
 
   const svc = serviceClient()
+  const bucketIds = new Map<string, string>()
   for (const bucket of PWA_SCREENSHOT_BUCKETS) {
     const bucketId = await insertBucket(svc, admin.familyId, bucket.name, null)
+    bucketIds.set(bucket.name, bucketId)
     await moveMoney(adminClient, {
       fromBucketId: null,
       toBucketId: bucketId,
@@ -521,6 +524,24 @@ async function seedPwaScreenshots(id: ScenarioId): Promise<SeedResult> {
       note: `Set aside for ${bucket.name}`,
     })
   }
+
+  // Group the buckets the way a household would (visual only; no money moves).
+  const layout: { group_id: string | null; bucket_ids: string[] }[] = []
+  for (const group of PWA_SCREENSHOT_BUCKET_GROUPS) {
+    const { data: groupId, error } = await adminClient.rpc('create_bucket_group', {
+      p_name: group.name,
+    })
+    if (error) throw error
+    layout.push({
+      group_id: groupId as string,
+      bucket_ids: group.buckets.map((name) => bucketIds.get(name)!),
+    })
+  }
+  layout.push({ group_id: null, bucket_ids: [] })
+  const { error: layoutError } = await adminClient.rpc('save_bucket_layout', {
+    p_layout: layout,
+  })
+  if (layoutError) throw layoutError
 
   for (let i = 0; i < PWA_SCREENSHOT_VIRTUAL_KIDS.length; i++) {
     await giveMoney(adminClient, {

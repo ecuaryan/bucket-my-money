@@ -25,6 +25,12 @@ export const PWA_SCREENSHOT_BUCKETS = [
   { name: '🚗 Transportation', amount: 200 },
 ] as const
 
+/** Display groups for the Buckets tab screenshot (names must match above). */
+export const PWA_SCREENSHOT_BUCKET_GROUPS = [
+  { name: 'Home', buckets: ['🏠 Rent', '⚡ Utilities', '🛒 Groceries', '🚗 Transportation'] },
+  { name: 'Fun', buckets: ['🎉 Fun', '✈️ Travel', '🎁 Gifts'] },
+] as const
+
 /** Kids with no linked bank account — funded from Float via Give, shown in the
  *  "No linked account" section. */
 export const PWA_SCREENSHOT_VIRTUAL_KIDS = [
