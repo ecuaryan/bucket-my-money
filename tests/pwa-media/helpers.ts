@@ -116,7 +116,9 @@ export async function readAndDismissToast(page: Page) {
 }
 
 export function bucketListItem(page: Page, bucketName: string) {
-  return page.getByRole('listitem').filter({ hasText: bucketName })
+  return page.getByRole('listitem').filter({
+    has: page.getByRole('button', { name: `${bucketName} $` }),
+  })
 }
 
 export async function createBucketInUi(page: Page, name: string) {
@@ -166,8 +168,8 @@ export async function dragBucketUp(page: Page, bucketName: string) {
   const count = await items.count()
   let index = -1
   for (let i = 0; i < count; i++) {
-    const text = await items.nth(i).textContent()
-    if (text?.includes(bucketName)) {
+    const row = items.nth(i)
+    if (await row.getByRole('button', { name: `${bucketName} $` }).count()) {
       index = i
       break
     }
@@ -195,6 +197,48 @@ export async function dragBucketUp(page: Page, bucketName: string) {
   await page.mouse.move(startX, startY - 12, { steps: 4 })
   await demoPause(page, DEMO_ANIMATION_MS)
   await page.mouse.move(endX, endY, { steps: 18 })
+  await demoPause(page, DEMO_ANIMATION_MS)
+  await page.mouse.up()
+  await demoPause(page, DEMO_HOLD_MS)
+}
+
+export async function createGroupInUi(page: Page, name: string) {
+  await page.getByRole('button', { name: 'New group' }).click()
+  const input = page.getByLabel('Group name (optional)')
+  await input.waitFor()
+  await demoPause(page, DEMO_STEP_MS)
+  await input.fill(name)
+  await demoPause(page, DEMO_STEP_MS)
+  await page.getByRole('button', { name: 'Create group' }).click()
+  await expect(input).not.toBeVisible()
+  await page.locator('[data-group-header]').filter({ hasText: name }).waitFor()
+  await demoPause(page, DEMO_HOLD_MS)
+}
+
+/** Drag a bucket by its grip onto a group's header so it drops into that group. */
+export async function dragBucketIntoGroup(
+  page: Page,
+  bucketName: string,
+  groupName: string,
+) {
+  const grip = bucketListItem(page, bucketName).getByRole('button', {
+    name: 'Reorder bucket',
+  })
+  const header = page.locator('[data-group-header]').filter({ hasText: groupName })
+  await header.scrollIntoViewIfNeeded()
+  const gripBox = await grip.boundingBox()
+  const headerBox = await header.boundingBox()
+  if (!gripBox || !headerBox) {
+    throw new Error(`Could not measure drag into group (${bucketName} → ${groupName}).`)
+  }
+  const startX = gripBox.x + gripBox.width / 2
+  const startY = gripBox.y + gripBox.height / 2
+  await demoPause(page, DEMO_STEP_MS)
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(startX, startY - 12, { steps: 4 })
+  await demoPause(page, DEMO_ANIMATION_MS)
+  await page.mouse.move(startX, headerBox.y + headerBox.height / 2 + 8, { steps: 24 })
   await demoPause(page, DEMO_ANIMATION_MS)
   await page.mouse.up()
   await demoPause(page, DEMO_HOLD_MS)

@@ -26,3 +26,6 @@ export const PWA_DEMO_GIF_MOVES = [
 
 /** Bucket dragged up in the README demo GIF. */
 export const PWA_DEMO_GIF_DRAG_BUCKET = '🏠 Rent' as const
+
+/** Group created in the README demo GIF; the dragged bucket moves into it. */
+export const PWA_DEMO_GIF_GROUP = 'Home' as const
