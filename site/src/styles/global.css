@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+/* Match the app: pure black background, zinc text, emerald accent. */
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background-color: #000000;
+  color: #d4d4d8;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

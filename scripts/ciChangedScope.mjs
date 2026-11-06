@@ -15,15 +15,17 @@ function isDbSafe(file) {
   if (file.endsWith('.md')) return true
   if (file.startsWith('public/')) return true
   if (file.startsWith('.cursor/')) return true
+  if (file.startsWith('site/')) return true
   return false
 }
 
-/** Docs-only changes cannot affect app or e2e behavior. */
+/** Docs-only (or marketing-site-only) changes cannot affect app or e2e behavior. */
 function isDocsOnly(file) {
   if (file === 'LICENSE') return true
   if (file.endsWith('.md')) return true
   if (file.startsWith('docs/')) return true
   if (file.startsWith('.cursor/')) return true
+  if (file.startsWith('site/')) return true
   return false
 }
 

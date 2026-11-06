@@ -139,6 +139,7 @@ Entry point for AI coding agents (and humans) working in this repo.
 | DB-mirrored TS types (generated) | `src/types/database.ts`              |
 | SQL migrations                  | `supabase/migrations/`                |
 | Edge Functions (Deno runtime)   | `supabase/functions/<name>/index.ts`  |
+| Marketing site (static, Astro)  | `site/` — own `package.json`; [MAINTENANCE § Marketing site](./docs/MAINTENANCE.md#marketing-site) |
 
 Use the `@/` alias for absolute imports from `src/`.
 

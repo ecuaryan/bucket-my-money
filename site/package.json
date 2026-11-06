@@ -1,0 +1,17 @@
+{
+  "name": "bucket-my-money-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/copy-app-assets.mjs",
+    "predev": "node scripts/copy-app-assets.mjs",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "astro": "^7.4.7",
+    "tailwindcss": "^4.3.5"
+  }
+}
