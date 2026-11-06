@@ -1,0 +1,30 @@
+---
+/** A phone-shaped frame around an app screenshot or demo. */
+interface Props {
+  src: string
+  alt: string
+  width?: number
+  height?: number
+  eager?: boolean
+  class?: string
+}
+
+const { src, alt, width = 412, height = 915, eager = false, class: className = '' } = Astro.props
+---
+
+<div
+  class:list={[
+    'mx-auto w-full max-w-[280px] md:max-w-[320px] rounded-[2.25rem] bg-zinc-800 p-2 shadow-2xl shadow-emerald-500/10 ring-1 ring-zinc-700',
+    className,
+  ]}
+>
+  <img
+    src={src}
+    alt={alt}
+    width={width}
+    height={height}
+    loading={eager ? 'eager' : 'lazy'}
+    decoding="async"
+    class="block h-auto w-full rounded-[1.75rem] bg-black"
+  />
+</div>

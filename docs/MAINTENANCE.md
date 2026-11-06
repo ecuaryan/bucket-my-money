@@ -104,6 +104,34 @@ npm run pwa:screenshots
 Captured at **412×915**. Bucket names and manifest entries in
 [`scripts/seed/pwaScreenshots.ts`](../scripts/seed/pwaScreenshots.ts).
 
+## Marketing site
+
+`site/` is the public landing page — a static [Astro](https://astro.build)
+site with Tailwind v4, separate from the app (its own `package.json`, no
+React, no client JS). It reuses the app's screenshots, demo GIF and icons:
+`site/scripts/copy-app-assets.mjs` copies them from the repo-root `public/`
+at dev/build time (gitignored), so refreshing them with `npm run
+pwa:screenshots` / `npm run pwa:gifs` updates the site too.
+
+```bash
+npm --prefix site install   # once
+npm run site:dev            # http://localhost:4321, live reload
+npm run site:build          # static output in site/dist
+```
+
+- **Copy** lives in `site/src/pages/index.astro`, drawn from
+  [BRAND.md § Product narrative](./BRAND.md#product-narrative). The app's
+  no-subtitles rule is for app UI; marketing pages explain, but keep the same
+  voice and only claim what the app actually does.
+- **App links** come from `PUBLIC_APP_URL` (default
+  `https://bucketmymoney.com`) in `site/src/lib/links.ts`.
+- **CI:** the **marketing site build** job builds it on every PR; `site/`-only
+  diffs skip the db and e2e jobs.
+- **Hosting (planned):** its own Vercel project with Root Directory `site`.
+  The domain cutover — site on `bucketmymoney.com`, app on
+  `app.bucketmymoney.com` — is a separate change (Supabase auth URLs, passkey
+  hosts, redirects for old app paths, `PUBLIC_APP_URL`).
+
 ## Tailwind CSS v4
 
 This project uses Tailwind **v4** (CSS-first). Configuration lives in

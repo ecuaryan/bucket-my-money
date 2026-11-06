@@ -1,0 +1,458 @@
+---
+import Base from '../layouts/Base.astro'
+import Phone from '../components/Phone.astro'
+import { SIGN_IN_URL, SIGN_UP_URL } from '../lib/links'
+
+const shot = (name: string) => `/app-assets/screenshots/${name}.png`
+
+const steps = [
+  {
+    title: 'Connect your accounts',
+    body: 'Link checking, savings, and credit cards read-only through SimpleFIN, or type in a balance yourself.',
+  },
+  {
+    title: 'Bucket what’s spoken for',
+    body: 'Rent, groceries, the vacation, the emergency fund. Arrange them in groups like Home and Fun. Whatever you haven’t bucketed sits in Unbucketed.',
+  },
+  {
+    title: 'Spend, then pick the bucket',
+    body: 'Filled up the car? Move that amount from Gas back to Unbucketed. That’s the whole habit.',
+  },
+]
+
+const trust = [
+  {
+    title: 'It can only look',
+    body: 'Bank access is read-only, and you connect through SimpleFIN, so your bank login never touches us. Buckets are labels; moving money between them never touches your bank.',
+  },
+  {
+    title: 'Private where it counts',
+    body: 'Kids see only their own money, enforced by the database, not hidden on screen. Every household is walled off from every other.',
+  },
+  {
+    title: 'Built by a family, used by one',
+    body: 'Made for real daily use in one household first, so it stays simple: no spending categories, no charts to maintain.',
+  },
+]
+
+const faqs = [
+  {
+    q: 'How is this different from other budgeting apps?',
+    a: 'It doesn’t track spending. There are no categories to tag and no charts to maintain. You keep one number honest: what’s free after your buckets and credit cards are covered. One small move when you spend is the whole habit.',
+  },
+  {
+    q: 'Do I have to link my bank?',
+    a: 'No. Add any account as a manual balance and update it when you like. Link banks later if you want balances to keep themselves current.',
+  },
+  {
+    q: 'How does bank linking work?',
+    a: 'Through SimpleFIN Bridge. You set up a SimpleFIN account, connect your banks there, and paste a one-time setup token into Bucket My Money. SimpleFIN charges a small subscription, paid to them directly.',
+  },
+  {
+    q: 'Can Bucket My Money move my money?',
+    a: 'No. Bank access is read-only. Buckets are labels on money you already have; moving money between buckets never touches your bank.',
+  },
+  {
+    q: 'Is there an app to download?',
+    a: 'It’s a web app you install from your browser: Add to Home Screen on iPhone, or Install on Android and desktop. It opens full screen like any other app.',
+  },
+  {
+    q: 'Can my partner use it with me?',
+    a: 'Yes. Adults in a household share one Unbucketed number and the family buckets, and each person signs in with their own PIN.',
+  },
+  {
+    q: 'What can my kids see?',
+    a: 'Only their own buckets and balance, never the family’s money or anyone else’s. That’s enforced by the database, not just hidden on screen.',
+  },
+]
+---
+
+<Base
+  title="Bucket My Money — See where your money actually is"
+  description="Bucket budgeting on top of your real bank accounts. Set money aside in buckets, count credit cards against what you have, and when the balance moves, pick which bucket covers it."
+>
+  <header class="sticky top-0 z-20 border-b border-zinc-900 bg-black/80 backdrop-blur">
+    <nav class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3">
+      <a href="/" class="flex shrink-0 items-center gap-2.5 font-semibold whitespace-nowrap text-white">
+        <img src="/app-assets/icons/icon-96.png" alt="Bucket My Money" width="32" height="32" class="rounded-lg" />
+        <span class="hidden sm:inline">Bucket My Money</span>
+      </a>
+      <div class="hidden items-center gap-7 text-sm text-zinc-400 md:flex">
+        <a href="#how" class="hover:text-white">How it works</a>
+        <a href="#cards" class="hover:text-white">Credit cards</a>
+        <a href="#households" class="hover:text-white">Households</a>
+        <a href="#faq" class="hover:text-white">FAQ</a>
+      </div>
+      <div class="flex items-center gap-1 text-sm whitespace-nowrap sm:gap-2">
+        <a href={SIGN_IN_URL} class="rounded-lg px-3 py-2 text-zinc-300 hover:text-white">Sign in</a>
+        <a
+          href={SIGN_UP_URL}
+          class="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-black hover:bg-emerald-400"
+        >
+          Get started
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-x-0 -top-40 mx-auto h-[36rem] max-w-4xl rounded-full bg-emerald-500/15 blur-3xl"
+      >
+      </div>
+      <div
+        class="relative mx-auto grid max-w-6xl items-center gap-14 px-5 pt-16 pb-20 md:grid-cols-[1.15fr_1fr] md:pt-24 md:pb-28"
+      >
+        <div>
+          <h1 class="text-4xl leading-[1.05] font-bold tracking-tight text-white sm:text-6xl">
+            Your bank balance is lying to you.
+          </h1>
+          <p class="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400 sm:text-xl">
+            That $4,000 in checking already has rent, insurance, and groceries waiting on it.
+            Bucket My Money shows the number that’s actually free to spend. Balance moved? Pick
+            which bucket covers it.
+          </p>
+          <div class="mt-9 flex flex-wrap gap-3">
+            <a
+              href={SIGN_UP_URL}
+              class="rounded-xl bg-emerald-500 px-6 py-3.5 text-base font-semibold text-black hover:bg-emerald-400"
+            >
+              Get started
+            </a>
+            <a
+              href="#how"
+              class="rounded-xl px-6 py-3.5 text-base font-semibold text-white ring-1 ring-zinc-700 hover:bg-zinc-900"
+            >
+              See how it works
+            </a>
+          </div>
+          <p class="mt-4 text-sm text-zinc-500">No bank link needed to start. Add a balance by hand.</p>
+          <ul class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-500">
+            <li>✓ Read-only bank access</li>
+            <li>✓ Credit cards included</li>
+            <li>✓ Solo or household, kids included</li>
+          </ul>
+        </div>
+        <Phone
+          src={shot('buckets')}
+          alt="Buckets tab: Unbucketed at the top, then emoji buckets sorted into Home and Fun groups"
+          eager
+        />
+      </div>
+    </section>
+
+    <!-- Trust -->
+    <section class="border-t border-zinc-900">
+      <div class="mx-auto grid max-w-6xl gap-px bg-zinc-900 px-0 md:grid-cols-3">
+        {
+          trust.map((item) => (
+            <div class="bg-black px-6 py-8">
+              <h2 class="font-semibold text-white">{item.title}</h2>
+              <p class="mt-2 text-sm leading-relaxed text-zinc-400">{item.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- Bank vs. real -->
+    <section class="bg-zinc-950">
+      <div class="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 md:grid-cols-2 md:py-28">
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            $4,000 in the bank isn’t $4,000 to spend.
+          </h2>
+          <p class="mt-5 text-lg leading-relaxed text-zinc-400">
+            Your bank shows what you have. It can’t show what’s already promised. Bucket My Money
+            subtracts the promises, so the number you see is the number that’s yours.
+          </p>
+        </div>
+        <div class="rounded-2xl bg-black p-7 ring-1 ring-zinc-800">
+          <div class="flex items-baseline justify-between">
+            <span class="text-zinc-400">Bank balance</span>
+            <span class="text-xl font-semibold text-zinc-300">$4,000</span>
+          </div>
+          <ul class="mt-5 space-y-3 border-t border-zinc-800 pt-5 text-sm">
+            {
+              [
+                ['🏠', 'Rent, due Friday', '−$1,800'],
+                ['🚗', 'Car insurance, auto-drafting', '−$220'],
+                ['🛒', 'Groceries this week', '−$450'],
+              ].map(([icon, label, amount]) => (
+                <li class="flex items-center justify-between text-zinc-400">
+                  <span class="flex items-center gap-2.5">
+                    <span aria-hidden="true">{icon}</span>
+                    {label}
+                  </span>
+                  <span class="font-medium text-zinc-300">{amount}</span>
+                </li>
+              ))
+            }
+          </ul>
+          <div class="mt-5 flex items-baseline justify-between rounded-xl bg-emerald-500/10 px-4 py-3 ring-1 ring-emerald-500/30">
+            <span class="font-semibold text-emerald-300">Actually free</span>
+            <span class="text-3xl font-bold tracking-tight text-emerald-300">$1,530</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Two numbers -->
+    <section class="border-y border-zinc-900">
+      <div class="mx-auto max-w-6xl px-5 py-20 md:py-24">
+        <h2 class="max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Your money lives in two places.
+        </h2>
+        <div class="mt-12 grid gap-5 md:grid-cols-2">
+          <div class="rounded-2xl bg-emerald-500/10 p-7 ring-1 ring-emerald-500/30">
+            <p class="text-sm font-semibold tracking-wide text-emerald-300 uppercase">Unbucketed</p>
+            <p class="mt-3 text-lg leading-relaxed text-zinc-300">
+              The running balance. Paychecks land here; bills, card charges, and autopays come out of
+              it. It’s the honest answer to “can I afford this?”
+            </p>
+            <div class="mt-6 rounded-xl bg-black/40 p-5 ring-1 ring-emerald-500/20">
+              <p class="text-xs font-semibold tracking-wide text-emerald-300 uppercase">Unbucketed</p>
+              <p class="mt-1 text-4xl font-bold tracking-tight text-emerald-300">$5,180</p>
+              <p class="mt-1 text-sm text-zinc-500">of $10,020 total</p>
+            </div>
+          </div>
+          <div class="rounded-2xl bg-zinc-900 p-7 ring-1 ring-zinc-800">
+            <p class="text-sm font-semibold tracking-wide text-zinc-400 uppercase">Buckets</p>
+            <p class="mt-3 text-lg leading-relaxed text-zinc-300">
+              Money you’ve set aside on purpose: vacation, car repairs, Christmas, whatever matters
+              to you. Once it’s in a bucket, it has a job.
+            </p>
+            <ul class="mt-6 divide-y divide-zinc-800 rounded-xl bg-black/40 px-4 ring-1 ring-zinc-800">
+              {
+                [
+                  ['🏠', 'Rent', '$1,800'],
+                  ['🛒', 'Groceries', '$450'],
+                  ['✈️', 'Travel', '$350'],
+                ].map(([icon, name, amount]) => (
+                  <li class="flex items-center justify-between py-3 text-sm">
+                    <span class="text-zinc-200">
+                      <span class="mr-2" aria-hidden="true">{icon}</span>
+                      {name}
+                    </span>
+                    <span class="font-semibold text-white">{amount}</span>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how" class="scroll-mt-20">
+      <div class="mx-auto grid max-w-6xl items-center gap-14 px-5 py-20 md:grid-cols-[1fr_1.1fr] md:py-28">
+        <Phone
+          src="/app-assets/demos/organize-money.gif"
+          alt="Creating buckets, setting money aside from Unbucketed, then grouping Rent under Home"
+          width={280}
+          height={621}
+          class="order-last md:order-first"
+        />
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">One habit. That’s it.</h2>
+          <ol class="mt-10 space-y-8">
+            {
+              steps.map((step, i) => (
+                <li class="flex gap-5">
+                  <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-semibold text-emerald-300 ring-1 ring-emerald-500/40">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <h3 class="text-lg font-semibold text-white">{step.title}</h3>
+                    <p class="mt-1.5 leading-relaxed text-zinc-400">{step.body}</p>
+                  </div>
+                </li>
+              ))
+            }
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- Credit cards + red -->
+    <section id="cards" class="scroll-mt-20 border-y border-zinc-900 bg-zinc-950">
+      <div class="mx-auto grid max-w-6xl items-center gap-14 px-5 py-20 md:grid-cols-[1.1fr_1fr] md:py-28">
+        <div class="space-y-12">
+          <div>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Credit cards count.</h2>
+            <p class="mt-4 text-lg leading-relaxed text-zinc-400">
+              A card balance comes out of Unbucketed as soon as it syncs, so a swipe can’t hide from
+              your budget. Paying the statement doesn’t move the number. You already covered that
+              spending.
+            </p>
+          </div>
+          <div>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Red means decide.</h2>
+            <p class="mt-4 text-lg leading-relaxed text-zinc-400">
+              When your buckets and card balances add up to more than your cash, Unbucketed turns
+              red. Nothing rebalances behind your back. You choose which bucket gives.
+            </p>
+          </div>
+        </div>
+        <Phone
+          src={shot('buckets-rebalance')}
+          alt="Buckets tab with a negative, red Unbucketed balance"
+        />
+      </div>
+    </section>
+
+    <!-- Not a tracker -->
+    <section>
+      <div class="mx-auto max-w-3xl px-5 py-20 text-center md:py-28">
+        <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Not another spending tracker.
+        </h2>
+        <p class="mt-5 text-lg leading-relaxed text-zinc-400">
+          No tagging every coffee. No pie charts. No end-of-month reconciling. Bucket My Money tells
+          you where your money is, so you make deliberate decisions instead of hopeful ones.
+        </p>
+        <div class="mt-12 grid gap-4 text-left sm:grid-cols-2">
+          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
+            <h3 class="font-semibold text-white">Auto-bucket the routine</h3>
+            <p class="mt-2 leading-relaxed text-zinc-400">
+              Fill buckets on a schedule (weekly, every two weeks, or twice a month) or run the
+              rules whenever you want.
+            </p>
+          </div>
+          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
+            <h3 class="font-semibold text-white">Every move on the record</h3>
+            <p class="mt-2 leading-relaxed text-zinc-400">
+              History shows each move between buckets and each send, with notes, for everyone who
+              should see it.
+            </p>
+          </div>
+          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
+            <h3 class="font-semibold text-white">Groups that are yours</h3>
+            <p class="mt-2 leading-relaxed text-zinc-400">
+              Sort buckets into Home, Fun, or a Cruise. Only you see your groups, and no money moves
+              when you arrange them.
+            </p>
+          </div>
+          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
+            <h3 class="font-semibold text-white">Hide the numbers</h3>
+            <p class="mt-2 leading-relaxed text-zinc-400">
+              One tap hides every amount for when someone’s looking over your shoulder. Hold Peek to
+              check one.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Households -->
+    <section id="households" class="scroll-mt-20 border-y border-zinc-900 bg-zinc-950">
+      <div class="mx-auto grid max-w-6xl items-center gap-14 px-5 py-20 md:grid-cols-[1fr_1.1fr] md:py-28">
+        <Phone
+          src={shot('kids')}
+          alt="Kids tab showing each kid's balance with a Give button"
+          class="order-last md:order-first"
+        />
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            Built for one. Ready for the whole house.
+          </h2>
+          <dl class="mt-10 space-y-8">
+            <div>
+              <dt class="text-lg font-semibold text-white">One number for the adults</dt>
+              <dd class="mt-1.5 leading-relaxed text-zinc-400">
+                Partners share Unbucketed and the family buckets, so you’re both looking at the same
+                truth.
+              </dd>
+            </div>
+            <div>
+              <dt class="text-lg font-semibold text-white">Kids get their own</dt>
+              <dd class="mt-1.5 leading-relaxed text-zinc-400">
+                Each kid has their own buckets and balance. Give an allowance in the app, or connect
+                their own bank account.
+              </dd>
+            </div>
+            <div>
+              <dt class="text-lg font-semibold text-white">PIN or Face ID</dt>
+              <dd class="mt-1.5 leading-relaxed text-zinc-400">
+                Family members join with a household code and sign in with a PIN, or Face ID and
+                Touch ID on their own device.
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="scroll-mt-20">
+      <div class="mx-auto max-w-3xl px-5 py-20 md:py-28">
+        <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Questions</h2>
+        <div class="mt-10 divide-y divide-zinc-800 border-y border-zinc-800">
+          {
+            faqs.map((item) => (
+              <details class="group py-5">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-white">
+                  {item.q}
+                  <span
+                    aria-hidden="true"
+                    class="text-2xl leading-none text-zinc-500 transition group-open:rotate-45"
+                  >
+                    +
+                  </span>
+                </summary>
+                <p class="mt-3 leading-relaxed text-zinc-400">{item.a}</p>
+              </details>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="relative overflow-hidden border-t border-zinc-900">
+      <div
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-x-0 top-10 mx-auto h-72 max-w-3xl rounded-full bg-emerald-500/10 blur-3xl"
+      >
+      </div>
+      <div class="relative mx-auto max-w-3xl px-5 py-24 text-center md:py-32">
+        <h2 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+          Find out what’s really yours to spend.
+        </h2>
+        <p class="mx-auto mt-5 max-w-xl text-lg text-zinc-400">
+          Start with a manual balance and link your banks whenever you’re ready.
+        </p>
+        <div class="mt-9 flex flex-wrap justify-center gap-3">
+          <a
+            href={SIGN_UP_URL}
+            class="rounded-xl bg-emerald-500 px-7 py-3.5 text-base font-semibold text-black hover:bg-emerald-400"
+          >
+            Get started
+          </a>
+          <a
+            href={SIGN_IN_URL}
+            class="rounded-xl px-7 py-3.5 text-base font-semibold text-white ring-1 ring-zinc-700 hover:bg-zinc-900"
+          >
+            Sign in
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-zinc-900">
+    <div
+      class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-zinc-500 sm:flex-row"
+    >
+      <p>© {new Date().getFullYear()} Bucket My Money</p>
+      <div class="flex gap-6">
+        <a href="#faq" class="hover:text-zinc-300">FAQ</a>
+        <a href={SIGN_IN_URL} class="hover:text-zinc-300">Sign in</a>
+      </div>
+    </div>
+  </footer>
+</Base>

@@ -21,6 +21,12 @@ describe('classifyChangedFiles', () => {
     ).toEqual({ runDb: false, runE2e: false })
   })
 
+  it('skips both for marketing-site-only changes', () => {
+    expect(
+      classifyChangedFiles(['site/src/pages/index.astro', 'site/package.json']),
+    ).toEqual({ runDb: false, runE2e: false })
+  })
+
   it('runs db when src/lib changes (db tests import lib constants)', () => {
     expect(classifyChangedFiles(['src/lib/buckets.ts'])).toEqual({
       runDb: true,
