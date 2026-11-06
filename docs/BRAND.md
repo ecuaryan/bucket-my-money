@@ -27,6 +27,10 @@ The payoff:
 - **Works alone or together** — one person with buckets, or a household sharing
   Unbucketed and optional member PINs.
 
+**Positioning (internal — not UI copy):** Bucket My Money is for people who want
+an honest number for what's free to spend, without keeping a ledger. Solo or as a
+household, kids included.
+
 **Canonical tagline (`APP_TAGLINE`):** *Balance moved? Pick which bucket covers it.*
 (“Balance,” not “bank balance” — a card swipe moves the number too.)
 
