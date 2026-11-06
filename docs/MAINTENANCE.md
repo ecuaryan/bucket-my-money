@@ -127,7 +127,10 @@ npm run site:build          # static output in site/dist
   `https://bucketmymoney.com`) in `site/src/lib/links.ts`.
 - **CI:** the **marketing site build** job builds it on every PR; `site/`-only
   diffs skip the db and e2e jobs.
-- **Hosting (planned):** its own Vercel project with Root Directory `site`.
+- **Hosting (planned):** Cloudflare Pages (free, fine for commercial use; Vercel Hobby is
+  non-commercial). Root directory `site`, build command `npm run build`, output
+  `dist`, env `NODE_VERSION=22` (matches CI). Headers ship in
+  `site/public/_headers` (mirror of `site/vercel.json`; keep both in sync).
   The domain cutover — site on `bucketmymoney.com`, app on
   `app.bucketmymoney.com` — is a separate change (Supabase auth URLs, passkey
   hosts, redirects for old app paths, `PUBLIC_APP_URL`).
