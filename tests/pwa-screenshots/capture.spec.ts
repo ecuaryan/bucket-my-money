@@ -33,7 +33,7 @@ test('capture PWA install screenshots', async ({ page }) => {
   const bucketsTab = page.getByRole('tab', { name: NAV_BUCKETS_LABEL })
   await expect(bucketsTab).toHaveAttribute('aria-selected', 'true')
   for (const bucket of PWA_SCREENSHOT_BUCKETS) {
-    await page.getByText(bucket.name, { exact: true }).waitFor()
+    await page.getByRole('button', { name: `${bucket.name} $` }).waitFor()
   }
 
   await page.screenshot({ path: join(outputDir, 'buckets.png') })

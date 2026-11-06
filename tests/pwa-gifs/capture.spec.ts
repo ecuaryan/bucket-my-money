@@ -6,14 +6,17 @@ import { assertFfmpegInstalled, webmToGif } from '../../scripts/pwaGifExport.mjs
 import {
   PWA_DEMO_GIF_BUCKETS,
   PWA_DEMO_GIF_DRAG_BUCKET,
+  PWA_DEMO_GIF_GROUP,
   PWA_DEMO_GIF_MOVES,
 } from '../../scripts/seed/pwaDemoGifs'
 import { PWA_SCREENSHOT_VIEWPORT } from '../../scripts/seed/pwaScreenshots'
 import {
   DEMO_HOLD_MS,
   createBucketInUi,
+  createGroupInUi,
   demoPause,
   dismissOnboardingCoachIfVisible,
+  dragBucketIntoGroup,
   dragBucketUp,
   setAsideFromFloat,
   signInPwaDemoGifAdmin,
@@ -153,6 +156,9 @@ test('organize money demo gif', async ({ browser }) => {
 
   await dragBucketUp(page, PWA_DEMO_GIF_DRAG_BUCKET)
   await demoPause(page, DEMO_HOLD_MS)
+
+  await createGroupInUi(page, PWA_DEMO_GIF_GROUP)
+  await dragBucketIntoGroup(page, PWA_DEMO_GIF_DRAG_BUCKET, PWA_DEMO_GIF_GROUP)
 
   await exportDemoGif(page, 'organize-money', trimStartSeconds)
   await context.close()
