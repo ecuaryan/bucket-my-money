@@ -6,7 +6,7 @@ How we ship changes safely: branches, CI, GitHub, and Vercel.
 
 | Environment | Frontend | Database |
 | ----------- | -------- | -------- |
-| **Production** | [bucketmymoney.com](https://bucketmymoney.com) | Hosted Supabase (dashboard project) |
+| **Production** | [app.bucketmymoney.com](https://app.bucketmymoney.com) | Hosted Supabase (dashboard project) |
 | **Local dev** | `npm run dev` (:5173) | Docker via `npm run db:start` |
 | **CI** | Built in Actions (placeholder or local Supabase env) | Throwaway Supabase in the runner only |
 
@@ -225,7 +225,7 @@ sequenceDiagram
 | ---- | -------- | --------------- |
 | 1 | [**CI**](./.github/workflows/ci.yml) | Lint, tests, build; local throwaway Supabase in the runner only |
 | 2 | [**Deploy Supabase**](./.github/workflows/deploy-supabase.yml) | Hosted Postgres migrations + Edge Functions (runs only after green CI on `main`) |
-| 3 | **Vercel** | Static frontend at [bucketmymoney.com](https://bucketmymoney.com) |
+| 3 | **Vercel** | Static frontend at [app.bucketmymoney.com](https://app.bucketmymoney.com) |
 
 **Typical timing:** merge → CI runs several minutes → **Deploy Supabase** starts
 when CI completes → check **Database → Migrations** in the Supabase dashboard
