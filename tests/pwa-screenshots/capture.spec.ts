@@ -17,15 +17,18 @@ import {
   PWA_SCREENSHOT_VIRTUAL_KIDS,
   PWA_SCREENSHOT_LINKED_KIDS,
 } from '../../scripts/seed/pwaScreenshots'
+import { captureFeatureShots } from './featureShots'
 import {
   signInPwaScreenshotAdmin,
   waitForNavSettled,
 } from '../pwa-media/helpers'
 
 const outputDir = join(process.cwd(), 'public/screenshots')
+const featuresDir = join(process.cwd(), 'public/features')
 
-test('capture PWA install screenshots', async ({ page }) => {
+test('capture PWA install screenshots', async ({ page, browser }, testInfo) => {
   await mkdir(outputDir, { recursive: true })
+  await mkdir(featuresDir, { recursive: true })
   await page.emulateMedia({ reducedMotion: 'reduce' })
 
   await signInPwaScreenshotAdmin(page)
@@ -56,6 +59,13 @@ test('capture PWA install screenshots', async ({ page }) => {
     await kidsList.getByText(kid.name, { exact: true }).waitFor()
   }
   await page.screenshot({ path: join(outputDir, 'kids.png') })
+
+  // Marketing-site feature crops: must run before the rebalance below.
+  await captureFeatureShots(browser, {
+    baseURL: testInfo.project.use.baseURL ?? 'http://127.0.0.1:5173',
+    adminEmail,
+    outputDir: featuresDir,
+  })
 
   await applyPwaScreenshotRebalance(adminEmail)
   await page.goto('/')

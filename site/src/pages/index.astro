@@ -4,6 +4,40 @@ import Phone from '../components/Phone.astro'
 import { SIGN_IN_URL, SIGN_UP_URL } from '../lib/links'
 
 const shot = (name: string) => `/app-assets/screenshots/${name}.png`
+const feature = (name: string) => `/app-assets/features/${name}.png`
+
+// Crops come from `npm run pwa:screenshots` (tests/pwa-screenshots/featureShots.ts).
+const features = [
+  {
+    title: 'Auto-bucket the routine',
+    body: 'Fill buckets on a schedule (weekly, every two weeks, or twice a month) or run the rules whenever you want.',
+    img: 'feature-auto-bucket',
+    height: 724,
+    alt: 'Auto-bucket rules: Fun money every week and Payday twice a month, each with Run now',
+  },
+  {
+    title: 'Every move on the record',
+    body: 'History shows each move between buckets and each send, with notes, for everyone who should see it.',
+    img: 'feature-history',
+    height: 744,
+    alt: 'History rows showing a $25 and a $40 send with Allowance notes and before and after balances',
+  },
+  {
+    title: 'Groups that are yours',
+    body: 'Sort buckets into Home, Fun, or a Cruise. Only you see your groups, and no money moves when you arrange them.',
+    img: 'feature-groups',
+    height: 836,
+    alt: 'Buckets sorted into Home and Fun groups with a total for each group',
+  },
+  {
+    title: 'Hide the numbers',
+    body: 'One tap hides every amount for when someone’s looking over your shoulder. Hold Peek to check one.',
+    img: 'feature-hide-before',
+    compare: 'feature-hide-after',
+    height: 836,
+    alt: 'The Buckets screen with amounts shown on the left half and hidden behind dots on the right half',
+  },
+]
 
 const steps = [
   {
@@ -324,34 +358,47 @@ const faqs = [
           you where your money is, so you make deliberate decisions instead of hopeful ones.
         </p>
         <div class="mt-12 grid gap-4 text-left sm:grid-cols-2">
-          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
-            <h3 class="font-semibold text-white">Auto-bucket the routine</h3>
-            <p class="mt-2 leading-relaxed text-zinc-400">
-              Fill buckets on a schedule (weekly, every two weeks, or twice a month) or run the
-              rules whenever you want.
-            </p>
-          </div>
-          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
-            <h3 class="font-semibold text-white">Every move on the record</h3>
-            <p class="mt-2 leading-relaxed text-zinc-400">
-              History shows each move between buckets and each send, with notes, for everyone who
-              should see it.
-            </p>
-          </div>
-          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
-            <h3 class="font-semibold text-white">Groups that are yours</h3>
-            <p class="mt-2 leading-relaxed text-zinc-400">
-              Sort buckets into Home, Fun, or a Cruise. Only you see your groups, and no money moves
-              when you arrange them.
-            </p>
-          </div>
-          <div class="rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
-            <h3 class="font-semibold text-white">Hide the numbers</h3>
-            <p class="mt-2 leading-relaxed text-zinc-400">
-              One tap hides every amount for when someone’s looking over your shoulder. Hold Peek to
-              check one.
-            </p>
-          </div>
+          {
+            features.map((f) => (
+              <div class="flex flex-col rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
+                <div class="relative overflow-hidden rounded-xl bg-black ring-1 ring-zinc-800">
+                  <img
+                    src={feature(f.img)}
+                    alt={f.alt}
+                    width="768"
+                    height={f.height}
+                    loading="lazy"
+                    decoding="async"
+                    class="block h-auto w-full"
+                  />
+                  {f.compare && (
+                    <>
+                      <img
+                        src={feature(f.compare)}
+                        alt=""
+                        aria-hidden="true"
+                        width="768"
+                        height={f.height}
+                        loading="lazy"
+                        decoding="async"
+                        class="absolute inset-0 block h-full w-full"
+                        style="clip-path: inset(0 0 0 50%)"
+                      />
+                      <div aria-hidden="true" class="absolute inset-y-0 left-1/2 w-px bg-emerald-400/70" />
+                      <span class="absolute top-[46%] left-3 -translate-y-1/2 rounded-full bg-black/80 px-2 py-1 text-[11px] leading-none font-semibold text-zinc-300 ring-1 ring-zinc-700">
+                        Shown
+                      </span>
+                      <span class="absolute top-[46%] right-3 -translate-y-1/2 rounded-full bg-black/80 px-2 py-1 text-[11px] leading-none font-semibold text-emerald-300 ring-1 ring-emerald-500/40">
+                        Hidden
+                      </span>
+                    </>
+                  )}
+                </div>
+                <h3 class="mt-5 font-semibold text-white">{f.title}</h3>
+                <p class="mt-2 leading-relaxed text-zinc-400">{f.body}</p>
+              </div>
+            ))
+          }
         </div>
       </div>
     </section>

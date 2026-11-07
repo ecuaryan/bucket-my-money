@@ -81,6 +81,7 @@ sheet, and portfolio viewers stay in sync with the product.
 | ----- | ---------------- | ------- |
 | Install PNGs | PWA manifest (`public/screenshots/`), [README Screenshots](./README.md#screenshots) | `npm run pwa:screenshots` |
 | Demo GIF | [README Demo](./README.md#demo) | `npm run pwa:gifs` |
+| Feature crops | Marketing site feature cards (`public/features/`, copied into `site/`) | `npm run pwa:screenshots` (same run) |
 
 Cosmetic copy tweaks usually do not need a refresh; new layouts, tabs, flows, or
 visual hierarchy do.
@@ -100,6 +101,15 @@ Resets the `pwa-gifs` seed, captures with Playwright + ffmpeg. Constants in
 npm run db:reset:seed -- pwa-screenshots
 npm run pwa:screenshots
 ```
+
+The same run also writes the marketing site's feature crops
+(`public/features/feature-*.png`, 2x) via
+[`tests/pwa-screenshots/featureShots.ts`](../tests/pwa-screenshots/featureShots.ts),
+seeding two demo Auto-bucket rules first
+([`scripts/seed/pwaFeatureShots.ts`](../scripts/seed/pwaFeatureShots.ts)). The crop
+rectangles are hard-coded CSS pixels on the demo layout; adjust them if Buckets,
+Auto-bucket, or History layout shifts. Regenerating also re-saves `history.png`, so
+only commit PNGs that changed on purpose.
 
 Captured at **412×915**. Bucket names and manifest entries in
 [`scripts/seed/pwaScreenshots.ts`](../scripts/seed/pwaScreenshots.ts).

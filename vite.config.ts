@@ -48,6 +48,8 @@ export default defineConfig({
       ],
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webp,woff2}'],
+        // Marketing-site crops only (copied into site/); keep them out of the app's offline cache.
+        globIgnores: ['features/**'],
       },
       manifest: {
         name: APP_NAME,

@@ -15,7 +15,7 @@ const dest = join(siteRoot, 'public', 'app-assets')
 
 rmSync(dest, { recursive: true, force: true })
 mkdirSync(dest, { recursive: true })
-for (const dir of ['screenshots', 'demos', 'icons']) {
+for (const dir of ['screenshots', 'features', 'demos', 'icons']) {
   cpSync(join(appPublic, dir), join(dest, dir), { recursive: true })
 }
 for (const file of ['favicon-16.png', 'favicon-32.png', 'apple-touch-icon.png']) {
