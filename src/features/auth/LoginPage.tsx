@@ -172,6 +172,7 @@ export default function LoginPage() {
       })
       clearPasswordRecoveryFlow()
       await auth.signInWithSession(tokens)
+      recordLastSignIn('pin')
     } catch (err) {
       setBiometricBusy(false)
       if ((err as { noPasskey?: boolean }).noPasskey) {
@@ -212,6 +213,7 @@ export default function LoginPage() {
       })
       clearPasswordRecoveryFlow()
       await auth.signInWithSession(tokens)
+      recordLastSignIn('pin')
       setSignInPreference('pin')
     } catch (err) {
       setPinBusy(false)
