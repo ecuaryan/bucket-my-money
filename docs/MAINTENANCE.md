@@ -288,6 +288,23 @@ and, after a tick, check recent `net._http_response` rows / the function's
 Invocations. Rotating the secret = update both the Edge Function secret and the
 `scheduled_refresh_secret` Vault entry.
 
+## Before inviting more households
+
+Both are deliberately deferred while the app is used by one family and friends.
+Do them before opening sign-up more widely (Google sign-in and the privacy policy
+are public, so strangers can already arrive).
+
+- **Custom SMTP for Supabase Auth.** The built-in mail sender is heavily
+  rate-limited (a few emails per hour, project-wide) and often lands in spam, so
+  signup confirmations and password resets can silently fail. Use a free tier
+  (Resend or Brevo) with a sender on `bucketmymoney.com`: add the provider's DNS
+  records in Cloudflare alongside the existing Email Routing records, then set it
+  in Supabase → Authentication → Emails → SMTP Settings.
+- **Database backups.** Check what the Supabase plan includes (Dashboard →
+  Database → Backups); otherwise Pro, or a scheduled encrypted `pg_dump`. Keep a
+  copy of Edge Function secrets (Plaid keys, signing secrets) in a password
+  manager.
+
 ## Security and production checklist
 
 ### Production deploy automation

@@ -50,12 +50,13 @@ function AppleMark({ className }: { className?: string }) {
   )
 }
 
-/** Small pill marking the sign-in method used last on this device. */
-export function LastUsedBadge({ className = '' }: { className?: string }) {
+/**
+ * Pill straddling the top-right corner of the button for the sign-in method
+ * used last on this device. The parent button must be `relative`.
+ */
+export function LastUsedBadge() {
   return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[11px] leading-none font-semibold ${className}`}
-    >
+    <span className="pointer-events-none absolute -top-2 right-3 rounded-full bg-emerald-500 px-2 py-1 text-[10px] leading-none font-semibold text-black ring-2 ring-zinc-900">
       {LOGIN_LAST_USED}
     </span>
   )
@@ -115,15 +116,7 @@ export function OAuthButtons({
             <AppleMark className="h-5 w-5" />
           )}
           {LABELS[provider]}
-          {lastUsed === provider && (
-            <LastUsedBadge
-              className={`absolute top-1/2 right-3 -translate-y-1/2 ${
-                provider === 'google'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-emerald-500/20 text-emerald-300'
-              }`}
-            />
-          )}
+          {lastUsed === provider && <LastUsedBadge />}
         </button>
       ))}
       {error && (
