@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import LegalLinks from '@/components/LegalLinks'
 import { formatAppVersion } from '@/lib/appVersion'
 import { applyAppUpdateNow } from '@/lib/pwaUpdate'
 import { useAppUpdateReady } from '@/hooks/useAppUpdateReady'
@@ -11,7 +12,8 @@ export default function AppVersionFooter({ className = 'pt-6' }: { className?: s
 
   return (
     <div className={`text-center ${className}`}>
-      <p className="text-xs text-zinc-600">Version {formatAppVersion()}</p>
+      <LegalLinks />
+      <p className="mt-2 text-xs text-zinc-600">Version {formatAppVersion()}</p>
       {updateReady ? (
         <button
           type="button"
