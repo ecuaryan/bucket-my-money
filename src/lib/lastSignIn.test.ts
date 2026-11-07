@@ -16,6 +16,12 @@ describe('lastSignIn', () => {
     expect(getLastSignIn()).toBeNull()
   })
 
+  it('remembers PIN as the last method so no stale pill shows', () => {
+    recordLastSignIn('google')
+    recordLastSignIn('pin')
+    expect(getLastSignIn()).toBe('pin')
+  })
+
   it('records the method and ignores junk values', () => {
     recordLastSignIn('email')
     expect(getLastSignIn()).toBe('email')

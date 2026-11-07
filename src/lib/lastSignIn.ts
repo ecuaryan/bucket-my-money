@@ -5,9 +5,10 @@ const PENDING_KEY = 'bucketmymoney_pending_oauth'
 /** A provider round trip that takes longer than this is treated as abandoned. */
 const PENDING_TTL_MS = 10 * 60 * 1000
 
-export type LastSignIn = OAuthProvider | 'email'
+/** `pin` covers PIN and fingerprint/Face ID unlock; it shows no pill (that screen is the default). */
+export type LastSignIn = OAuthProvider | 'email' | 'pin'
 
-const METHODS: readonly LastSignIn[] = ['google', 'apple', 'email']
+const METHODS: readonly LastSignIn[] = ['google', 'apple', 'email', 'pin']
 
 export function getLastSignIn(): LastSignIn | null {
   try {
