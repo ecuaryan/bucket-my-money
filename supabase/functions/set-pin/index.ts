@@ -3,7 +3,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { handleCors, jsonResponse } from '../_shared/http.ts'
 import { requireAdmin, serviceClient } from '../_shared/supabase.ts'
-import { hashPin, isValidPin } from '../_shared/pin.ts'
+import { hashPin, isPinOnlyAuthEmail, isValidPin } from '../_shared/pin.ts'
 
 type Body = {
   memberId?: string
@@ -76,6 +76,25 @@ Deno.serve(async (req: Request) => {
         { error: 'Could not sign them out on other devices. Try again.' },
         500,
       )
+    }
+
+    // A PIN-only member's session holder can set their own GoTrue password and
+    // later sign in with it, bypassing the PIN and its lockout. Replace the
+    // password with a fresh random one so revoking sessions really revokes
+    // access; the next PIN login re-derives the stable password (session.ts).
+    const { data: authUser } = await admin.auth.admin.getUserById(member.user_id)
+    if (authUser?.user?.email && isPinOnlyAuthEmail(authUser.user.email)) {
+      const { error: pwError } = await admin.auth.admin.updateUserById(
+        member.user_id,
+        { password: crypto.randomUUID() + crypto.randomUUID() },
+      )
+      if (pwError) {
+        console.error('set-pin rotate password', pwError)
+        return jsonResponse(
+          { error: 'Could not sign them out on other devices. Try again.' },
+          500,
+        )
+      }
     }
 
     // Resetting another member's PIN re-secures their access, so also revoke

@@ -15,10 +15,14 @@ export { isoBase64URL, isoUint8Array } from 'npm:@simplewebauthn/server@13/helpe
 
 export const RP_NAME = 'Bucket My Money'
 
-// Hosts we trust as relying parties. The prod apex (so a passkey spans apex +
-// www) and local dev. Extra comma-separated hosts may be added via env for
+// Hosts we trust as relying parties. Production origins are listed exactly
+// (never "any *.bucketmymoney.com": an unrelated or taken-over subdomain must
+// not be able to ask for passkey assertions scoped to the apex RP ID). Local dev
+// is localhost / 127.0.0.1. Extra comma-separated hosts may be added via env for
 // preview/staging without a code change.
-const DEFAULT_RP_HOSTS = ['localhost', '127.0.0.1', 'bucketmymoney.com']
+const RP_ID = 'bucketmymoney.com'
+const PROD_ORIGIN_HOSTS = [RP_ID, `www.${RP_ID}`, `app.${RP_ID}`]
+const DEFAULT_RP_HOSTS = ['localhost', '127.0.0.1']
 
 function allowedHosts(): string[] {
   const extra = (Deno.env.get('WEBAUTHN_RP_HOSTS') ?? '')
@@ -41,17 +45,21 @@ export function relyingParty(req: Request): RelyingParty | null {
   const origin = req.headers.get('origin')
   if (!origin) return null
   let host: string
+  let protocol: string
   try {
-    host = new URL(origin).hostname
+    const u = new URL(origin)
+    host = u.hostname
+    protocol = u.protocol
   } catch {
     return null
   }
+  if (PROD_ORIGIN_HOSTS.includes(host)) {
+    // Registered passkeys are scoped to the apex so they work on apex + www + app.
+    return protocol === 'https:' ? { rpID: RP_ID, origin } : null
+  }
   const hosts = allowedHosts()
-  const allowed = hosts.some((h) => host === h || host.endsWith(`.${h}`))
-  if (!allowed) return null
-  // Use the registrable apex as the RP ID so a passkey works across apex + www;
-  // localhost stays localhost.
-  const apex = hosts.find((h) => host === h || host.endsWith(`.${h}`)) ?? host
+  const apex = hosts.find((h) => host === h || host.endsWith(`.${h}`))
+  if (!apex) return null
   return { rpID: apex, origin }
 }
 
