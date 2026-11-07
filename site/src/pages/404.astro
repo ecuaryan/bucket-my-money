@@ -1,0 +1,21 @@
+---
+import Base from '../layouts/Base.astro'
+import { SIGN_IN_URL } from '../lib/links'
+---
+
+<Base title="Page not found — Bucket My Money" description="That page doesn’t exist.">
+  <main class="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 text-center">
+    <a href="/" class="mb-8">
+      <img src="/app-assets/icons/icon-96.png" alt="Bucket My Money" width="56" height="56" class="rounded-xl" />
+    </a>
+    <h1 class="text-3xl font-bold tracking-tight text-white">Page not found</h1>
+    <div class="mt-8 flex gap-3">
+      <a href="/" class="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-black hover:bg-emerald-400">
+        Home
+      </a>
+      <a href={SIGN_IN_URL} class="rounded-xl px-6 py-3 font-semibold text-white ring-1 ring-zinc-700 hover:bg-zinc-900">
+        Sign in
+      </a>
+    </div>
+  </main>
+</Base>

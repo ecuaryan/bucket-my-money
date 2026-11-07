@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   LOGIN_CONTINUE_APPLE,
   LOGIN_CONTINUE_GOOGLE,
+  LOGIN_LAST_USED,
   LOGIN_OAUTH_ERROR,
 } from '@/lib/brand'
 import {
@@ -9,6 +10,7 @@ import {
   startOAuthSignIn,
   type OAuthProvider,
 } from '@/lib/oauth'
+import { getLastSignIn, markOAuthPending } from '@/lib/lastSignIn'
 import { setSignInPreference } from '@/lib/signInPreference'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
@@ -48,6 +50,17 @@ function AppleMark({ className }: { className?: string }) {
   )
 }
 
+/** Small pill marking the sign-in method used last on this device. */
+export function LastUsedBadge({ className = '' }: { className?: string }) {
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[11px] leading-none font-semibold ${className}`}
+    >
+      {LOGIN_LAST_USED}
+    </span>
+  )
+}
+
 /**
  * Continue with Google / Apple — one flow for sign-in and sign-up (a first-time
  * account gets its household on return; see bootstrapOAuthHousehold).
@@ -61,6 +74,7 @@ export function OAuthButtons({
 }) {
   const [busy, setBusy] = useState<OAuthProvider | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [lastUsed] = useState(getLastSignIn)
 
   if (providers.length === 0) return null
 
@@ -70,6 +84,7 @@ export function OAuthButtons({
     try {
       // A PIN-bound device returning signed-in should not bounce to PIN login.
       setSignInPreference('email')
+      markOAuthPending(provider)
       await startOAuthSignIn(provider)
       // The browser is navigating to the provider; keep the spinner up.
     } catch {
@@ -100,6 +115,15 @@ export function OAuthButtons({
             <AppleMark className="h-5 w-5" />
           )}
           {LABELS[provider]}
+          {lastUsed === provider && (
+            <LastUsedBadge
+              className={`absolute top-1/2 right-3 -translate-y-1/2 ${
+                provider === 'google'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-emerald-500/20 text-emerald-300'
+              }`}
+            />
+          )}
         </button>
       ))}
       {error && (

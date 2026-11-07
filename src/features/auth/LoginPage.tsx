@@ -31,6 +31,7 @@ import {
   shouldRedirectLoginToPin,
 } from '@/lib/authNavigation'
 import { clearPasswordRecoveryFlow } from '@/lib/passwordRecoveryFlow'
+import { getLastSignIn, recordLastSignIn } from '@/lib/lastSignIn'
 import { setSignInPreference } from '@/lib/signInPreference'
 import {
   clearBiometricBinding,
@@ -48,7 +49,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import PinInput from '@/components/ui/PinInput'
 import { exchangePinForSession } from '@/lib/memberAuth'
 import { oauthReturnError } from '@/lib/oauth'
-import { OAuthButtons } from './OAuthButtons'
+import { LastUsedBadge, OAuthButtons } from './OAuthButtons'
 
 type Mode = 'signIn' | 'signUp'
 
@@ -92,6 +93,7 @@ export default function LoginPage() {
     searchParams.get('signup') === '1' ? 'signUp' : 'signIn',
   )
   const [email, setEmail] = useState(loginEmail)
+  const [lastSignIn] = useState(getLastSignIn)
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(() =>
@@ -316,6 +318,7 @@ export default function LoginPage() {
       if (mode === 'signIn') {
         clearPasswordRecoveryFlow()
         await auth.signIn(email, password)
+        recordLastSignIn('email')
         setSignInPreference('email')
         clearRequireFreshSignIn()
       } else {
@@ -496,9 +499,12 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black shadow-sm transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="relative w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black shadow-sm transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {submitting ? 'Working…' : 'Sign in'}
+                      {lastSignIn === 'email' && !submitting && (
+                        <LastUsedBadge className="absolute top-1/2 right-3 -translate-y-1/2 bg-black/15 text-emerald-950" />
+                      )}
                     </button>
 
                     <p className="text-right">

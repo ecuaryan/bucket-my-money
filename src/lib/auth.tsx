@@ -41,6 +41,7 @@ import {
 } from '@/lib/bucketsPageLoad'
 import { canReuseLoadedMember } from '@/lib/authSessionReuse'
 import { classifyMemberFetch, type MemberFetchOutcome } from '@/lib/memberFetch'
+import { promotePendingOAuth } from '@/lib/lastSignIn'
 import { bootstrapOAuthHousehold } from '@/lib/oauth'
 import { getSignInPreference } from '@/lib/signInPreference'
 import { supabase } from '@/lib/supabase'
@@ -221,6 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       return
     }
+
+    promotePendingOAuth()
 
     if (!isAppBackgroundExpired()) {
       clearBackgroundPrivacyState()

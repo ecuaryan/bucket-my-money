@@ -27,7 +27,7 @@ const trust = [
   },
   {
     title: 'Private where it counts',
-    body: 'Kids see only their own money, enforced by the database, not hidden on screen. Every household is walled off from every other.',
+    body: 'Kids see only their own money, enforced by the database, not hidden on screen. Every household is walled off from every other. No ads, no trackers, and your data is never sold.',
   },
   {
     title: 'Built by a family, used by one',
@@ -51,6 +51,14 @@ const faqs = [
   {
     q: 'Can Bucket My Money move my money?',
     a: 'No. Bank access is read-only. Buckets are labels on money you already have; moving money between buckets never touches your bank.',
+  },
+  {
+    q: 'Can I sign in with Google?',
+    a: 'Yes. Google sign-in is for identity only: we get your name and email, never your Gmail, contacts, or anything else. You can also use an email and password, and add a PIN or Face ID for everyday use.',
+  },
+  {
+    q: 'Do you sell my data or show ads?',
+    a: 'No. There are no ads, no analytics or trackers, and your data is never sold or used to train AI. The Privacy Policy lists exactly what we keep and who processes it.',
   },
   {
     q: 'Is there an app to download?',
@@ -452,6 +460,7 @@ const faqs = [
       <div class="flex gap-6">
         <a href="#faq" class="hover:text-zinc-300">FAQ</a>
         <a href="/privacy" class="hover:text-zinc-300">Privacy</a>
+        <a href="/terms" class="hover:text-zinc-300">Terms</a>
         <a href={SIGN_IN_URL} class="hover:text-zinc-300">Sign in</a>
       </div>
     </div>
