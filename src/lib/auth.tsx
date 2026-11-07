@@ -41,6 +41,7 @@ import {
 } from '@/lib/bucketsPageLoad'
 import { canReuseLoadedMember } from '@/lib/authSessionReuse'
 import { classifyMemberFetch, type MemberFetchOutcome } from '@/lib/memberFetch'
+import { bootstrapOAuthHousehold } from '@/lib/oauth'
 import { getSignInPreference } from '@/lib/signInPreference'
 import { supabase } from '@/lib/supabase'
 import { withTimeout } from '@/lib/timeout'
@@ -266,7 +267,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       memberError: false,
     })
 
-    const { outcome, home } = await fetchMemberBootstrap(session.user.id)
+    let { outcome, home } = await fetchMemberBootstrap(session.user.id)
+
+    // First Google/Apple sign-in: no household yet. Create it (same shape as
+    // email sign-up) and reload the membership.
+    if (outcome.status === 'absent' && (await bootstrapOAuthHousehold(session))) {
+      ;({ outcome, home } = await fetchMemberBootstrap(session.user.id))
+    }
 
     if (memberFetchTokenRef.current === session.access_token) {
       memberFetchTokenRef.current = null

@@ -10,12 +10,11 @@ import { AuthBrandHeader } from '@/components/AuthBrandHeader'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { useAuth } from '@/lib/auth'
 import {
-  LOGIN_ALREADY_HAVE_ACCOUNT,
   LOGIN_GET_STARTED,
+  LOGIN_NEW_HERE,
+  LOGIN_OR,
   LOGIN_SHARED_CTA,
-  LOGIN_SHARED_SUB,
   LOGIN_SHARED_TITLE,
-  LOGIN_SIGNUP_SUBTITLE,
   LOGIN_SIGNUP_SUCCESS,
   LOGIN_SIGNUP_TITLE,
 } from '@/lib/brand'
@@ -46,6 +45,8 @@ import FingerprintIcon from '@/components/ui/FingerprintIcon'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import PinInput from '@/components/ui/PinInput'
 import { exchangePinForSession } from '@/lib/memberAuth'
+import { oauthReturnError } from '@/lib/oauth'
+import { OAuthButtons } from './OAuthButtons'
 
 type Mode = 'signIn' | 'signUp'
 
@@ -91,7 +92,9 @@ export default function LoginPage() {
   const [email, setEmail] = useState(loginEmail)
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() =>
+    oauthReturnError(location.search, location.hash),
+  )
   const [info, setInfo] = useState<string | null>(loginInfo)
 
   // Who this device knows (biometric binding, else last signed-in member). The
@@ -351,25 +354,27 @@ export default function LoginPage() {
   const isSignUp = mode === 'signUp'
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center overflow-y-auto bg-black px-4 pt-[max(2rem,env(safe-area-inset-top,0px))] pb-[calc(10rem+max(0.5rem,env(safe-area-inset-bottom,0px))+var(--keyboard-inset,0px))] sm:py-12">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-x-hidden overflow-y-auto bg-black px-4 pt-[max(2rem,env(safe-area-inset-top,0px))] pb-[calc(10rem+max(0.5rem,env(safe-area-inset-bottom,0px))+var(--keyboard-inset,0px))] sm:py-12">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.14),transparent_65%)]"
+      />
+      <div className="relative w-full max-w-sm">
         <AuthBrandHeader />
 
         <form
           onSubmit={onSubmit}
           autoComplete="on"
-          className="space-y-4 rounded-2xl bg-zinc-900 p-6 shadow-lg ring-1 ring-zinc-800"
+          className="space-y-4 rounded-2xl bg-zinc-900 p-6 shadow-2xl shadow-black/60 ring-1 ring-zinc-800"
         >
           {isSignUp ? (
             <>
-              <div>
-                <h2 className="text-lg font-semibold text-zinc-300">
-                  {LOGIN_SIGNUP_TITLE}
-                </h2>
-                <p className="mt-1.5 text-sm text-zinc-400">
-                  {LOGIN_SIGNUP_SUBTITLE}
-                </p>
-              </div>
+              <h2 className="text-lg font-semibold text-zinc-300">
+                {LOGIN_SIGNUP_TITLE}
+              </h2>
+
+              <OAuthButtons disabled={submitting} />
+              <OrDivider />
 
               <Field
                 label="Email"
@@ -416,28 +421,8 @@ export default function LoginPage() {
             <>
               {!pinMode && (
                 <>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => switchMode('signUp')}
-                    className="w-full rounded-xl bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-500/40 transition hover:bg-zinc-900 hover:ring-emerald-500/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {LOGIN_GET_STARTED}
-                  </button>
-
-                  <div className="relative py-1" role="separator">
-                    <div
-                      className="absolute inset-0 flex items-center"
-                      aria-hidden
-                    >
-                      <div className="w-full border-t border-zinc-700/80" />
-                    </div>
-                    <p className="relative flex justify-center">
-                      <span className="bg-zinc-900 px-2 text-xs text-zinc-500">
-                        {LOGIN_ALREADY_HAVE_ACCOUNT}
-                      </span>
-                    </p>
-                  </div>
+                  <OAuthButtons disabled={submitting} />
+                  <OrDivider />
                 </>
               )}
 
@@ -541,18 +526,43 @@ export default function LoginPage() {
           )}
         </form>
 
-        <div className="mt-6 rounded-2xl bg-zinc-900/80 p-4 text-center ring-1 ring-zinc-800">
-          <p className="text-sm font-medium text-zinc-300">{LOGIN_SHARED_TITLE}</p>
-          <p className="mt-1 text-xs text-zinc-500">{LOGIN_SHARED_SUB}</p>
+        <div className="mt-5 space-y-3">
+          {!isSignUp && !pinMode && (
+            <p className="flex items-center justify-center gap-2 text-sm text-zinc-400">
+              {LOGIN_NEW_HERE}
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => switchMode('signUp')}
+                className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              >
+                {LOGIN_GET_STARTED}
+              </button>
+            </p>
+          )}
           <Link
             to="/login/family"
             state={{ from }}
-            className="mt-3 inline-block text-sm font-semibold text-emerald-400 hover:underline"
+            className="flex items-center justify-between rounded-2xl bg-zinc-900/60 px-4 py-3 text-sm ring-1 ring-zinc-800 transition hover:bg-zinc-900 hover:ring-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
           >
-            {LOGIN_SHARED_CTA}
+            <span className="font-medium text-zinc-300">{LOGIN_SHARED_TITLE}</span>
+            <span className="font-semibold text-emerald-400">{LOGIN_SHARED_CTA}</span>
           </Link>
         </div>
       </div>
+    </div>
+  )
+}
+
+function OrDivider() {
+  return (
+    <div className="relative py-0.5" role="separator">
+      <div className="absolute inset-0 flex items-center" aria-hidden>
+        <div className="w-full border-t border-zinc-700/80" />
+      </div>
+      <p className="relative flex justify-center">
+        <span className="bg-zinc-900 px-2 text-xs text-zinc-500">{LOGIN_OR}</span>
+      </p>
     </div>
   )
 }

@@ -2,23 +2,25 @@
 
 import { householdAdminLabel } from './core'
 
-export const LOGIN_ALREADY_HAVE_ACCOUNT = 'Already have an account?'
+export const LOGIN_NEW_HERE = 'New here?'
 
 export const LOGIN_GET_STARTED = 'Get started'
 
-export const LOGIN_SIGNUP_TITLE = 'Create your account'
+export const LOGIN_OR = 'or'
 
-export const LOGIN_SIGNUP_SUBTITLE =
-  'Confirm your email, then sign in and set up your buckets.'
+export const LOGIN_CONTINUE_GOOGLE = 'Continue with Google'
+
+export const LOGIN_CONTINUE_APPLE = 'Continue with Apple'
+
+export const LOGIN_OAUTH_ERROR = 'Could not start sign-in. Try again or use email.'
+
+export const LOGIN_SIGNUP_TITLE = 'Create your account'
 
 /** After sign-up when email confirmation is required before first sign-in. */
 export const LOGIN_SIGNUP_SUCCESS =
   'Account created. Check your email to confirm, then sign in below.'
 
-export const LOGIN_SHARED_TITLE = 'Sharing a household?'
-
-export const LOGIN_SHARED_SUB =
-  'Use your household join code (in Admin), then your PIN.'
+export const LOGIN_SHARED_TITLE = 'Have a join code?'
 
 // Reads as the shared-household path so it does not collide with the personal
 // "PIN" button on the email/password page.

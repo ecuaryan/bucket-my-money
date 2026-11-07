@@ -176,6 +176,10 @@ export const SETTINGS_PAGE_TITLE = 'Settings'
 
 export const ADMIN_ACCOUNT_TITLE = 'Admin sign-in'
 
+export function adminAccountOAuthLabel(provider: string): string {
+  return `Signed in with ${provider}`
+}
+
 export const ADMIN_ACCOUNT_SEND_RESET = 'Email me a reset link'
 
 export const ADMIN_ACCOUNT_RESET_LINK_SENT =

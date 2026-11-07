@@ -34,6 +34,9 @@ Entry point for AI coding agents (and humans) working in this repo.
    read-only in the client (`useFeatureFlag`, registry in
    `src/lib/featureFlags.ts`). Live: `bitcoin`, `plaid`.
 
+10. **[docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md)** — Google / Apple sign-in:
+    dashboard setup, household bootstrap RPC, how it interacts with PIN/passkey.
+
 ## Operating principles for this codebase
 
 - **Bump `package.json` version once per PR** (one step from current `main`; do

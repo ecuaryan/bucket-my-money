@@ -1418,6 +1418,7 @@ export type Database = {
         Args: { p_child_member_id: string }
         Returns: number
       }
+      bootstrap_oauth_household: { Args: never; Returns: string }
       member_float: { Args: { p_member_id: string }; Returns: number }
       member_has_linked_account: {
         Args: { p_member_id: string }
