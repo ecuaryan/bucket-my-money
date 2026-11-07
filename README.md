@@ -6,7 +6,7 @@
 
 # Bucket My Money
 
-**Live:** [bucketmymoney.com](https://bucketmymoney.com)
+**Live:** [bucketmymoney.com](https://bucketmymoney.com) · App: [app.bucketmymoney.com](https://app.bucketmymoney.com)
 
 Bucket My Money is a progressive web app for organizing cash into **buckets**
 — so you know what's actually available, not just what your bank shows. Use it

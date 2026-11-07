@@ -40,7 +40,7 @@ const CONTROL = args.includes('--control')
 const SPOOF_ALL = args.includes('--spoof-all')
 const EDGE = args.includes('--edge')
 const TWO_NETWORK = args.includes('--two-network')
-const SITE = (args.find((a) => !a.startsWith('--')) ?? 'https://bucketmymoney.com').replace(/\/$/, '')
+const SITE = (args.find((a) => !a.startsWith('--')) ?? 'https://app.bucketmymoney.com').replace(/\/$/, '')
 const REQUESTS = 30
 const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
 

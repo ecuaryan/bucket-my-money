@@ -6,11 +6,12 @@ This document contains the full product brief, technical stack, architecture dec
 
 ## What Is Bucket My Money?
 
-**Production URL:** https://bucketmymoney.com — custom domain on Vercel. The legacy
-`bucket-fund.vercel.app` hostname 308-redirects to the apex domain.
+**Production URL:** https://app.bucketmymoney.com — custom domain on Vercel. The
+apex `bucketmymoney.com` is the static marketing site (`site/`, Cloudflare); its
+`_redirects` send old app paths here and its `sw.js` migrates old installed copies.
 
-**Registrar / DNS:** Cloudflare → Vercel (A + CNAME). Supabase Auth Site URL
-should use `https://bucketmymoney.com`.
+**Registrar / DNS:** Cloudflare → Vercel (CNAME for `app`); apex → Cloudflare
+Worker. Supabase Auth Site URL should use `https://app.bucketmymoney.com`.
 
 Bucket My Money is a **bank-agnostic virtual bucket budgeting PWA** for **you alone or a shared household**. It sits on top of real bank accounts (read via SimpleFIN; see [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)) and helps you **organize** your cash into buckets for an at-a-glance view: label what is reserved, see **Unbucketed** (cash not in buckets — the running balance paydays and bills flow through), and when the bank balance moves, decide which bucket covers it (negative Unbucketed → move money from buckets on purpose). Brand voice and naming notes live in [docs/BRAND.md](./docs/BRAND.md); user-facing strings in `src/lib/brand.ts` (`FLOAT_LABEL` is `'Unbucketed'`, `APP_TAGLINE`, login copy). Full product narrative (word-for-word): [docs/BRAND.md § Product narrative](./docs/BRAND.md#product-narrative).
 
@@ -517,7 +518,7 @@ statement nets to zero. Design and rationale: [docs/CREDIT_CARDS.md](./docs/CRED
 | Styling | Tailwind CSS | Fast, consistent |
 | Backend / DB | Supabase | Auth + Postgres + Realtime + Edge Functions, free tier |
 | Bank sync | SimpleFIN Bridge | Read-only; user-paid subscription; Teller quiesced (see docs/BANK_PROVIDERS.md) |
-| Hosting | Vercel (free tier) | Production: [bucketmymoney.com](https://bucketmymoney.com); `vercel.json` rewrites all routes to `index.html` for SPA deep links |
+| Hosting | Vercel (free tier) | Production: [app.bucketmymoney.com](https://app.bucketmymoney.com); `vercel.json` rewrites all routes to `index.html` for SPA deep links |
 | PWA | vite-plugin-pwa | Service worker, installable, offline fallback |
 | Auth | Supabase Auth + PIN + WebAuthn | Covers all member types and device scenarios |
 
@@ -525,7 +526,7 @@ statement nets to zero. Design and rationale: [docs/CREDIT_CARDS.md](./docs/CRED
 
 ### Architecture
 ```
-React PWA (Vercel — bucketmymoney.com)
+React PWA (Vercel — app.bucketmymoney.com)
     ↕
 Supabase (Auth + Postgres + Realtime + Edge Functions)
     ↕
@@ -536,14 +537,16 @@ SimpleFIN Bridge (pg_cron cadence sweep → Edge Function → Supabase DB)
 
 | Environment | URL | Notes |
 |---|---|---|
-| Production (live) | https://bucketmymoney.com | Auto-deploy from `main` on GitHub |
+| Production (live) | https://app.bucketmymoney.com | Auto-deploy from `main` on GitHub |
 | Local dev | http://localhost:5173 | `npm run dev` |
 
 - **SPA routing:** Client routes (`/login`, `/login/family`, `/join`, `/admin`, etc.) require `vercel.json` rewrites; without them, refreshing a deep link returns 404 from Vercel.
-- **Supabase Auth:** Site URL `https://bucketmymoney.com`. Redirect allow list:
-  `https://bucketmymoney.com/**` and `http://localhost:5173/**` (covers `/login/reset`).
+- **Supabase Auth:** Site URL `https://app.bucketmymoney.com`. Redirect allow list:
+  `https://app.bucketmymoney.com/**` and `http://localhost:5173/**` (covers `/login/reset`).
+  Passkeys keep working: the relying party ID is the apex `bucketmymoney.com`
+  (`supabase/functions/_shared/webauthn.ts` allows any `*.bucketmymoney.com` origin).
 - **Family join links:** Admin QR / copy-link use the current origin, e.g.
-  `https://bucketmymoney.com/join?code=…`.
+  `https://app.bucketmymoney.com/join?code=…`.
 
 ### Free Tier Limits (personal use today; revisit at paid-customer scale)
 | Service | Relevant Limit |
@@ -765,7 +768,7 @@ per-tab channels (complexity trade-off, not required for launch).
 - Service worker: network-first for API calls, cache-first for static assets
 - Offline fallback page
 - Tested installable on iOS and Android
-- Install from production: https://bucketmymoney.com (Add to Home Screen on mobile)
+- Install from production: https://app.bucketmymoney.com (Add to Home Screen on mobile)
 
 ---
 

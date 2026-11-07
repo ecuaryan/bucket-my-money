@@ -124,7 +124,9 @@ npm run site:build          # static output in site/dist
   no-subtitles rule is for app UI; marketing pages explain, but keep the same
   voice and only claim what the app actually does.
 - **App links** come from `PUBLIC_APP_URL` (default
-  `https://bucketmymoney.com`) in `site/src/lib/links.ts`.
+  `https://app.bucketmymoney.com`) in `site/src/lib/links.ts`.
+- **Old app URLs:** `site/public/_redirects` sends `/login`, `/join`, etc. on the apex
+  to the app; `site/public/sw.js` retires the old installed app's service worker.
 - **CI:** the **marketing site build** job builds it on every PR; `site/`-only
   diffs skip the db and e2e jobs.
 - **Hosting (planned):** Cloudflare Workers static assets (free, fine for commercial
@@ -133,9 +135,8 @@ npm run site:build          # static output in site/dist
   name `bucketmymoney-site`, Path (root directory) `site`, build command
   `npm run build`, deploy command `npx wrangler deploy`, variable `NODE_VERSION=22`.
   Headers ship in `site/public/_headers` (mirror of `site/vercel.json`; keep both in sync).
-  The domain cutover — site on `bucketmymoney.com`, app on
-  `app.bucketmymoney.com` — is a separate change (Supabase auth URLs, passkey
-  hosts, redirects for old app paths, `PUBLIC_APP_URL`).
+  Domains: site on `bucketmymoney.com` (Cloudflare), app on `app.bucketmymoney.com`
+  (Vercel).
 
 ## Tailwind CSS v4
 

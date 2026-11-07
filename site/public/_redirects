@@ -1,0 +1,11 @@
+# Old app URLs on the apex still work: send them to the app subdomain.
+# 302 on purpose (easy to undo). Query strings (join codes, reset tokens) are kept.
+/login       https://app.bucketmymoney.com/login 302
+/login/*     https://app.bucketmymoney.com/login/:splat 302
+/signup      https://app.bucketmymoney.com/signup 302
+/join        https://app.bucketmymoney.com/join 302
+/kids        https://app.bucketmymoney.com/kids 302
+/give        https://app.bucketmymoney.com/give 302
+/history     https://app.bucketmymoney.com/history 302
+/settings    https://app.bucketmymoney.com/settings 302
+/admin       https://app.bucketmymoney.com/admin 302
