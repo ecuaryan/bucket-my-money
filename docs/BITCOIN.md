@@ -31,7 +31,7 @@ input and storage stay in BTC.
 
 ## Live price
 
-`GET https://api.coinbase.com/v2/prices/BTC-USD/spot` straight from the
+`GET https://mempool.space/api/v1/prices` straight from the
 browser (no key, CORS-ok). `src/features/bitcoin/btcPrice.ts` caches it for
 3 minutes, dedupes in-flight requests, serves the last good price on a blip,
 and never throws. When no price is available, derived columns render `—` and

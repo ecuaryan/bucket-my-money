@@ -1,12 +1,12 @@
 /**
- * Live BTC-USD spot price from Coinbase's public endpoint (no key, CORS-ok).
+ * Live BTC-USD spot price from mempool.space's public prices endpoint (no key, CORS-ok).
  * Module-level cache with a short TTL plus in-flight dedupe so concurrent
  * renders share one request. Never throws: on failure it serves the last
  * good price if one exists (stale), otherwise reports 'unavailable' —
  * callers render entries without derived values and the page never breaks.
  */
 
-const SPOT_URL = 'https://api.coinbase.com/v2/prices/BTC-USD/spot'
+const SPOT_URL = 'https://mempool.space/api/v1/prices'
 const CACHE_TTL_MS = 3 * 60_000
 const FETCH_TIMEOUT_MS = 8_000
 
@@ -23,8 +23,8 @@ async function fetchSpot(): Promise<BtcPriceResult> {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
     if (!res.ok) throw new Error(`spot price HTTP ${res.status}`)
-    const json = (await res.json()) as { data?: { amount?: string } }
-    const usd = Number(json?.data?.amount)
+    const json = (await res.json()) as { USD?: number }
+    const usd = Number(json?.USD)
     if (!Number.isFinite(usd) || usd <= 0) throw new Error('spot price malformed')
     cached = { usd, fetchedAt: Date.now() }
     return { status: 'ready', ...cached }
