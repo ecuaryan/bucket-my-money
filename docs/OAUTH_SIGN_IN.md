@@ -59,3 +59,21 @@ Supabase → Authentication → URL Configuration: Site URL
 round trip locally, set `enabled = true`, a client id, and
 `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`, and add
 `http://127.0.0.1:54321/auth/v1/callback` to the Google client. Never commit the secret.
+
+## Hosted configuration (reference)
+
+- **Google Cloud project:** `Bucket My Money` (id `modern-sublime-514002-q9`),
+  audience External.
+- **OAuth client:** authorized JavaScript origins `https://app.bucketmymoney.com`
+  and `http://localhost:5173`; redirect URI
+  `https://csuppogfzxuikitolmtz.supabase.co/auth/v1/callback`.
+- **Publishing status.** While the consent screen is in **Testing**, only listed
+  test users can sign in and the project is capped at **100 test users**. Publish
+  to production (scopes are only `openid`, `email`, `profile`, so no
+  verification review is expected) before onboarding anyone outside that list.
+- **Privacy policy:** `site/src/pages/privacy.astro`, served at
+  `https://bucketmymoney.com/privacy` (the consent screen's privacy link; the
+  login page also links it). Keep it in sync per AGENTS.md.
+- **Privacy contact:** `privacy@bucketmymoney.com` via Cloudflare Email Routing
+  (Cloudflare → bucketmymoney.com → Email → Routing). A custom-address rule
+  forwards it to the owner's Gmail; the **catch-all stays disabled**.

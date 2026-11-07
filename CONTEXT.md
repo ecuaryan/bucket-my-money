@@ -313,6 +313,20 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   name to `<email>'s Family`; neither is prompted for at signup. The admin keeps
   a **real email** on `auth.users` (shown on Settings → Admin sign-in; password
   reset via the same forgot-password email flow as login).
+- **Google sign-in (shipped; Apple built but hidden):** the login page offers
+  "Continue with Google" (`VITE_OAUTH_PROVIDERS`, default `google`). One flow for
+  sign-in and sign-up. A first-time OAuth user has no `family_members` row, so
+  `auth.tsx` calls the `bootstrap_oauth_household()` RPC (migration 110): it
+  creates the household + account-owner admin for the caller only, only when
+  Google/Apple is in `app_metadata.providers`, idempotently, one household per
+  user; email-only and PIN accounts are refused. An existing email account with
+  the same verified email is linked to the identity by Supabase. **PIN, passkey
+  and join code are unchanged:** members/kids still use internal
+  `@pin.bucketmymoney.internal` users and the join code; an OAuth admin can set
+  a PIN/passkey in Settings and signs back in via the `pin-login` magic link for
+  their real email. Setup and hosted config: [docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md).
+  The public privacy policy lives on the marketing site
+  (`site/src/pages/privacy.astro`) and must stay truthful.
 - **Member display names:** admin-managed. Names must be **unique within a
   family** (case-insensitive) so PIN sign-in, Send, and the admin roster stay
   unambiguous. Admins inline-rename **any** member (including their own row) on
