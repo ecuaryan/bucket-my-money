@@ -9,9 +9,13 @@ export const LOGIN_GET_STARTED = 'Get started'
 export const LOGIN_OR = 'or'
 export const LOGIN_LAST_USED = 'Last used'
 
-export const LOGIN_PRIVACY = 'Privacy'
+export const LEGAL_PRIVACY = 'Privacy'
+export const LEGAL_TERMS = 'Terms'
+export const LEGAL_HELP = 'Help'
 
 export const PRIVACY_URL = 'https://bucketmymoney.com/privacy'
+export const TERMS_URL = 'https://bucketmymoney.com/terms'
+export const CONTACT_URL = 'https://bucketmymoney.com/contact'
 
 export const LOGIN_CONTINUE_GOOGLE = 'Continue with Google'
 

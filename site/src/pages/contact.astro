@@ -1,0 +1,22 @@
+---
+import Legal from '../layouts/Legal.astro'
+
+const sections = [
+  {
+    title: 'Need help?',
+    items: [
+      'Trouble signing in, a question, or something not working? Email us and include the email address you sign in with, and what you were trying to do.',
+      'Never send your password or PIN. We will never ask for them.',
+    ],
+  },
+]
+---
+
+<Legal
+  title="Contact — Bucket My Money"
+  description="Get help with Bucket My Money."
+  heading="Contact"
+  sections={sections}
+  contactLabel="Support:"
+  contactUser="support"
+/>

@@ -13,8 +13,6 @@ import {
   LOGIN_GET_STARTED,
   LOGIN_NEW_HERE,
   LOGIN_OR,
-  LOGIN_PRIVACY,
-  PRIVACY_URL,
   LOGIN_SHARED_CTA,
   LOGIN_SHARED_TITLE,
   LOGIN_SIGNUP_SUCCESS,
@@ -49,6 +47,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import PinInput from '@/components/ui/PinInput'
 import { exchangePinForSession } from '@/lib/memberAuth'
 import { oauthReturnError } from '@/lib/oauth'
+import LegalLinks from '@/components/LegalLinks'
 import { LastUsedBadge, OAuthButtons } from './OAuthButtons'
 
 type Mode = 'signIn' | 'signUp'
@@ -554,16 +553,7 @@ export default function LoginPage() {
             <span className="font-medium text-zinc-300">{LOGIN_SHARED_TITLE}</span>
             <span className="font-semibold text-emerald-400">{LOGIN_SHARED_CTA}</span>
           </Link>
-          <p className="text-center text-xs">
-            <a
-              href={PRIVACY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-500 hover:text-zinc-300 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-            >
-              {LOGIN_PRIVACY}
-            </a>
-          </p>
+          <LegalLinks />
         </div>
       </div>
     </div>

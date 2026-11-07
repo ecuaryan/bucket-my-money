@@ -10,14 +10,14 @@ interface Props {
   title: string
   description: string
   heading: string
-  updated: string
+  updated?: string
+  contactUser?: string
   sections: Section[]
   contactLabel: string
 }
 
-const { title, description, heading, updated, sections, contactLabel } = Astro.props
+const { title, description, heading, updated, sections, contactLabel, contactUser = 'support' } = Astro.props
 // Assembled in the browser so the address never appears in the page HTML.
-const contactUser = 'privacy'
 const contactHost = 'bucketmymoney.com'
 ---
 
@@ -34,7 +34,7 @@ const contactHost = 'bucketmymoney.com'
 
   <main class="mx-auto max-w-3xl px-5 py-14">
     <h1 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">{heading}</h1>
-    <p class="mt-2 text-sm text-zinc-500">Last updated {updated}</p>
+    {updated && <p class="mt-2 text-sm text-zinc-500">Last updated {updated}</p>}
 
     {
       sections.map((s) => (
@@ -74,6 +74,7 @@ const contactHost = 'bucketmymoney.com'
       <div class="flex gap-6">
         <a href="/privacy" class="hover:text-zinc-300">Privacy</a>
         <a href="/terms" class="hover:text-zinc-300">Terms</a>
+        <a href="/contact" class="hover:text-zinc-300">Contact</a>
         <a href="/" class="hover:text-zinc-300">Home</a>
       </div>
     </div>
