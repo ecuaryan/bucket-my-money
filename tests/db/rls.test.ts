@@ -116,4 +116,26 @@ describe('RLS: tenant isolation and roles', () => {
     expect(error).toBeNull()
     expect(data?.id).toBeTruthy()
   })
+
+  it('cannot create a bucket with a non-zero allocated_amount', async () => {
+    const family = await createAdminFamily('bucket-mint')
+    const child = await addMember(family.familyId, 'child', 'Alex')
+    const childClient = await userClient(child.email, child.password)
+    const adminClient = await userClient(family.adminEmail, family.adminPassword)
+
+    for (const [client, owner] of [
+      [childClient, child.memberId],
+      [adminClient, null],
+    ] as const) {
+      for (const amount of [-50, 50]) {
+        const { error } = await client.from('buckets').insert({
+          family_id: family.familyId,
+          name: `Mint ${amount}`,
+          owner_member_id: owner,
+          allocated_amount: amount,
+        })
+        expect(error).not.toBeNull()
+      }
+    }
+  })
 })
