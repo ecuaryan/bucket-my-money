@@ -2,12 +2,18 @@ import { useState } from 'react'
 import { useAuth } from '@/lib/auth'
 import {
   ADMIN_ACCOUNT_RESET_HINT,
+  adminAccountOAuthLabel,
   ADMIN_ACCOUNT_RESET_LINK_SENT,
   ADMIN_ACCOUNT_RESET_SENT,
   ADMIN_ACCOUNT_SEND_RESET,
   ADMIN_ACCOUNT_TITLE,
 } from '@/lib/brand'
 import { isHumanAuthEmail, passwordResetRedirectUrl } from '@/lib/passwordReset'
+import {
+  hasPasswordIdentity,
+  linkedProviders,
+  oauthProviderLabel,
+} from '@/lib/oauth'
 import { supabase } from '@/lib/supabase'
 import MailIcon from '@/components/ui/MailIcon'
 
@@ -22,6 +28,15 @@ export default function AccountSettingsCard() {
   const sessionEmail =
     auth.status === 'signedIn' ? auth.session.user.email ?? '' : ''
   const humanEmail = isHumanAuthEmail(sessionEmail) ? sessionEmail : null
+  // Google/Apple-only accounts have no password to reset.
+  const user = auth.status === 'signedIn' ? auth.session.user : null
+  const hasPassword = user ? hasPasswordIdentity(user) : false
+  const oauthLabel = user
+    ? linkedProviders(user)
+        .filter((p) => p === 'google' || p === 'apple')
+        .map(oauthProviderLabel)
+        .join(' · ')
+    : ''
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +79,11 @@ export default function AccountSettingsCard() {
       </p>
       <p className="mt-1 text-sm text-zinc-200">{humanEmail}</p>
 
-      {sent ? (
+      {!hasPassword && oauthLabel ? (
+        <p className="mt-3 text-sm text-zinc-400">
+          {adminAccountOAuthLabel(oauthLabel)}
+        </p>
+      ) : sent ? (
         <div className="mt-4 space-y-2 text-sm text-zinc-300">
           <p>{ADMIN_ACCOUNT_RESET_LINK_SENT}</p>
           <p className="text-xs text-zinc-400">{ADMIN_ACCOUNT_RESET_HINT}</p>
