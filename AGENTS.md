@@ -49,6 +49,11 @@ Entry point for AI coding agents (and humans) working in this repo.
   Deploy Supabase), so a human stays in the loop on every ship. Only run
   `gh pr merge --auto --squash --delete-branch` if the owner explicitly asks for
   it on that PR (see CONTRIBUTING § Branch workflow).
+- **Keep the privacy policy truthful.** Any change that adds a data source,
+  third-party service, tracker, or newly stored user field must update
+  [`site/src/pages/privacy.astro`](./site/src/pages/privacy.astro) in the same
+  PR. Flag-gated features (Bitcoin/Coinbase-style, `plaid`) only matter for
+  households with the flag, but the policy should still name them accurately.
 - **Realtime:** prefer narrow filters and route-scoped channels; app-shell watches
   (e.g. member removal) are fine — channels share one websocket per session. See
   [CONTEXT.md § Supabase Realtime](./CONTEXT.md#supabase-realtime).

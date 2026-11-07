@@ -8,6 +8,10 @@ export const LOGIN_GET_STARTED = 'Get started'
 
 export const LOGIN_OR = 'or'
 
+export const LOGIN_PRIVACY = 'Privacy'
+
+export const PRIVACY_URL = 'https://bucketmymoney.com/privacy'
+
 export const LOGIN_CONTINUE_GOOGLE = 'Continue with Google'
 
 export const LOGIN_CONTINUE_APPLE = 'Continue with Apple'
