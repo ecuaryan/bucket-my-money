@@ -3,7 +3,9 @@ import Base from '../layouts/Base.astro'
 import { SIGN_IN_URL } from '../lib/links'
 
 const updated = 'November 7, 2026'
-const contact = 'ryanwillmore+bmmprivacy@gmail.com'
+// Assembled in the browser so the address never appears in the page HTML.
+const contactUser = 'privacy'
+const contactHost = 'bucketmymoney.com'
 
 const sections = [
   {
@@ -13,6 +15,7 @@ const sections = [
       'Household: the names, roles, and PIN hashes of the people in your household (PINs are stored hashed, never in plain text), plus the buckets, balances, and notes you create.',
       'Bank data, only if you link a bank: account names and balances, and transactions, pulled read-only through SimpleFIN Bridge (or another bank connection provider we may offer). We never receive your bank login; you connect through the provider.',
       'Sign-in security data: passkey public keys if you turn on Face ID / Touch ID unlock, and failed-PIN counters.',
+      'Technical data: your IP address, kept briefly to rate-limit sign-in attempts, and standard server logs kept by our hosting providers. The app stores your sign-in session and preferences on your own device. We use no advertising cookies and no analytics or tracking tools, in the app or on this site.',
     ],
   },
   {
@@ -27,7 +30,7 @@ const sections = [
     title: 'Who can see it',
     items: [
       'Only the people in your household, and only what their role allows. Kids see only their own money. Every household is isolated from every other, enforced by the database.',
-      'Service providers that run the app on our behalf: Supabase (database and sign-in), Vercel and Cloudflare (hosting), Google (only if you choose Google sign-in), and SimpleFIN Bridge (only if you link a bank). They process data only to provide their service.',
+      'Service providers that run the app on our behalf: Supabase (database and sign-in), Vercel and Cloudflare (hosting), Google (only if you choose Google sign-in), SimpleFIN Bridge (only if you link a bank), and Coinbase (a public Bitcoin price lookup from your browser, only if you use the Bitcoin feature; it sees your IP address but none of your data). They process data only to provide their service.',
       'We may disclose information if the law requires it.',
     ],
   },
@@ -35,7 +38,7 @@ const sections = [
     title: 'Your choices',
     items: [
       'Edit or remove buckets, accounts, and members at any time in the app. Removing a bank connection stops all further bank data from being pulled.',
-      `To delete your account and household data, or to ask what we hold about you, email ${contact}. We will act on the request within a reasonable time.`,
+      'To delete your account and household data, or to ask what we hold about you, use the contact link below. We will act on the request within a reasonable time.',
       'You can revoke Google sign-in access at any time at myaccount.google.com/permissions.',
     ],
   },
@@ -98,8 +101,17 @@ const sections = [
     <section class="mt-10">
       <h2 class="text-xl font-semibold text-white">Contact</h2>
       <p class="mt-3 text-zinc-400">
-        Questions or requests: <a class="text-emerald-400 hover:underline" href={`mailto:${contact}`}>{contact}</a>
+        Questions or requests:
+        <a id="contact-link" class="text-emerald-400 hover:underline" href="/privacy"
+          >{contactUser} at {contactHost}</a
+        >
       </p>
+      <script is:inline define:vars={{ contactUser, contactHost }}>
+        var a = document.getElementById('contact-link')
+        var addr = contactUser + '@' + contactHost
+        a.href = 'mailto:' + addr
+        a.textContent = addr
+      </script>
     </section>
   </main>
 
