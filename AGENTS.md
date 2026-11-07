@@ -52,7 +52,7 @@ Entry point for AI coding agents (and humans) working in this repo.
 - **Keep the privacy policy truthful.** Any change that adds a data source,
   third-party service, tracker, or newly stored user field must update
   [`site/src/pages/privacy.astro`](./site/src/pages/privacy.astro) in the same
-  PR. Flag-gated features (Bitcoin/Coinbase-style, `plaid`) only matter for
+  PR. Flag-gated features (Bitcoin, `plaid`) only matter for
   households with the flag, but the policy should still name them accurately.
 - **Realtime:** prefer narrow filters and route-scoped channels; app-shell watches
   (e.g. member removal) are fine — channels share one websocket per session. See
