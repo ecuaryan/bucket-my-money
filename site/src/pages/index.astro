@@ -106,12 +106,34 @@ const faqs = [
     a: 'Only their own buckets and balance, never the family’s money or anyone else’s. That’s enforced by the database, not just hidden on screen.',
   },
 ]
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      name: 'Bucket My Money',
+      url: 'https://bucketmymoney.com/',
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Bucket My Money',
+      applicationCategory: 'FinanceApplication',
+      operatingSystem: 'Web, iOS, Android',
+      url: 'https://bucketmymoney.com/',
+      description:
+        'Bucket budgeting on top of your real bank accounts. Set money aside in buckets, count credit cards against what you have, and when the balance moves, pick which bucket covers it.',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    },
+  ],
+}
 ---
 
 <Base
   title="Bucket My Money — See where your money actually is"
   description="Bucket budgeting on top of your real bank accounts. Set money aside in buckets, count credit cards against what you have, and when the balance moves, pick which bucket covers it."
 >
+  <script type="application/ld+json" slot="head" set:html={JSON.stringify(jsonLd)} />
   <header class="sticky top-0 z-20 border-b border-zinc-900 bg-black/80 backdrop-blur">
     <nav class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3">
       <a href="/" class="flex shrink-0 items-center gap-2.5 font-semibold whitespace-nowrap text-white">
