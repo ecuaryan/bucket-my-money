@@ -18,7 +18,7 @@ const CROPS = {
   autoBucket: { ...CARD, y: 392, height: 362 },
   history: { ...CARD, y: 236, height: 372 },
   groups: { ...CARD, y: 374, height: 418 },
-  hideAmounts: { ...CARD, y: 72, height: 418 },
+  hideAmounts: { x: 0, width: 412, y: 72, height: 778 },
 } as const
 
 export async function captureFeatureShots(
@@ -43,7 +43,6 @@ export async function captureFeatureShots(
     await signInPwaScreenshotAdmin(page)
     await page.getByRole('button', { name: /Rent \$/ }).waitFor()
     await shot('feature-groups', CROPS.groups)
-    await shot('feature-hide-before', CROPS.hideAmounts)
 
     await page.getByRole('tab', { name: 'Auto-bucket', exact: true }).click()
     await page.getByText('Payday', { exact: true }).waitFor()
@@ -61,7 +60,7 @@ export async function captureFeatureShots(
     await page.locator('nav').getByLabel(NAV_BUCKETS_LABEL).click()
     await waitForNavSettled(page, NAV_BUCKETS_LABEL)
     await expect(page.getByRole('button', { name: /Rent \$/ })).toBeVisible()
-    await shot('feature-hide-after', CROPS.hideAmounts)
+    await shot('feature-hide', CROPS.hideAmounts)
   } finally {
     await context.close()
   }

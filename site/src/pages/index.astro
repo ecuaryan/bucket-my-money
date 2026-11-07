@@ -23,8 +23,8 @@ const features = [
     alt: 'History rows showing a $25 and a $40 send with Allowance notes and before and after balances',
   },
   {
-    title: 'Groups that are yours',
-    body: 'Sort buckets into Home, Fun, or a Cruise. Only you see your groups, and no money moves when you arrange them.',
+    title: 'Arrange it your way',
+    body: 'Group buckets into Home, Fun, or whatever fits your life. It’s your layout, and nobody else sees it.',
     img: 'feature-groups',
     height: 836,
     alt: 'Buckets sorted into Home and Fun groups with a total for each group',
@@ -32,10 +32,9 @@ const features = [
   {
     title: 'Hide the numbers',
     body: 'One tap hides every amount for when someone’s looking over your shoulder. Hold Peek to check one.',
-    img: 'feature-hide-before',
-    compare: 'feature-hide-after',
-    height: 836,
-    alt: 'The Buckets screen with amounts shown on the left half and hidden behind dots on the right half',
+    img: 'feature-hide',
+    height: 1450,
+    alt: 'The Buckets screen with every amount hidden behind dots and a Peek button in the bottom right',
   },
 ]
 
@@ -371,28 +370,6 @@ const faqs = [
                     decoding="async"
                     class="block h-auto w-full"
                   />
-                  {f.compare && (
-                    <>
-                      <img
-                        src={feature(f.compare)}
-                        alt=""
-                        aria-hidden="true"
-                        width="768"
-                        height={f.height}
-                        loading="lazy"
-                        decoding="async"
-                        class="absolute inset-0 block h-full w-full"
-                        style="clip-path: inset(0 0 0 50%)"
-                      />
-                      <div aria-hidden="true" class="absolute inset-y-0 left-1/2 w-px bg-emerald-400/70" />
-                      <span class="absolute top-[46%] left-3 -translate-y-1/2 rounded-full bg-black/80 px-2 py-1 text-[11px] leading-none font-semibold text-zinc-300 ring-1 ring-zinc-700">
-                        Shown
-                      </span>
-                      <span class="absolute top-[46%] right-3 -translate-y-1/2 rounded-full bg-black/80 px-2 py-1 text-[11px] leading-none font-semibold text-emerald-300 ring-1 ring-emerald-500/40">
-                        Hidden
-                      </span>
-                    </>
-                  )}
                 </div>
                 <h3 class="mt-5 font-semibold text-white">{f.title}</h3>
                 <p class="mt-2 leading-relaxed text-zinc-400">{f.body}</p>
