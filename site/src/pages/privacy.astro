@@ -101,17 +101,16 @@ const sections = [
     <section class="mt-10">
       <h2 class="text-xl font-semibold text-white">Contact</h2>
       <p class="mt-3 text-zinc-400">
-        Questions or requests:
-        <a id="contact-link" class="text-emerald-400 hover:underline" href="/privacy"
-          >{contactUser} at {contactHost}</a
+        Questions or requests:{' '}
+        <a
+          id="contact-link"
+          class="text-emerald-400 hover:underline"
+          href="/privacy/"
+          data-user={contactUser}
+          data-host={contactHost}>{contactUser} at {contactHost}</a
         >
       </p>
-      <script is:inline define:vars={{ contactUser, contactHost }}>
-        var a = document.getElementById('contact-link')
-        var addr = contactUser + '@' + contactHost
-        a.href = 'mailto:' + addr
-        a.textContent = addr
-      </script>
+      <script is:inline src="/contact.js" defer></script>
     </section>
   </main>
 
