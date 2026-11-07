@@ -502,9 +502,7 @@ export default function LoginPage() {
                       className="relative w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black shadow-sm transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {submitting ? 'Working…' : 'Sign in'}
-                      {lastSignIn === 'email' && !submitting && (
-                        <LastUsedBadge className="absolute top-1/2 right-3 -translate-y-1/2 bg-black/15 text-emerald-950" />
-                      )}
+                      {lastSignIn === 'email' && <LastUsedBadge />}
                     </button>
 
                     <p className="text-right">
