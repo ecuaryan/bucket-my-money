@@ -127,6 +127,10 @@ npm run site:build          # static output in site/dist
   `https://app.bucketmymoney.com`) in `site/src/lib/links.ts`.
 - **Old app URLs:** `site/public/_redirects` sends `/login`, `/join`, etc. on the apex
   to the app; `site/public/sw.js` retires the old installed app's service worker.
+- **Pages & SEO:** `privacy` and `terms` share `site/src/layouts/Legal.astro`; `404.astro`
+  is served via `not_found_handling: "404-page"`. `site/public/sitemap.xml` is hand-kept —
+  add a `<url>` when you add a page. Search Console is verified by a DNS TXT record on
+  `bucketmymoney.com` in Cloudflare.
 - **CI:** the **marketing site build** job builds it on every PR; `site/`-only
   diffs skip the db and e2e jobs.
 - **Hosting (planned):** Cloudflare Workers static assets (free, fine for commercial

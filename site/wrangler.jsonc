@@ -3,7 +3,8 @@
   "name": "bucketmymoney-site",
   "compatibility_date": "2026-11-06",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    "not_found_handling": "404-page"
   },
   // Needed by `wrangler preview`, which Cloudflare runs for pull request builds.
   "previews": {}

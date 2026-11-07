@@ -1,0 +1,65 @@
+---
+import Legal from '../layouts/Legal.astro'
+
+const updated = 'November 7, 2026'
+
+const sections = [
+  {
+    title: 'What this is',
+    items: [
+      'Bucket My Money is a budgeting tool. Buckets are labels on money you already have; moving money between buckets never moves real money at your bank.',
+      'It is not a bank, a lender, or a financial, tax, or investment adviser. Balances and totals are for your own planning.',
+    ],
+  },
+  {
+    title: 'Your account',
+    items: [
+      'You are responsible for your sign-in (password, PIN, passkey, or Google account) and for what happens under it. Keep it to yourself and tell us if you think it was used without you.',
+      'The adult who creates a household is its admin and is responsible for the people they add, including children.',
+      'Give us accurate information, and only link bank accounts you are entitled to access.',
+    ],
+  },
+  {
+    title: 'Using the service',
+    items: [
+      'Use it lawfully and for your own household. Do not try to access other households’ data, probe or disrupt the service, or use it to harm anyone.',
+      'Linking a bank goes through a third-party provider such as SimpleFIN Bridge, under that provider’s own terms and fees. We do not control those services or their data.',
+    ],
+  },
+  {
+    title: 'Your data',
+    items: [
+      'Your data is yours. How we handle it is described in the Privacy Policy.',
+      'You can delete your household data at any time in the app, or ask us to by using the contact link below.',
+    ],
+  },
+  {
+    title: 'No guarantees',
+    items: [
+      'The service is provided “as is”, without warranties of any kind. Balances come from your bank connections and your own entries, and can be late or wrong. Check anything important with your bank.',
+      'It may change, be interrupted, or be discontinued. To the extent the law allows, we are not liable for indirect or consequential losses, and our total liability for any claim is limited to what you paid us for the service in the previous twelve months.',
+    ],
+  },
+  {
+    title: 'Ending your use',
+    items: [
+      'You can stop using the service at any time. We may suspend or end access for misuse or to protect the service and other households.',
+    ],
+  },
+  {
+    title: 'Changes',
+    items: [
+      'If we change these terms in a way that matters, we will update the date above and tell household admins in the app or by email. Continuing to use the service after that means you accept the change.',
+    ],
+  },
+]
+---
+
+<Legal
+  title="Terms of Service — Bucket My Money"
+  description="The ground rules for using Bucket My Money."
+  heading="Terms of Service"
+  updated={updated}
+  sections={sections}
+  contactLabel="Questions:"
+/>

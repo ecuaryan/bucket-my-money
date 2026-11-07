@@ -7,6 +7,7 @@ export const LOGIN_NEW_HERE = 'New here?'
 export const LOGIN_GET_STARTED = 'Get started'
 
 export const LOGIN_OR = 'or'
+export const LOGIN_LAST_USED = 'Last used'
 
 export const LOGIN_PRIVACY = 'Privacy'
 
