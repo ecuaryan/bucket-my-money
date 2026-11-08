@@ -227,6 +227,11 @@ sequenceDiagram
 | 2 | [**Deploy Supabase**](./.github/workflows/deploy-supabase.yml) | Hosted Postgres migrations + Edge Functions (runs only after green CI on `main`) |
 | 3 | **Vercel** | Static frontend at [app.bucketmymoney.com](https://app.bucketmymoney.com) |
 
+Separate from the deploy sequence, [**Database backup**](./.github/workflows/db-backup.yml)
+runs nightly (and on demand) and never touches code or schema: it writes an
+encrypted dump to a private R2 bucket. A failure opens a `Nightly database backup
+failed` issue. See [MAINTENANCE § Database backups](./docs/MAINTENANCE.md#database-backups).
+
 **Typical timing:** merge → CI runs several minutes → **Deploy Supabase** starts
 when CI completes → check **Database → Migrations** in the Supabase dashboard
 for the new file. The Vercel deployment can look “done” while CI or Deploy
