@@ -1,0 +1,93 @@
+name: Database backup
+
+# Nightly encrypted logical backup of the hosted database to a private
+# Cloudflare R2 bucket (30-day lifecycle rule on the bucket). Steps and restore
+# instructions: docs/MAINTENANCE.md § Database backups.
+#
+# Cost guards: the dump is size-capped, the bucket total is capped, and any
+# failure opens a GitHub issue (which emails the owner).
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  R2_ENDPOINT: https://a41f52c50c64b9c10dc10c86544fa176.r2.cloudflarestorage.com
+  R2_BUCKET: bmm-db-backups
+  # Encrypted dump bounds. The database is a few MB today; a dump this far
+  # outside the range means something is wrong, so fail instead of storing it.
+  MIN_BYTES: '20000'
+  MAX_BYTES: '200000000'
+  # Whole-bucket ceiling, well under R2's 10 GB free tier.
+  MAX_BUCKET_BYTES: '2000000000'
+
+jobs:
+  backup:
+    name: backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Dump and encrypt
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          stamp=$(date -u +%Y%m%dT%H%M%SZ)
+          echo "BACKUP_FILE=$RUNNER_TEMP/bmm-$stamp.dump.gpg" >> "$GITHUB_ENV"
+          echo "BACKUP_KEY=db/${stamp:0:4}/${stamp:4:2}/bmm-$stamp.dump.gpg" >> "$GITHUB_ENV"
+          scripts/backup/dump.sh "$RUNNER_TEMP/bmm-$stamp.dump.gpg"
+
+      # Upload before verifying: a stored backup beats none if the restore
+      # check itself is what broke.
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          aws s3 cp "$BACKUP_FILE" "s3://$R2_BUCKET/$BACKUP_KEY" --endpoint-url "$R2_ENDPOINT"
+          total=$(aws s3 ls "s3://$R2_BUCKET" --recursive --summarize --endpoint-url "$R2_ENDPOINT" \
+            | awk '/Total Size:/ {print $3}')
+          echo "Bucket now holds $total bytes"
+          if [ "${total:-0}" -gt "$MAX_BUCKET_BYTES" ]; then
+            echo "::error::Backup bucket is $total bytes (limit $MAX_BUCKET_BYTES). Check the 30-day lifecycle rule and dump size." >&2
+            exit 1
+          fi
+
+      - name: Verify restore
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: scripts/backup/verify-restore.sh "$BACKUP_FILE"
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Nightly database backup failed"
+          printf '%s\n' \
+            "The nightly database backup did not complete." \
+            "" \
+            "Run: $RUN_URL" \
+            "" \
+            "See docs/MAINTENANCE.md § Database backups for what each step checks." \
+            > "$RUNNER_TEMP/issue-body.md"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title \"$title\"" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/issue-body.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/issue-body.md"
+          fi

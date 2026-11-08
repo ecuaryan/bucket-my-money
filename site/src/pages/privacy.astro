@@ -1,7 +1,7 @@
 ---
 import Legal from '../layouts/Legal.astro'
 
-const updated = 'November 6, 2026'
+const updated = 'November 8, 2026'
 
 const sections = [
   {
@@ -26,7 +26,7 @@ const sections = [
     title: 'Who can see it',
     items: [
       'Only the people in your household, and only what their role allows. Kids see only their own money. Every household is isolated from every other, enforced by the database.',
-      'Service providers that run the app on our behalf: Supabase (database and sign-in), Vercel and Cloudflare (hosting), Google (only if you choose Google sign-in), and SimpleFIN Bridge (only if you link a bank). They process data only to provide their service.',
+      'Service providers that run the app on our behalf: Supabase (database and sign-in), Vercel and Cloudflare (hosting and encrypted backups), Google (only if you choose Google sign-in), and SimpleFIN Bridge (only if you link a bank). They process data only to provide their service.',
       'We may disclose information if the law requires it.',
     ],
   },
@@ -34,14 +34,14 @@ const sections = [
     title: 'Your choices',
     items: [
       'Edit or remove buckets, accounts, and members at any time in the app. Removing a bank connection stops all further bank data from being pulled.',
-      'To delete your account and household data, or to ask what we hold about you, use the contact link below. We will act on the request within a reasonable time.',
+      'To delete your account and household data, or to ask what we hold about you, use the contact link below. We will act on the request within a reasonable time; copies in backups age out within 30 days.',
       'You can revoke Google sign-in access at any time at myaccount.google.com/permissions.',
     ],
   },
   {
     title: 'Storage and security',
     items: [
-      'Data is stored in a hosted database, encrypted in transit and at rest by our providers. Access is restricted by row-level security so each household sees only its own records.',
+      'Data is stored in a hosted database, encrypted in transit and at rest by our providers. A nightly backup of the database is encrypted by us before it is stored, and backups are deleted after 30 days. Access is restricted by row-level security so each household sees only its own records.',
       'No system is perfectly secure. If a breach affects your data, we will tell you.',
     ],
   },
