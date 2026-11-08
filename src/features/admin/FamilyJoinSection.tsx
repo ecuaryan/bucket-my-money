@@ -21,13 +21,13 @@ export default function FamilyJoinSection() {
   const member = auth.status === 'signedIn' ? auth.member : null
   const [joinCode, setJoinCode] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rotateError, setRotateError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'code' | 'link' | null>(null)
 
   const loadCode = useCallback(async () => {
-    setLoadError(null)
     try {
       await withAuthLockRetry(async () => {
         const { data, error } = await supabase
@@ -37,6 +37,7 @@ export default function FamilyJoinSection() {
         if (error) throw new Error(error.message)
         setJoinCode(data?.join_code ?? null)
       })
+      setLoadError(null)
     } catch (e) {
       setLoadError(formatLoadErrorMessage(e, 'Could not load join code.'))
     }
@@ -45,6 +46,15 @@ export default function FamilyJoinSection() {
   useEffect(() => {
     void loadCode()
   }, [loadCode])
+
+  async function retryLoad() {
+    setRetrying(true)
+    try {
+      await loadCode()
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   const joinUrl = useMemo(() => {
     if (!joinCode || typeof window === 'undefined') return ''
@@ -129,10 +139,11 @@ export default function FamilyJoinSection() {
           <p>{loadError}</p>
           <button
             type="button"
-            onClick={() => void loadCode()}
+            onClick={() => void retryLoad()}
+            disabled={retrying}
             className="mt-2 rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/40 hover:bg-red-500/30"
           >
-            Try again
+            {retrying ? 'Trying…' : 'Try again'}
           </button>
         </div>
       )}
