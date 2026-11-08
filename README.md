@@ -18,8 +18,8 @@ which bucket covers it.
 
 ## Engineering highlights
 
-A production app used by real households, built to be correct with money and safe
-with other people's data.
+A deployed, production-grade app, built to be correct with money and safe with
+other people's data.
 
 - **A money invariant enforced in the database.** Cash minus card debt always equals
   bucket allocations plus the Unbucketed pool. It is derived in Postgres, and balances
