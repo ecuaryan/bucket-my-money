@@ -1,5 +1,5 @@
 /**
- * Demo data for README / portfolio GIF capture (`npm run pwa:gifs`).
+ * Demo data for README GIF capture (`npm run pwa:gifs`).
  * Empty buckets + cash in Float — the Playwright script creates buckets live.
  */
 
