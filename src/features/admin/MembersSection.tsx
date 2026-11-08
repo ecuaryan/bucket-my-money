@@ -131,6 +131,7 @@ export default function MembersSection({
 
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [unlockingId, setUnlockingId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
 
   const loadMembers = useCallback(async () => {
@@ -338,6 +339,8 @@ export default function MembersSection({
   }
 
   async function onClearLockout(m: Member) {
+    if (unlockingId) return
+    setUnlockingId(m.id)
     try {
       await clearPinLockout(m.id)
       toast.success(adminMemberLockoutClearedSuccess(m.name))
@@ -358,6 +361,8 @@ export default function MembersSection({
       }
     } catch (err) {
       toast.error(formatErrorMessage(err))
+    } finally {
+      setUnlockingId(null)
     }
   }
 
@@ -590,9 +595,10 @@ export default function MembersSection({
                 <button
                   type="button"
                   onClick={() => void onClearLockout(openMember)}
-                  className="rounded-lg border border-amber-500/30 px-3 py-1.5 text-xs font-semibold text-amber-200"
+                  disabled={unlockingId === openMember.id}
+                  className="rounded-lg border border-amber-500/30 px-3 py-1.5 text-xs font-semibold text-amber-200 disabled:opacity-60"
                 >
-                  Unlock
+                  {unlockingId === openMember.id ? 'Unlocking…' : 'Unlock'}
                 </button>
               ) : null}
             </div>
