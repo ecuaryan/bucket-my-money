@@ -18,8 +18,8 @@ which bucket covers it.
 
 ## Engineering highlights
 
-A solo-built, production app used by real households — built to be correct with
-money and safe with other people's data.
+A production app used by real households, built to be correct with money and safe
+with other people's data.
 
 - **A money invariant enforced in the database.** Cash minus card debt always equals
   bucket allocations plus the Unbucketed pool. It is derived in Postgres, and balances
@@ -193,5 +193,4 @@ Full command list, seed scenarios, PWA asset regen, and security checklists:
 
 ## License
 
-Proprietary — all rights reserved. Side project / portfolio piece; not open
-source. See [LICENSE](./LICENSE).
+Proprietary — all rights reserved. Not open source. See [LICENSE](./LICENSE).
