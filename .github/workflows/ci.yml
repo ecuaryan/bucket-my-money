@@ -149,15 +149,21 @@ jobs:
         with:
           version: 2.105.0
 
-      - name: Install dependencies
+      # `npm ci` (CPU/disk) and the Supabase image pulls (network) don't compete,
+      # so run them together instead of back to back.
+      # The start script lets the CLI fall back across registries and retries with
+      # backoff, because image pulls are intermittently rate-limited.
+      - name: Install dependencies and start Supabase (in parallel)
         if: needs.changes.outputs.run_db != 'false'
-        run: npm ci
-
-      - name: Start Supabase
-        if: needs.changes.outputs.run_db != 'false'
-        # Image pulls are intermittently rate-limited: this script lets the CLI
-        # fall back across registries and retries with backoff.
-        run: scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}"
+        run: |
+          npm ci &
+          npm_pid=$!
+          scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}" &
+          supabase_pid=$!
+          status=0
+          wait "$npm_pid" || status=1
+          wait "$supabase_pid" || status=1
+          exit "$status"
 
       - name: Database RLS tests
         if: needs.changes.outputs.run_db != 'false'
@@ -196,9 +202,21 @@ jobs:
         with:
           version: 2.105.0
 
-      - name: Install dependencies
+      # `npm ci` (CPU/disk) and the Supabase image pulls (network) don't compete,
+      # so run them together instead of back to back.
+      # The start script lets the CLI fall back across registries and retries with
+      # backoff, because image pulls are intermittently rate-limited.
+      - name: Install dependencies and start Supabase (in parallel)
         if: needs.changes.outputs.run_e2e != 'false'
-        run: npm ci
+        run: |
+          npm ci &
+          npm_pid=$!
+          scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}" &
+          supabase_pid=$!
+          status=0
+          wait "$npm_pid" || status=1
+          wait "$supabase_pid" || status=1
+          exit "$status"
 
       - uses: actions/cache@v6
         if: needs.changes.outputs.run_e2e != 'false'
@@ -212,12 +230,6 @@ jobs:
       - name: Install Playwright browser
         if: needs.changes.outputs.run_e2e != 'false' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
-
-      - name: Start Supabase
-        if: needs.changes.outputs.run_e2e != 'false'
-        # Image pulls are intermittently rate-limited: this script lets the CLI
-        # fall back across registries and retries with backoff.
-        run: scripts/ci-supabase-start.sh "${{ env.SUPABASE_CI_EXCLUDE }}"
 
       - name: E2E smoke tests
         if: needs.changes.outputs.run_e2e != 'false'
