@@ -120,6 +120,12 @@ Entry point for AI coding agents (and humans) working in this repo.
   deploy is CI-gated, and remind the owner to turn it off when the task is done
   ([MAINTENANCE § Fast deploy](./docs/MAINTENANCE.md#fast-deploy-temporary-switch)).
   Never flip it on your own.
+- **Database backups.** [`db-backup.yml`](./.github/workflows/db-backup.yml) runs
+  nightly: encrypted `pg_dump` → private Cloudflare R2 bucket → restore check. Its
+  secrets (`BACKUP_DATABASE_URL`, `BACKUP_ENCRYPTION_KEY`, `R2_*`) are Actions-only;
+  never print them or paste them into chat. Keep the size caps and failure issue
+  intact (they are the cost guard), and update the privacy page if what is stored
+  changes. Details and restore steps: [MAINTENANCE § Database backups](./docs/MAINTENANCE.md#database-backups).
 - **Auth sign-in routing.** Post-sign-out paths and email vs PIN preference
   live in [`src/lib/authNavigation.ts`](./src/lib/authNavigation.ts) and
   [`src/lib/signInPreference.ts`](./src/lib/signInPreference.ts). Use router

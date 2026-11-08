@@ -45,6 +45,10 @@ other people's data.
   tests and Playwright end-to-end smoke tests run in CI. Merges to `main` deploy
   automatically after CI passes: Vercel for the app, Cloudflare for the marketing
   site, and GitHub Actions applying Supabase migrations (110+) and Edge Functions.
+- **Backed up and cost-capped.** A nightly GitHub Action takes a client-side-encrypted
+  database dump to a private Cloudflare R2 bucket (30-day retention), restores it into
+  a scratch Postgres to prove it works, and opens an issue on any failure. Size caps
+  and a billing alert keep it inside the free tier.
 - **Considered product detail.** Installable offline-capable PWA, a hide-amounts
   mode with hold-to-peek, drag-to-reorder buckets and groups, and a written voice and
   copy guide ([docs/BRAND.md](./docs/BRAND.md)).
@@ -112,7 +116,8 @@ Product truth and balance model: [CONTEXT.md](./CONTEXT.md).
 - SimpleFIN Bridge (read-only bank connection; Plaid behind a per-household flag; Teller
   quiesced — [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md))
 - Hosting: the app on Vercel, the marketing site (Astro + Tailwind v4) on Cloudflare,
-  migrations and Edge Functions deployed by GitHub Actions after CI passes
+  migrations and Edge Functions deployed by GitHub Actions after CI passes; nightly
+  encrypted database backups to Cloudflare R2
 
 ## Architecture
 
@@ -189,7 +194,7 @@ Full command list, seed scenarios, PWA asset regen, and security checklists:
 | [docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md) | Owner-controlled per-household feature flags |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Branch/PR workflow, CI, deploy sequence |
 | [AGENTS.md](./AGENTS.md) | Entry point for AI coding agents |
-| [docs/MAINTENANCE.md](./docs/MAINTENANCE.md) | Dev commands, seeds, TODOs, Teller/prod ops |
+| [docs/MAINTENANCE.md](./docs/MAINTENANCE.md) | Dev commands, seeds, database backups and restore, TODOs, Teller/prod ops |
 
 ## License
 

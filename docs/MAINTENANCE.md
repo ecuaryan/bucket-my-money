@@ -310,10 +310,41 @@ are public, so strangers can already arrive).
   (Resend or Brevo) with a sender on `bucketmymoney.com`: add the provider's DNS
   records in Cloudflare alongside the existing Email Routing records, then set it
   in Supabase → Authentication → Emails → SMTP Settings.
-- **Database backups.** Check what the Supabase plan includes (Dashboard →
-  Database → Backups); otherwise Pro, or a scheduled encrypted `pg_dump`. Keep a
-  copy of Edge Function secrets (Plaid keys, signing secrets) in a password
-  manager.
+- **Edge Function secrets.** Keep a copy of Edge Function secrets (Plaid keys,
+  signing secrets) in a password manager; database backups do not contain them.
+
+### Database backups
+
+`db-backup.yml` runs nightly (09:17 UTC, or **Actions → Database backup → Run
+workflow**): `pg_dump` of `public`, `auth` and `supabase_migrations` through the
+Supabase session pooler, encrypted with GPG (AES-256), uploaded to the private
+Cloudflare R2 bucket `bmm-db-backups`, then restored into a throwaway Postgres
+and checked against the source's table list. The bucket's lifecycle rule deletes
+objects after 30 days.
+
+Secrets (repo Actions): `BACKUP_DATABASE_URL` (session-pooler URI),
+`BACKUP_ENCRYPTION_KEY` (also in the password manager; without it a backup
+cannot be read), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token scoped to the
+one bucket).
+
+Cost guards: free tier is 10 GB storage and 1M writes a month; a nightly dump is
+a few MB. The job fails if the encrypted dump is under 20 kB or over 200 MB, or
+the bucket exceeds 2 GB. Any failure opens (or comments on) a `Nightly database
+backup failed` issue (test it with **Run workflow → test_alert**, then close the issue). Cloudflare has no hard spending cap; a billing budget
+alert emails at $1.
+
+Restore (disaster recovery) — decrypt, then restore into a **new** Supabase
+project or local Postgres, never over production:
+
+```bash
+aws s3 cp s3://bmm-db-backups/db/<year>/<month>/<file>.dump.gpg . \
+  --endpoint-url https://a41f52c50c64b9c10dc10c86544fa176.r2.cloudflarestorage.com
+gpg --decrypt --output backup.dump <file>.dump.gpg   # prompts for the encryption key
+pg_restore --no-owner --clean --if-exists -d "<target connection string>" backup.dump
+```
+
+`scripts/backup/verify-restore.sh <file>` does the same into a Docker scratch
+database; run it by hand to test a downloaded backup.
 
 ## Security and production checklist
 
