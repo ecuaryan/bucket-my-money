@@ -50,13 +50,18 @@ Regenerate after significant UI changes ([docs/MAINTENANCE.md § PWA assets](./d
   are money you've set aside. Credit card balances count against Unbucketed, so the
   number is what you really have. The invariant is enforced and derived in Postgres
   (`move_money`, `give_money`, `member_float`).
-- **Household roles** — admin, shared member, and kid views with RLS tenant isolation
-  and PIN login for members.
+- **Household roles** — admin, shared member, and kid views with RLS tenant isolation.
+  Sign in with email, Google or Apple ([docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md)),
+  a 4-digit PIN on shared devices, or Face ID / Touch ID passkeys.
 - **Move and give money** — set aside from Unbucketed, cover spends, give to kids; History
   with pagination and notes.
 - **Read-only bank link** — SimpleFIN Bridge (user-controlled, read-only), manual money sources and card balances for onboarding; provider-swappable design ([docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)).
+- **Bucket groups and hidden amounts** — organize buckets into groups, and hide every
+  amount on screen with a hold-to-peek button.
 - **Auto-bucket** — scheduled or on-demand rules to set aside into buckets (`pg_cron` on hosted).
 - **PWA** — offline fallback, service worker, install screenshots; session-scoped auth.
+- **Marketing site** — a static Astro landing page in `site/` at
+  [bucketmymoney.com](https://bucketmymoney.com), with privacy, terms and contact pages.
 - **Feature flags** — owner-controlled, per-household flags gate experimental features
   to a single family without shipping them to everyone; read-only in the client, zero
   cost for households without a flag ([docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md)).
@@ -71,7 +76,10 @@ Product truth and balance model: [CONTEXT.md](./CONTEXT.md).
 - `vite-plugin-pwa` (manifest + service worker)
 - React Router 7
 - Supabase (Auth, Postgres, Realtime, Edge Functions)
-- SimpleFIN Bridge (read-only bank connection; Teller quiesced — [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md))
+- SimpleFIN Bridge (read-only bank connection; Plaid behind a per-household flag; Teller
+  quiesced — [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md))
+- Hosting: the app on Vercel, the marketing site (Astro + Tailwind v4) on Cloudflare,
+  migrations and Edge Functions deployed by GitHub Actions after CI passes
 
 ## Architecture
 
@@ -87,6 +95,7 @@ public/
   icons/                    PWA icons
   screenshots/              install UI assets
   demos/                    README demo GIF
+site/                       static Astro marketing site (own package.json)
 supabase/
   migrations/               SQL migrations (sequential numeric prefixes)
   functions/                Deno Edge Functions
@@ -142,6 +151,8 @@ Full command list, seed scenarios, PWA asset regen, and security checklists:
 | [CONTEXT.md](./CONTEXT.md) | Product brief, balance model, schema, security |
 | [docs/BRAND.md](./docs/BRAND.md) | Voice, Unbucketed terminology, product narrative |
 | [docs/AUTO_ORGANIZE.md](./docs/AUTO_ORGANIZE.md) | Auto-bucket feature and cron |
+| [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md) | SimpleFIN, Plaid and Teller provider strategy |
+| [docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md) | Google / Apple sign-in setup |
 | [docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md) | Owner-controlled per-household feature flags |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Branch/PR workflow, CI, deploy sequence |
 | [AGENTS.md](./AGENTS.md) | Entry point for AI coding agents |
