@@ -380,9 +380,13 @@ const jsonLd = {
         </p>
         <div class="mt-12 grid gap-4 text-left sm:grid-cols-2">
           {
-            features.map((f) => (
+            features.map((f, i) => (
               <div class="flex flex-col rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800">
-                <div class="relative overflow-hidden rounded-xl bg-black ring-1 ring-zinc-800">
+                {/* Same frame height for the two cards in a row; taller crops are trimmed from the bottom. */}
+                <div
+                  class="relative overflow-hidden rounded-xl bg-black ring-1 ring-zinc-800"
+                  style={`aspect-ratio: 768 / ${i < 2 ? 744 : 836}`}
+                >
                   <img
                     src={feature(f.img)}
                     alt={f.alt}
@@ -390,7 +394,7 @@ const jsonLd = {
                     height={f.height}
                     loading="lazy"
                     decoding="async"
-                    class="block h-auto w-full"
+                    class="block h-full w-full object-cover object-top"
                   />
                 </div>
                 <h3 class="mt-5 font-semibold text-white">{f.title}</h3>
