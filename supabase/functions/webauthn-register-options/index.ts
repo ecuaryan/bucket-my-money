@@ -71,7 +71,9 @@ Deno.serve(async (req: Request) => {
         attempt.locked
           ? { error: 'Too many attempts — PIN locked. Ask your admin.', locked: true }
           : { error: 'Wrong PIN' },
-        attempt.locked ? 403 : 401,
+        // 403, not 401: the client treats a 401 on an authenticated call as an
+        // expired session.
+        403,
       )
     }
     await admin
