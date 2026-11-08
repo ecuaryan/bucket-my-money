@@ -10,6 +10,11 @@ on:
   schedule:
     - cron: '17 9 * * *'
   workflow_dispatch:
+    inputs:
+      test_alert:
+        description: 'Fail on purpose to test the failure issue and email'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,6 +41,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+
+      - name: Simulated failure (alert test)
+        if: inputs.test_alert
+        run: |
+          echo "::error::Simulated failure to test the alert path."
+          exit 1
 
       - name: Dump and encrypt
         env:

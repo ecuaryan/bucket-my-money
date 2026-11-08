@@ -330,7 +330,7 @@ one bucket).
 Cost guards: free tier is 10 GB storage and 1M writes a month; a nightly dump is
 a few MB. The job fails if the encrypted dump is under 20 kB or over 200 MB, or
 the bucket exceeds 2 GB. Any failure opens (or comments on) a `Nightly database
-backup failed` issue. Cloudflare has no hard spending cap; a billing budget
+backup failed` issue (test it with **Run workflow → test_alert**, then close the issue). Cloudflare has no hard spending cap; a billing budget
 alert emails at $1.
 
 Restore (disaster recovery) — decrypt, then restore into a **new** Supabase
