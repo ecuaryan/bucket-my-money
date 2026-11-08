@@ -92,7 +92,7 @@ export default function BiometricSettingsCard() {
       if (isPasskeyCancellation(err)) {
         setPinOpen(false)
         setPin('')
-      } else if (confirmedPin !== undefined && !(err instanceof DOMException)) {
+      } else if (confirmedPin !== undefined && (err as { fromServer?: boolean }).fromServer) {
         // Server rejection (wrong PIN, locked): keep the sheet open to retry.
         setPinError(err instanceof Error ? err.message : 'Could not check your PIN.')
         setPin('')

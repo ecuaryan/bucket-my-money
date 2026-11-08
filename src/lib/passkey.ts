@@ -69,11 +69,20 @@ export async function registerPasskey(
   const token = await getFreshAccessToken()
   if (!token) throw new Error('Not signed in')
 
-  const options = await postFunction<Record<string, unknown>>(
-    'webauthn-register-options',
-    pin ? { pin } : {},
-    token,
-  )
+  let options: Record<string, unknown>
+  try {
+    options = await postFunction<Record<string, unknown>>(
+      'webauthn-register-options',
+      pin ? { pin } : {},
+      token,
+    )
+  } catch (err) {
+    // Tag server rejections (wrong PIN, locked) so the caller can tell them
+    // from a browser/authenticator failure and keep the PIN sheet open.
+    throw Object.assign(err instanceof Error ? err : new Error(String(err)), {
+      fromServer: true,
+    })
+  }
   // @ts-expect-error options is a PublicKeyCredentialCreationOptionsJSON
   const attResp = await startRegistration({ optionsJSON: options })
   const verify = await postFunction<{ ok: boolean; credentialId: string }>(
