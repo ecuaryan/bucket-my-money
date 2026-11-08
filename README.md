@@ -16,6 +16,39 @@ glance. Credit cards count against the number — what you see is cash minus car
 debt, so a swipe can't hide from your budget. When the balance moves, pick
 which bucket covers it.
 
+## Engineering highlights
+
+A solo-built, production app used by real households — built to be correct with
+money and safe with other people's data.
+
+- **A money invariant enforced in the database.** Cash minus card debt always equals
+  bucket allocations plus the Unbucketed pool. It is derived in Postgres, and balances
+  change only through `SECURITY DEFINER` RPCs (`move_money`, `give_money`) — clients
+  cannot write them. Database tests pin the behavior.
+- **Multi-tenant isolation at the row level.** Every table carries a `family_id` and
+  RLS policies scope every query. A kid's login can't read family balances or other
+  members' data — enforced in the policies, not the UI, and tested against a real
+  local Postgres (38 database test files).
+- **Layered authentication.** Email and Google sign-in (Apple supported, off by default), 4-digit PIN with atomic
+  attempt counting and lockout, and WebAuthn passkeys (Face ID / Touch ID) with a PIN
+  step-up. Pre-auth rate limiting lives in Postgres so it holds across Edge Function
+  instances.
+- **Server-side secrets and bank data.** Bank credentials sit in service-role-only
+  tables behind 36 Deno Edge Functions; none of it reaches client code. Provider
+  access goes through a swappable layer (SimpleFIN, Plaid, Teller).
+- **Security reviewed, then fixed.** I ran a structured security audit of the code.
+  It found a real flaw (a child could insert a bucket with a negative balance through
+  the API); I reproduced it locally, fixed it, and added regression tests. Related
+  hardening: deploy-pipeline gating, PIN-reset session revocation, unlock rate limits,
+  and exact WebAuthn origins.
+- **Tested and shipped like a team project.** About 960 unit tests, 300+ database
+  tests and Playwright end-to-end smoke tests run in CI. Merges to `main` deploy
+  automatically after CI passes: Vercel for the app, Cloudflare for the marketing
+  site, and GitHub Actions applying Supabase migrations (110+) and Edge Functions.
+- **Considered product detail.** Installable offline-capable PWA, a hide-amounts
+  mode with hold-to-peek, drag-to-reorder buckets and groups, and a written voice and
+  copy guide ([docs/BRAND.md](./docs/BRAND.md)).
+
 ## Demo
 
 Your bank shows one balance. Buckets show where that money actually is —
@@ -51,7 +84,7 @@ Regenerate after significant UI changes ([docs/MAINTENANCE.md § PWA assets](./d
   number is what you really have. The invariant is enforced and derived in Postgres
   (`move_money`, `give_money`, `member_float`).
 - **Household roles** — admin, shared member, and kid views with RLS tenant isolation.
-  Sign in with email, Google or Apple ([docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md)),
+  Sign in with email or Google, with Apple ready to enable ([docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md)),
   a 4-digit PIN on shared devices, or Face ID / Touch ID passkeys.
 - **Move and give money** — set aside from Unbucketed, cover spends, give to kids; History
   with pagination and notes.
