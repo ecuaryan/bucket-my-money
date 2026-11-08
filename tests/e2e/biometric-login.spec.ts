@@ -187,6 +187,12 @@ test.describe('Biometric login', () => {
     // Enroll a passkey on this device.
     await page.goto('/settings')
     await page.getByRole('button', { name: 'Enable on this device' }).click()
+    // A member with a PIN must confirm it first; a wrong PIN is refused.
+    await page.getByLabel('Your 4-digit PIN').fill('0000')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('alert')).toContainText('Wrong PIN')
+    await page.getByLabel('Your 4-digit PIN').fill('1357')
+    await page.getByRole('button', { name: 'Continue' }).click()
     await expect(
       page.getByRole('button', { name: 'Turn off on this device' }),
     ).toBeVisible()
@@ -225,6 +231,8 @@ test.describe('Biometric login', () => {
     await expect(page).toHaveURL('/')
     await page.goto('/settings')
     await page.getByRole('button', { name: 'Enable on this device' }).click()
+    await page.getByLabel('Your 4-digit PIN').fill('2468')
+    await page.getByRole('button', { name: 'Continue' }).click()
     await expect(
       page.getByRole('button', { name: 'Turn off on this device' }),
     ).toBeVisible()
