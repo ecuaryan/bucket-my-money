@@ -75,7 +75,7 @@ CI does **not** run seeds — database tests create their own fixtures.
 **When to refresh:** After any **significant UI/UX change** to Buckets, History,
 Kids, Admin, or the app shell — update **both** the install screenshots and the
 README demo GIF in the same PR (or immediately after) so GitHub, the PWA install
-sheet, and portfolio viewers stay in sync with the product.
+sheet, and README readers stay in sync with the product.
 
 | Asset | Where it appears | Command |
 | ----- | ---------------- | ------- |

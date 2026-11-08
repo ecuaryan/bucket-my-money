@@ -91,7 +91,7 @@ Entry point for AI coding agents (and humans) working in this repo.
   Consequential actions (money, access, hard-to-undo state) confirm with
   `ConfirmSheet` (question title, one or two consequence sentences, Cancel +
   action) — not for trivial reversible edits. Never `window.confirm`.
-- **Portfolio / PWA marketing assets:** significant UI/UX changes to the
+- **README / PWA marketing assets:** significant UI/UX changes to the
   captured surfaces require refreshing install screenshots
   (`npm run pwa:screenshots`) and the README demo GIF (`npm run pwa:gifs`) in
   the same PR when possible. The canonical surface list and commands live in
