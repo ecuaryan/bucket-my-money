@@ -67,7 +67,11 @@ with `isLinkedAccount()` in `src/lib/accounts.ts`.
   request refreshes a whole connection, so: scheduled sweep at a 6h
   staleness cadence (~4/day) + a 30-minute server throttle on manual refresh
   (vs Teller's 60s) + on-demand Bank activity fetches with a 10-minute
-  client-side cache per account.
+  client-side cache per account. A per-family atomic counter
+  (`_shared/providerBudget.ts`, over `check_rate_limit`) also caps provider-calling
+  refreshes (5 per 10 min) and activity fetches (30 per 10 min), so parallel taps
+  and repeated failures can't burn the quota; over-budget refreshes return
+  `refreshed: false` like a throttled one.
 - **One connection can span several banks** (whatever the user connected on
   the Bridge before minting the token). Admin groups **by connection** — one
   card, one Refresh, one Unlink, titled with the joined bank names

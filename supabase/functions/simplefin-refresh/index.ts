@@ -21,6 +21,7 @@ import {
   isCashAccountType,
   isCreditCardAccountType,
 } from '../_shared/cashAccountTypes.ts'
+import { REFRESH_BUDGET, withinProviderBudget } from '../_shared/providerBudget.ts'
 import { shouldSkipRefresh } from '../_shared/refreshThrottle.ts'
 import { fetchAccounts, isReconnectError, normalizeBalance } from '../_shared/simplefin.ts'
 
@@ -136,6 +137,25 @@ Deno.serve(async (req: Request) => {
   }
 
   if (shouldSkipRefresh(latestSyncedMs, Date.now(), SIMPLEFIN_REFRESH_THROTTLE_MS)) {
+    return jsonResponse({
+      ok: true,
+      refreshed: false,
+      accountsUpdated: 0,
+      bankLastSyncedAt,
+      errors: [],
+    })
+  }
+
+  // Atomic per-family cap on provider calls: covers parallel taps and repeated
+  // failing refreshes, which the timestamp throttle above can't see.
+  if (
+    !(await withinProviderBudget(
+      admin,
+      `simplefin-refresh:${familyId}`,
+      REFRESH_BUDGET.limit,
+      REFRESH_BUDGET.windowSeconds,
+    ))
+  ) {
     return jsonResponse({
       ok: true,
       refreshed: false,
