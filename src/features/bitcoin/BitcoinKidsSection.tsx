@@ -48,6 +48,7 @@ export default function BitcoinKidsSection({
 
   const [entries, setEntries] = useState<BitcoinEntryRow[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
   const [sheet, setSheet] = useState<SheetState>(null)
   const [confirmDelete, setConfirmDelete] = useState<BitcoinEntryRow | null>(
     null,
@@ -56,9 +57,9 @@ export default function BitcoinKidsSection({
   const [expandedKids, setExpandedKids] = useState<Set<string>>(new Set())
 
   const loadEntries = useCallback(async () => {
-    setLoadError(null)
     try {
       setEntries(await fetchBitcoinEntries())
+      setLoadError(null)
     } catch (e) {
       setLoadError(formatLoadErrorMessage(e, 'Could not load Bitcoin entries.'))
     }
@@ -67,6 +68,15 @@ export default function BitcoinKidsSection({
   useEffect(() => {
     void loadEntries()
   }, [loadEntries])
+
+  async function retryLoad() {
+    setRetrying(true)
+    try {
+      await loadEntries()
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   const entriesByKid = useMemo(() => {
     const map = new Map<string, BitcoinEntryRow[]>()
@@ -133,10 +143,11 @@ export default function BitcoinKidsSection({
           <p className="text-sm text-zinc-400">{loadError}</p>
           <button
             type="button"
-            onClick={() => void loadEntries()}
+            onClick={() => void retryLoad()}
+            disabled={retrying}
             className="mt-2 text-xs font-semibold text-[#F7931A] transition hover:text-[#F7931A]/80"
           >
-            Try again
+            {retrying ? 'Trying…' : 'Try again'}
           </button>
         </div>
       ) : entries === null ? (

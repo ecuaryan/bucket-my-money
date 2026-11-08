@@ -32,11 +32,12 @@ export default function BitcoinTab() {
 
   const [entries, setEntries] = useState<BitcoinEntryRow[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   const loadEntries = useCallback(async () => {
-    setLoadError(null)
     try {
       setEntries(await fetchBitcoinEntries())
+      setLoadError(null)
     } catch (e) {
       setLoadError(formatLoadErrorMessage(e, 'Could not load your Bitcoin.'))
     }
@@ -45,6 +46,15 @@ export default function BitcoinTab() {
   useEffect(() => {
     void loadEntries()
   }, [loadEntries])
+
+  async function retryLoad() {
+    setRetrying(true)
+    try {
+      await loadEntries()
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   const totals = entries ? totalsForEntries(entries, price) : null
 
@@ -109,10 +119,11 @@ export default function BitcoinTab() {
             <p className="text-sm text-zinc-400">{loadError}</p>
             <button
               type="button"
-              onClick={() => void loadEntries()}
+              onClick={() => void retryLoad()}
+              disabled={retrying}
               className="mt-2 text-xs font-semibold text-[#F7931A] transition hover:text-[#F7931A]/80"
             >
-              Try again
+              {retrying ? 'Trying…' : 'Try again'}
             </button>
           </div>
         ) : entries === null ? (

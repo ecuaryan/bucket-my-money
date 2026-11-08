@@ -114,6 +114,7 @@ export default function MembersSection({
 
   const [members, setMembers] = useState<Member[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState<HouseholdMemberRole>('member')
@@ -135,7 +136,6 @@ export default function MembersSection({
   const [removeError, setRemoveError] = useState<string | null>(null)
 
   const loadMembers = useCallback(async () => {
-    setLoadError(null)
     try {
       await withAuthLockRetry(async () => {
         const { data, error } = await supabase
@@ -147,6 +147,7 @@ export default function MembersSection({
         if (error) throw new Error(error.message)
         setMembers(data ?? [])
       })
+      setLoadError(null)
     } catch (e) {
       setLoadError(formatLoadErrorMessage(e, 'Could not load household members.'))
     }
@@ -155,6 +156,15 @@ export default function MembersSection({
   useEffect(() => {
     void loadMembers()
   }, [loadMembers])
+
+  async function retryLoad() {
+    setRetrying(true)
+    try {
+      await loadMembers()
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   function openAddSheet() {
     setNewName('')
@@ -438,10 +448,11 @@ export default function MembersSection({
           <p>{loadError}</p>
           <button
             type="button"
-            onClick={() => void loadMembers()}
+            onClick={() => void retryLoad()}
+            disabled={retrying}
             className="mt-2 rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/40 hover:bg-red-500/30"
           >
-            Try again
+            {retrying ? 'Trying…' : 'Try again'}
           </button>
         </div>
       )}
