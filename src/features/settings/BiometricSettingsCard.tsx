@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '@/lib/auth'
 import {
   clearBiometricBinding,
@@ -13,6 +13,9 @@ import {
 } from '@/lib/passkey'
 import { supabase } from '@/lib/supabase'
 import FingerprintIcon from '@/components/ui/FingerprintIcon'
+import PinInput from '@/components/ui/PinInput'
+import { Sheet } from '@/components/ui/Sheet'
+import { SheetHeader } from '@/components/ui/SheetHeader'
 
 /**
  * Enroll / remove a biometric passkey for the current member on THIS device.
@@ -30,6 +33,9 @@ export default function BiometricSettingsCard() {
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pinOpen, setPinOpen] = useState(false)
+  const [pin, setPin] = useState('')
+  const [pinError, setPinError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -46,25 +52,63 @@ export default function BiometricSettingsCard() {
   const binding = getBiometricBinding()
   const enrolledHere = binding?.memberId === member.id
 
-  async function enable() {
+  // Members with a PIN confirm it first, so a stolen session alone can't plant
+  // a passkey that outlives it. Members without one go straight through.
+  const needsPin = Boolean(member.pin_set_at)
+
+  function startEnable() {
+    if (!needsPin) {
+      void enable()
+      return
+    }
+    setPin('')
+    setPinError(null)
+    setPinOpen(true)
+  }
+
+  function closePinSheet() {
+    if (busy) return
+    setPinOpen(false)
+    setPin('')
+    setPinError(null)
+  }
+
+  async function enable(confirmedPin?: string) {
     setBusy(true)
     setError(null)
+    setPinError(null)
     try {
-      const credentialId = await registerPasskey()
+      const credentialId = await registerPasskey(undefined, confirmedPin)
       setBiometricBinding({
         memberId: member!.id,
         familyId: member!.family_id,
         credentialId,
       })
       setEnrolledCredentialId(credentialId)
+      setPinOpen(false)
+      setPin('')
     } catch (err) {
       // Silent on cancel; friendly setup message otherwise (not the raw W3C text).
-      if (!isPasskeyCancellation(err)) {
+      if (isPasskeyCancellation(err)) {
+        setPinOpen(false)
+        setPin('')
+      } else if (confirmedPin !== undefined && !(err instanceof DOMException)) {
+        // Server rejection (wrong PIN, locked): keep the sheet open to retry.
+        setPinError(err instanceof Error ? err.message : 'Could not check your PIN.')
+        setPin('')
+      } else {
+        setPinOpen(false)
         setError(passkeySetupErrorMessage(err))
       }
     } finally {
       setBusy(false)
     }
+  }
+
+  async function onPinSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (busy || pin.length !== 4) return
+    await enable(pin)
   }
 
   async function disable() {
@@ -105,7 +149,7 @@ export default function BiometricSettingsCard() {
       <button
         type="button"
         disabled={busy}
-        onClick={() => void (enrolledHere ? disable() : enable())}
+        onClick={() => void (enrolledHere ? disable() : startEnable())}
         className={
           enrolledHere
             ? 'mt-3 w-full rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-60'
@@ -118,6 +162,49 @@ export default function BiometricSettingsCard() {
             ? 'Turn off on this device'
             : 'Enable on this device'}
       </button>
+      <Sheet open={pinOpen} onClose={closePinSheet} aria-label="Confirm your PIN">
+        <form onSubmit={onPinSubmit} autoComplete="off">
+          <SheetHeader onClose={closePinSheet}>
+            <h2 className="text-lg font-semibold text-zinc-300">Confirm your PIN</h2>
+          </SheetHeader>
+          {pinError && (
+            <p
+              role="alert"
+              className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300 ring-1 ring-red-500/30"
+            >
+              {pinError}
+            </p>
+          )}
+          <PinInput
+            autoFocus
+            aria-label="Your 4-digit PIN"
+            value={pin}
+            onChange={(v) => {
+              setPin(v)
+              if (pinError) setPinError(null)
+            }}
+            disabled={busy}
+            className="mt-4 block w-full rounded-lg bg-zinc-950 px-3 py-3 text-center text-2xl tracking-[0.5em] text-zinc-300 ring-1 ring-zinc-700"
+          />
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={closePinSheet}
+              disabled={busy}
+              className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-400 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy || pin.length !== 4}
+              className="flex-1 rounded-lg bg-emerald-500 py-2 text-sm font-semibold text-black disabled:opacity-50"
+            >
+              {busy ? 'Working…' : 'Continue'}
+            </button>
+          </div>
+        </form>
+      </Sheet>
     </section>
   )
 }

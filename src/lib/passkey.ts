@@ -62,13 +62,16 @@ export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
  * Enroll a passkey for the currently signed-in member on THIS device.
  * Returns the new credential id so the caller can remember this device's binding.
  */
-export async function registerPasskey(label?: string): Promise<string> {
+export async function registerPasskey(
+  label?: string,
+  pin?: string,
+): Promise<string> {
   const token = await getFreshAccessToken()
   if (!token) throw new Error('Not signed in')
 
   const options = await postFunction<Record<string, unknown>>(
     'webauthn-register-options',
-    {},
+    pin ? { pin } : {},
     token,
   )
   // @ts-expect-error options is a PublicKeyCredentialCreationOptionsJSON
