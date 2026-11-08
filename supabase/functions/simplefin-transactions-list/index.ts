@@ -16,6 +16,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
 import { handleCors, jsonResponse } from '../_shared/http.ts'
 import { requireCallerMember } from '../_shared/callerMember.ts'
+import { LIST_BUDGET, withinProviderBudget } from '../_shared/providerBudget.ts'
+import { rateLimitResponse } from '../_shared/rateLimit.ts'
 import {
   fetchAccounts,
   isReconnectError,
@@ -124,6 +126,17 @@ Deno.serve(async (req: Request) => {
       { error: 'Bank link needs reconnecting', code: 'bank_link_reconnect' },
       409,
     )
+  }
+
+  if (
+    !(await withinProviderBudget(
+      admin,
+      `simplefin-transactions-list:${member.family_id}`,
+      LIST_BUDGET.limit,
+      LIST_BUDGET.windowSeconds,
+    ))
+  ) {
+    return rateLimitResponse()
   }
 
   const end = new Date()

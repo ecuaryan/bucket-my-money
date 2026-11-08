@@ -21,6 +21,7 @@ import {
   isCashAccountType,
   isCreditCardAccountType,
 } from '../_shared/cashAccountTypes.ts'
+import { REFRESH_BUDGET, withinProviderBudget } from '../_shared/providerBudget.ts'
 import { itemsDueForRefresh } from '../_shared/refreshThrottle.ts'
 import { getBalances, isReconnectError, pickPlaidBalance } from '../_shared/plaid.ts'
 import { syncPendingCardPayments } from '../_shared/plaidPendingSync.ts'
@@ -136,6 +137,25 @@ Deno.serve(async (req: Request) => {
   // retryable even when another bank refreshed a moment ago.
   const dueItems = itemsDueForRefresh(items ?? [], Date.now(), PLAID_REFRESH_THROTTLE_MS)
   if (dueItems.length === 0) {
+    return jsonResponse({
+      ok: true,
+      refreshed: false,
+      accountsUpdated: 0,
+      bankLastSyncedAt,
+      errors: [],
+    })
+  }
+
+  // Atomic per-family cap on provider calls: covers parallel taps and repeated
+  // failing refreshes, which the per-bank timestamp throttle can't see.
+  if (
+    !(await withinProviderBudget(
+      admin,
+      `plaid-refresh:${familyId}`,
+      REFRESH_BUDGET.limit,
+      REFRESH_BUDGET.windowSeconds,
+    ))
+  ) {
     return jsonResponse({
       ok: true,
       refreshed: false,
