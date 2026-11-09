@@ -179,6 +179,26 @@ export type PinSessionTokens = {
   refresh_token: string
 }
 
+// Edge Functions idle out; the first request after a quiet spell pays a cold
+// start (often several hundred ms). Waking pin-login while the person types
+// their PIN moves that cost off the sign-in itself.
+const PIN_LOGIN_WARM_INTERVAL_MS = 4 * 60_000
+let pinLoginWarmedAt = 0
+
+/**
+ * Fire-and-forget wake-up for pin-login. A GET is rejected by the function's
+ * method check (405) before any database work or rate-limit counting, so it
+ * costs nothing and carries no credentials. Errors are ignored on purpose.
+ */
+export function warmPinLogin(now = Date.now()): void {
+  if (now - pinLoginWarmedAt < PIN_LOGIN_WARM_INTERVAL_MS) return
+  pinLoginWarmedAt = now
+  void fetch(`${supabaseUrl}/functions/v1/pin-login`, {
+    method: 'GET',
+    headers: { apikey: publishableKey },
+  }).catch(() => {})
+}
+
 /** Validates PIN via Edge Function; caller applies tokens with `signInWithSession`. */
 export async function exchangePinForSession(input: {
   familyId: string

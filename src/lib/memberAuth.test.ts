@@ -102,3 +102,41 @@ describe('validateJoinCode', () => {
     expect(supabase.rpc).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('warmPinLogin', () => {
+  const fetchMock = vi.fn()
+
+  beforeEach(() => {
+    fetchMock.mockReset()
+    fetchMock.mockResolvedValue(new Response(null, { status: 405 }))
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('pings pin-login with a credential-free GET, then throttles repeats', async () => {
+    const { warmPinLogin } = await import('@/lib/memberAuth')
+    const start = 10_000_000
+    warmPinLogin(start)
+    warmPinLogin(start + 1_000)
+    warmPinLogin(start + 239_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://example.supabase.co/functions/v1/pin-login')
+    expect(init.method).toBe('GET')
+    expect(init.body).toBeUndefined()
+    expect(init.headers).toEqual({ apikey: 'test-publishable-key' })
+
+    warmPinLogin(start + 241_000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('never throws when the network is down', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
+    const { warmPinLogin } = await import('@/lib/memberAuth')
+    expect(() => warmPinLogin(99_000_000)).not.toThrow()
+    await Promise.resolve()
+  })
+})
