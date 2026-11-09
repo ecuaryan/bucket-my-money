@@ -45,7 +45,7 @@ import {
 import FingerprintIcon from '@/components/ui/FingerprintIcon'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import PinInput from '@/components/ui/PinInput'
-import { exchangePinForSession } from '@/lib/memberAuth'
+import { exchangePinForSession, warmPinLogin } from '@/lib/memberAuth'
 import { oauthReturnError } from '@/lib/oauth'
 import LegalLinks from '@/components/LegalLinks'
 import { LastUsedBadge, OAuthButtons } from './OAuthButtons'
@@ -194,6 +194,11 @@ export default function LoginPage() {
     setPinError(null)
     setBiometricError(null)
   }
+
+  // Wake the PIN function as soon as we know this device can use a PIN.
+  useEffect(() => {
+    if (pinReady) warmPinLogin()
+  }, [pinReady])
 
   async function submitPin(value: string) {
     if (!fastMember || pinBusy) return

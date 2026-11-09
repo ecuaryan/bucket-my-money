@@ -26,32 +26,48 @@ Deno.serve(async (req: Request) => {
   // Distributed pre-auth rate limit (migration 93, budget in
   // rate_limit_rules). Generous for a household; 429s only under abuse.
   // Per-member PIN lockout below remains the primary brute-force control.
-  if (!(await checkPreAuthRateLimit(req, 'pin-login'))) {
-    return rateLimitResponse()
-  }
+  // Started now and awaited before anything is acted on, so its round trip
+  // overlaps the body parse and the member lookup instead of preceding them.
+  // Never rejects (a rejection nobody is awaiting yet would be unhandled): like
+  // a DB error inside the check, an unexpected throw fails open and is logged.
+  const withinBudget = checkPreAuthRateLimit(req, 'pin-login').catch((err) => {
+    console.error('pin-login rate-limit check threw (failing open)', err)
+    return true
+  })
 
   let body: Body
   try {
     body = await req.json()
   } catch {
+    if (!(await withinBudget)) return rateLimitResponse()
     return jsonResponse({ error: 'Invalid JSON' }, 400)
   }
 
   const { familyId, memberId, pin } = body
   if (!familyId || !memberId || !pin) {
+    if (!(await withinBudget)) return rateLimitResponse()
     return jsonResponse({ error: 'familyId, memberId, and pin are required' }, 400)
   }
   if (!isValidPin(pin)) {
+    if (!(await withinBudget)) return rateLimitResponse()
     return jsonResponse({ error: 'PIN must be exactly 4 digits' }, 400)
   }
 
   const admin = serviceClient()
   // One DB call returns the member row AND the auth email, so issuing the
-  // session below no longer needs a separate getUserById round trip.
-  const { data: member, error: memberError } = await admin.rpc(
-    'member_session_lookup',
-    { p_family_id: familyId, p_member_id: memberId },
-  )
+  // session below no longer needs a separate getUserById round trip. It is a
+  // read-only lookup, so it runs alongside the rate-limit check; its result is
+  // discarded (and nothing else happens) if the caller is over budget.
+  const [inBudget, { data: member, error: memberError }] = await Promise.all([
+    withinBudget,
+    admin.rpc('member_session_lookup', {
+      p_family_id: familyId,
+      p_member_id: memberId,
+    }),
+  ])
+  if (!inBudget) {
+    return rateLimitResponse()
+  }
 
   if (memberError) {
     console.error('pin-login member lookup', memberError)
@@ -77,10 +93,18 @@ Deno.serve(async (req: Request) => {
   // locks the member on the last allowed try, so a burst of parallel guesses
   // cannot all slip past the `pin_locked` check above and get verified.
   // No row back = locked or out of attempts. Fail closed on errors.
-  const { data: reservation, error: reserveError } = await admin.rpc(
-    'reserve_pin_attempt',
-    { p_member_id: member.id, p_max_attempts: MAX_PIN_ATTEMPTS },
-  )
+  //
+  // The bcrypt check runs at the same time as the reservation to save a round
+  // trip. Its result is only ever used once a reservation has been granted: a
+  // locked or exhausted member gets the same "locked" answer whatever the PIN,
+  // so the overlap reveals nothing and lets no extra guess through.
+  const [{ data: reservation, error: reserveError }, ok] = await Promise.all([
+    admin.rpc('reserve_pin_attempt', {
+      p_member_id: member.id,
+      p_max_attempts: MAX_PIN_ATTEMPTS,
+    }),
+    verifyPin(pin, member.pin_hash),
+  ])
   if (reserveError) {
     console.error('pin-login reserve attempt', reserveError)
     return jsonResponse({ error: 'Login failed' }, 500)
@@ -93,7 +117,6 @@ Deno.serve(async (req: Request) => {
     )
   }
 
-  const ok = await verifyPin(pin, member.pin_hash)
   if (!ok) {
     if (attempt.locked) {
       return jsonResponse(
@@ -107,18 +130,24 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Wrong PIN' }, 401)
   }
 
-  await admin
-    .from('family_members')
-    .update({ pin_failed_attempts: 0, pin_locked: false })
-    .eq('id', member.id)
+  // Correct PIN: clear the counter while the session is minted (independent
+  // writes, so no reason to run them back to back). Awaited before replying.
+  const resetCounter = Promise.resolve(
+    admin
+      .from('family_members')
+      .update({ pin_failed_attempts: 0, pin_locked: false })
+      .eq('id', member.id),
+  ).catch((err) => console.error('pin-login counter reset', err))
 
   let session
   try {
     session = await issueSessionForMember(admin, member.user_id, member.auth_email)
   } catch (err) {
     console.error('pin-login session', err)
+    await resetCounter
     return jsonResponse({ error: 'Login failed' }, 500)
   }
+  await resetCounter
 
   return jsonResponse({
     access_token: session.access_token,
