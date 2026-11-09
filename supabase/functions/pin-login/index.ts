@@ -157,19 +157,6 @@ Deno.serve(async (req: Request) => {
   ).catch((err) => console.error('pin-login counter reset', err))
   const resetTimed = timed('reset', resetCounter)
 
-  // Temporary measurement: two identical one-row reads back to back, run while
-  // the session mints (they finish well inside it, so they add no latency).
-  // probe1 vs probe2 shows whether a call's cost is connection setup or the
-  // query itself. The result is discarded. Remove once the numbers are in.
-  const probes = (async () => {
-    for (const name of ['probe1', 'probe2']) {
-      await timed(
-        name,
-        admin.from('family_members').select('id').eq('id', member.id).limit(1),
-      )
-    }
-  })().catch(() => {})
-
   let session
   try {
     session = await timed(
@@ -178,10 +165,10 @@ Deno.serve(async (req: Request) => {
     )
   } catch (err) {
     console.error('pin-login session', err)
-    await Promise.all([resetTimed, probes])
+    await resetTimed
     return jsonResponse({ error: 'Login failed' }, 500)
   }
-  await Promise.all([resetTimed, probes])
+  await resetTimed
   timings.push(`total;dur=${(performance.now() - t0).toFixed(1)}`)
 
   const response = jsonResponse({
