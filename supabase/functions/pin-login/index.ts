@@ -23,6 +23,17 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Method not allowed' }, 405)
   }
 
+  // Per-step durations, reported only on a successful sign-in as a
+  // Server-Timing header (browser devtools → Network → Timing). Durations only.
+  const t0 = performance.now()
+  const timings: string[] = []
+  const timed = <T,>(name: string, work: Promise<T> | PromiseLike<T>): Promise<T> => {
+    const start = performance.now()
+    return Promise.resolve(work).finally(() => {
+      timings.push(`${name};dur=${(performance.now() - start).toFixed(1)}`)
+    })
+  }
+
   // Distributed pre-auth rate limit (migration 93, budget in
   // rate_limit_rules). Generous for a household; 429s only under abuse.
   // Per-member PIN lockout below remains the primary brute-force control.
@@ -59,11 +70,14 @@ Deno.serve(async (req: Request) => {
   // read-only lookup, so it runs alongside the rate-limit check; its result is
   // discarded (and nothing else happens) if the caller is over budget.
   const [inBudget, { data: member, error: memberError }] = await Promise.all([
-    withinBudget,
-    admin.rpc('member_session_lookup', {
-      p_family_id: familyId,
-      p_member_id: memberId,
-    }),
+    timed('ratelimit', withinBudget),
+    timed(
+      'lookup',
+      admin.rpc('member_session_lookup', {
+        p_family_id: familyId,
+        p_member_id: memberId,
+      }),
+    ),
   ])
   if (!inBudget) {
     return rateLimitResponse()
@@ -99,11 +113,14 @@ Deno.serve(async (req: Request) => {
   // locked or exhausted member gets the same "locked" answer whatever the PIN,
   // so the overlap reveals nothing and lets no extra guess through.
   const [{ data: reservation, error: reserveError }, ok] = await Promise.all([
-    admin.rpc('reserve_pin_attempt', {
-      p_member_id: member.id,
-      p_max_attempts: MAX_PIN_ATTEMPTS,
-    }),
-    verifyPin(pin, member.pin_hash),
+    timed(
+      'reserve',
+      admin.rpc('reserve_pin_attempt', {
+        p_member_id: member.id,
+        p_max_attempts: MAX_PIN_ATTEMPTS,
+      }),
+    ),
+    timed('bcrypt', verifyPin(pin, member.pin_hash)),
   ])
   if (reserveError) {
     console.error('pin-login reserve attempt', reserveError)
@@ -138,18 +155,23 @@ Deno.serve(async (req: Request) => {
       .update({ pin_failed_attempts: 0, pin_locked: false })
       .eq('id', member.id),
   ).catch((err) => console.error('pin-login counter reset', err))
+  const resetTimed = timed('reset', resetCounter)
 
   let session
   try {
-    session = await issueSessionForMember(admin, member.user_id, member.auth_email)
+    session = await timed(
+      'session',
+      issueSessionForMember(admin, member.user_id, member.auth_email),
+    )
   } catch (err) {
     console.error('pin-login session', err)
-    await resetCounter
+    await resetTimed
     return jsonResponse({ error: 'Login failed' }, 500)
   }
-  await resetCounter
+  await resetTimed
+  timings.push(`total;dur=${(performance.now() - t0).toFixed(1)}`)
 
-  return jsonResponse({
+  const response = jsonResponse({
     access_token: session.access_token,
     refresh_token: session.refresh_token,
     expires_at: session.expires_at,
@@ -159,4 +181,6 @@ Deno.serve(async (req: Request) => {
       familyId: member.family_id,
     },
   })
+  response.headers.set('Server-Timing', timings.join(', '))
+  return response
 })
