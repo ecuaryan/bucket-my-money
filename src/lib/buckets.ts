@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { humaniseBucketWriteError, validateBucketName } from '@/lib/bucketName'
 import { BUCKETS_DELETE_BUCKET_AUTO_ORGANIZE_BLOCK, FLOAT_LABEL_LOWER } from '@/lib/brand'
 import { formatErrorMessage } from '@/lib/errorMessage'
+import { requireTransactionId } from '@/lib/rpcResult'
 
 export {
   BUCKET_NAME_MAX_LENGTH,
@@ -41,7 +42,7 @@ export async function moveMoney(args: MoveMoneyArgs): Promise<string> {
   if (error) {
     throw new Error(humaniseMoveError(error.message))
   }
-  return data as unknown as string
+  return requireTransactionId(data)
 }
 
 /** Rename a bucket. RLS gates it to the owner or an admin. */

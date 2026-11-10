@@ -1,6 +1,7 @@
 import { isMissingDbFunctionError } from '@/lib/availableBalance'
 import { withAuthLockRetry } from '@/lib/authLockError'
 import type { GiveRecipientMember } from '@/lib/giveRecipients'
+import { requireTransactionId } from '@/lib/rpcResult'
 import { supabase } from '@/lib/supabase'
 import { FLOAT_LABEL_LOWER } from '@/lib/brand'
 
@@ -64,7 +65,7 @@ export async function giveMoney(args: GiveMoneyArgs): Promise<string> {
     }
     throw new Error(humaniseGiveError(error.message))
   }
-  return data as unknown as string
+  return requireTransactionId(data)
 }
 
 export type ReturnFromChildArgs = {
@@ -89,7 +90,7 @@ export async function returnFromChild(
     }
     throw new Error(humaniseReturnError(error.message))
   }
-  return data as unknown as string
+  return requireTransactionId(data)
 }
 
 function humaniseReturnError(msg: string): string {

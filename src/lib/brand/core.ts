@@ -123,3 +123,7 @@ export const APP_UPDATE_APPLYING_LABEL = 'Updating…'
 export const NAV_BUCKETS_LABEL = 'Buckets'
 
 export const INPUT_CLEAR_ARIA_LABEL = 'Clear'
+
+/** A money RPC returned without a transaction id, so the save can't be confirmed. */
+export const MONEY_SAVE_UNCONFIRMED =
+  "Couldn't confirm that saved. Check History before trying again."
