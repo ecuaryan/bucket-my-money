@@ -71,7 +71,7 @@ const trust = [
 const faqs = [
   {
     q: 'How is this different from other budgeting apps?',
-    a: 'It doesn’t track spending. There are no categories to tag and no charts to maintain. You keep one number honest: what’s free after your buckets and credit cards are covered. One small move when you spend is the whole habit.',
+    a: 'One glance shows what’s free after your buckets and credit cards are covered. It doesn’t track spending: no categories to tag, no charts to maintain. One small move when you spend keeps that number honest.',
   },
   {
     q: 'Do I have to link my bank?',
@@ -122,7 +122,7 @@ const jsonLd = {
       operatingSystem: 'Web, iOS, Android',
       url: 'https://bucketmymoney.com/',
       description:
-        'Bucket budgeting on top of your real bank accounts. Set money aside in buckets, count credit cards against what you have, and when the balance moves, pick which bucket covers it.',
+        'Envelope budgeting you can read at a glance, so you spend on facts, not feelings. See what’s actually free after your bills and credit cards.',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
   ],
@@ -130,8 +130,8 @@ const jsonLd = {
 ---
 
 <Base
-  title="Bucket My Money — See where your money actually is"
-  description="Bucket budgeting on top of your real bank accounts. Set money aside in buckets, count credit cards against what you have, and when the balance moves, pick which bucket covers it."
+  title="Bucket My Money — Envelope budgeting at a glance"
+  description="Envelope budgeting you can read at a glance, so you spend on facts, not feelings. See what’s actually free after your bills and credit cards."
 >
   <script type="application/ld+json" slot="head" set:html={JSON.stringify(jsonLd)} />
   <header class="sticky top-0 z-20 border-b border-zinc-900 bg-black/80 backdrop-blur">
@@ -171,12 +171,11 @@ const jsonLd = {
       >
         <div>
           <h1 class="text-4xl leading-[1.05] font-bold tracking-tight text-white sm:text-6xl">
-            Your bank balance is lying to you.
+            Spend on facts, not feelings.
           </h1>
           <p class="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400 sm:text-xl">
-            That $4,000 in checking already has rent, insurance, and groceries waiting on it.
-            Bucket My Money shows the number that’s actually free to spend. Balance moved? Pick
-            which bucket covers it.
+            Your bank says $4,000. Rent, insurance, and groceries are already waiting on it.
+            Bucket My Money shows, at a glance, what’s actually free to spend.
           </p>
           <div class="mt-9 flex flex-wrap gap-3">
             <a
@@ -196,7 +195,7 @@ const jsonLd = {
           <ul class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-500">
             <li>✓ Read-only bank access</li>
             <li>✓ Credit cards included</li>
-            <li>✓ Solo or household, kids included</li>
+            <li>✓ Solo or household</li>
           </ul>
         </div>
         <Phone
@@ -376,7 +375,7 @@ const jsonLd = {
         </h2>
         <p class="mt-5 text-lg leading-relaxed text-zinc-400">
           No tagging every coffee. No pie charts. No end-of-month reconciling. Bucket My Money tells
-          you where your money is, so you make deliberate decisions instead of hopeful ones.
+          you where your money is, so you decide on facts, not feelings.
         </p>
         <div class="mt-12 grid gap-4 text-left sm:grid-cols-2">
           {
