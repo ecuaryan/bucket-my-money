@@ -93,6 +93,9 @@ If you're the kind of person who has ever looked at their bank account two days 
 - **Do not name Teller** (or other vendors) in user-facing UI except where the
   user must act in that vendor (SimpleFIN Bridge setup). Say **refresh** for
   balance freshness (never *sync*); reserve **read** for the read-only assurance.
+- **envelope** names the category only (“envelope budgeting”), for outsiders:
+  page title, meta description, directory listings. Never in the app, on-page
+  marketing copy, or as a synonym for a bucket. Our envelopes are **buckets**.
 - Emphasize **which bucket covers a bank move**, not “families only” or income tracing.
 - **household** in UI for “your group”; **family** only internally (`family_id`,
   `/login/family`). **join code** everywhere a device links (not “device code”).
