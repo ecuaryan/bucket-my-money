@@ -6,6 +6,11 @@ the [`src/lib/brand.ts`](../src/lib/brand.ts) barrel (`@/lib/brand`).
 
 ## What we’re selling
 
+**Positioning:** *Envelope budgeting you can read at a glance, so you spend on
+facts, not feelings.* One look gives a good daily picture of your money, so
+decisions are informed instead of emotional. Lead with this on the site and in
+listings; households and kids are secondary features, not the pitch.
+
 Not “every dollar lives in a bucket.” Cash sits in **Unbucketed** (the running
 balance not yet in a bucket) until you label it; buckets are how you **organize**
 the money you already have — label and reserve it for an at-a-glance view that
