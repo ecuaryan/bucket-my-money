@@ -278,9 +278,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ;({ outcome, home } = await fetchMemberBootstrap(session.user.id))
     }
 
-    if (memberFetchTokenRef.current === session.access_token) {
-      memberFetchTokenRef.current = null
+    // Stale result: while the lookup was in flight the session was signed out
+    // (applySession(null) cleared the ref) or replaced by a newer one (which
+    // owns its own fetch). Applying it now would put back a session the user no
+    // longer has — e.g. the 60s background policy signs out a reloaded app
+    // while this fetch is still running, and it must not land back signed in
+    // without a PIN.
+    if (memberFetchTokenRef.current !== session.access_token) {
+      return
     }
+    memberFetchTokenRef.current = null
 
     if (outcome.status === 'error') {
       // A failed lookup (network, expired token, RLS hiccup) is NOT proof the
@@ -448,6 +455,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (state.status !== 'signedIn') return
     const { session } = state
     const outcome = await fetchMemberOutcome(session.user.id)
+    // Only write back while the user this lookup was for is still signed in —
+    // never resurrect a session that was signed out mid-flight.
+    const stillCurrent = (
+      prev: AuthState,
+    ): prev is Extract<AuthState, { status: 'signedIn' }> =>
+      prev.status === 'signedIn' && prev.session.user.id === session.user.id
     if (outcome.status === 'absent') {
       if (absentMembershipAction(session.user.email ?? undefined) === 'pinSignOut') {
         await signOutRemovedPinMember()
@@ -460,17 +473,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         return
       }
-      setState({
-        status: 'signedIn',
-        session,
-        member: null,
-        memberLoading: false,
-        memberError: false,
-      })
+      setState((prev) =>
+        stillCurrent(prev)
+          ? { ...prev, member: null, memberLoading: false, memberError: false }
+          : prev,
+      )
       return
     }
     setState((prev) => {
-      if (prev.status !== 'signedIn') return prev
+      if (!stillCurrent(prev)) return prev
       if (outcome.status === 'error') {
         return { ...prev, memberLoading: false, memberError: true }
       }
