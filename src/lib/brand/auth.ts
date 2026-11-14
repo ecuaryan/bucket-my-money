@@ -33,23 +33,23 @@ export const LOGIN_SHARED_TITLE = 'Have a join code?'
 
 // Reads as the shared-household path so it does not collide with the personal
 // "PIN" button on the email/password page.
-export const LOGIN_SHARED_CTA = 'Use a household join code →'
+export const LOGIN_SHARED_CTA = 'Enter a join code →'
 
 export const JOIN_CODE_LABEL = 'Join code'
 
-export const JOIN_CODE_ENTER_PROMPT = 'Enter your household join code.'
+export const JOIN_CODE_ENTER_PROMPT = 'Enter your join code.'
 
 export const PIN_JOIN_PAGE_TITLE = 'Join your household'
 
 export const PIN_JOIN_PAGE_SUBTITLE =
-  'Enter your household join code from Admin (or scan the QR there).'
+  'Enter the join code from Admin (or scan the QR there).'
 
 export const PIN_UNBIND_JOIN_CODE_LINK = 'Use a different join code'
 
 export const PIN_UNBIND_JOIN_CODE_SHEET_TITLE = 'Use a different join code?'
 
 export const PIN_UNBIND_JOIN_CODE_SHEET_BODY =
-  'This device forgets the household code. Signing in here again will need the join code from Admin.'
+  'This device forgets the join code. Signing in here again will need it from Admin.'
 
 export const PIN_UNBIND_JOIN_CODE_CONFIRM = 'Forget this code'
 

@@ -131,7 +131,7 @@ export default function FamilyJoinSection() {
   }
 
   return (
-    <section aria-label="Household join code">
+    <section aria-label={ADMIN_JOIN_CODE_TITLE}>
       <h2 className="text-base font-semibold">{ADMIN_JOIN_CODE_TITLE}</h2>
 
       {loadError && (

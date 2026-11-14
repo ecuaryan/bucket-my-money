@@ -249,7 +249,7 @@ export default function FamilyLoginPage() {
         clearBoundFamily()
         setRoster(null)
         setRestoreNotice(
-          'This device needs to be linked again. Enter your household join code from Admin.',
+          'This device needs to be linked again. Enter the join code from Admin.',
         )
         return
       }
