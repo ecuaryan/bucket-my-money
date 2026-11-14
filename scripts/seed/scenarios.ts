@@ -5,6 +5,7 @@ import {
   PWA_SCREENSHOT_BUCKET_GROUPS,
   PWA_SCREENSHOT_BUCKETS,
   PWA_SCREENSHOT_MANUAL_SOURCE,
+  PWA_SCREENSHOT_PARTNER_NAME,
   PWA_SCREENSHOT_SCENARIO_ID,
   PWA_SCREENSHOT_VIRTUAL_KIDS,
   PWA_SCREENSHOT_LINKED_KIDS,
@@ -494,6 +495,8 @@ async function seedPwaScreenshots(id: ScenarioId): Promise<SeedResult> {
     seedAdminEmail(id),
     { displayName: PWA_SCREENSHOT_ADMIN_DISPLAY_NAME },
   )
+  // Adults first: the household picker lists members in creation order.
+  const partner = await addSeedMember(admin.familyId, 'member', PWA_SCREENSHOT_PARTNER_NAME, id)
   const virtualKids = await Promise.all(
     PWA_SCREENSHOT_VIRTUAL_KIDS.map((kid) =>
       addSeedMember(admin.familyId, 'child', kid.name, id),
@@ -502,6 +505,13 @@ async function seedPwaScreenshots(id: ScenarioId): Promise<SeedResult> {
   const linkedKids = await Promise.all(
     PWA_SCREENSHOT_LINKED_KIDS.map((kid) =>
       addSeedMember(admin.familyId, 'child', kid.name, id),
+    ),
+  )
+  // Everyone has a PIN so the household picker shows every tile as ready.
+  const members = [partner, ...virtualKids, ...linkedKids]
+  await Promise.all(
+    [admin.adminMemberId, ...members.map((m) => m.memberId)].map((memberId) =>
+      setMemberPin(memberId),
     ),
   )
 
@@ -567,9 +577,13 @@ async function seedPwaScreenshots(id: ScenarioId): Promise<SeedResult> {
     familyName: 'Seed · PWA screenshots',
     admin,
     joinCode,
-    members: [...virtualKids, ...linkedKids],
+    members,
+    pinMembers: [PWA_SCREENSHOT_ADMIN_DISPLAY_NAME, ...members.map((m) => m.name)].map(
+      (name) => ({ name, pin: SEED_PIN }),
+    ),
     notes: [
       'Buckets tab shows emoji labels and green Unbucketed — onboarding coach is complete.',
+      'Everyone has a PIN, so /login/family shows the household picker with every tile ready.',
       'Kids tab has both "No linked account" and "Linked accounts" sections populated.',
       'Kids and History tabs have sample activity for install screenshots.',
       `Sign in at /login as ${admin.adminEmail}, then run npm run pwa:screenshots.`,

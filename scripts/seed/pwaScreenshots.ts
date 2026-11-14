@@ -9,6 +9,9 @@ export const PWA_SCREENSHOT_SCENARIO_ID = 'pwa-screenshots' as const
 /** Header name on Buckets — photogenic, not “Seed Admin”. */
 export const PWA_SCREENSHOT_ADMIN_DISPLAY_NAME = 'Jordan'
 
+/** Second adult (Shared role) so the household picker shows a partner. */
+export const PWA_SCREENSHOT_PARTNER_NAME = 'Alex'
+
 export const PWA_SCREENSHOT_MANUAL_SOURCE = {
   label: 'Checking',
   amount: 8420,

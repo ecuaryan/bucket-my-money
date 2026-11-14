@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import {
+  JOIN_CODE_LABEL,
   NAV_BUCKETS_LABEL,
   floatOverbucketedHint,
   KIDS_PAGE_TITLE,
@@ -11,8 +12,12 @@ import {
   PWA_SCREENSHOT_REBALANCE_TARGET_FLOAT,
 } from '../../scripts/seed/pwaScreenshotRebalance'
 import { seedAdminEmail } from '../../scripts/seed/constants'
+import { getJoinCode, serviceClient } from '../../scripts/seed/db'
 import {
+  PWA_SCREENSHOT_ADMIN_DISPLAY_NAME,
   PWA_SCREENSHOT_BUCKETS,
+  PWA_SCREENSHOT_PARTNER_NAME,
+  PWA_SCREENSHOT_VIEWPORT,
   PWA_SCREENSHOT_SCENARIO_ID,
   PWA_SCREENSHOT_VIRTUAL_KIDS,
   PWA_SCREENSHOT_LINKED_KIDS,
@@ -59,6 +64,39 @@ test('capture PWA install screenshots', async ({ page, browser }, testInfo) => {
     await kidsList.getByText(kid.name, { exact: true }).waitFor()
   }
   await page.screenshot({ path: join(outputDir, 'kids.png') })
+
+  // Household picker (/login/family) on a fresh device that enters the join code.
+  const { data: adminMember, error: adminMemberError } = await serviceClient()
+    .from('family_members')
+    .select('family_id')
+    .eq('name', PWA_SCREENSHOT_ADMIN_DISPLAY_NAME)
+    .eq('role', 'admin')
+    .single()
+  if (adminMemberError) throw adminMemberError
+  const joinCode = await getJoinCode(adminMember.family_id)
+  const pickerContext = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
+    viewport: PWA_SCREENSHOT_VIEWPORT,
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+    reducedMotion: 'reduce',
+  })
+  const picker = await pickerContext.newPage()
+  await picker.goto('/login/family')
+  await picker.getByLabel(JOIN_CODE_LABEL).fill(joinCode)
+  await picker.getByRole('button', { name: 'Continue' }).click()
+  for (const name of [
+    PWA_SCREENSHOT_ADMIN_DISPLAY_NAME,
+    PWA_SCREENSHOT_PARTNER_NAME,
+    ...PWA_SCREENSHOT_VIRTUAL_KIDS.map((kid) => kid.name),
+    ...PWA_SCREENSHOT_LINKED_KIDS.map((kid) => kid.name),
+  ]) {
+    // Tile name is "<initial> <name>" (avatar initial + label).
+    await expect(picker.getByRole('button', { name: new RegExp(`\\b${name}$`) })).toBeEnabled()
+  }
+  await picker.screenshot({ path: join(outputDir, 'household-picker.png') })
+  await pickerContext.close()
 
   // Marketing-site feature crops: must run before the rebalance below.
   await captureFeatureShots(browser, {
