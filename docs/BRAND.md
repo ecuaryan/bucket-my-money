@@ -98,7 +98,8 @@ If you're the kind of person who has ever looked at their bank account two days 
   marketing copy, or as a synonym for a bucket. Our envelopes are **buckets**.
 - Emphasize **which bucket covers a bank move**, not “families only” or income tracing.
 - **household** in UI for “your group”; **family** only internally (`family_id`,
-  `/login/family`). **join code** everywhere a device links (not “device code”).
+  `/login/family`). **join code** everywhere a device links (not “device code”, “household code”,
+  or “household join code”).
 - **money source** = anything funding the household: a linked bank or a manual
   amount. Prefer “Add a money source” over “link a bank” when both apply. Credit
   cards always count **against** the household balance — never as funding it.

@@ -6,7 +6,7 @@ import { FLOAT_LABEL, householdAdminLabel } from './core'
 export const ADMIN_JOIN_CODE_TITLE = 'Join code'
 
 export const ADMIN_JOIN_CODE_QR_ALT =
-  'QR code to link a device with your household join code'
+  'QR code to link a device with your join code'
 
 export const ADMIN_JOIN_CODE_COPY_CODE_ARIA = 'Copy join code'
 
