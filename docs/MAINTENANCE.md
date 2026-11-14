@@ -111,7 +111,8 @@ rectangles are hard-coded CSS pixels on the demo layout; adjust them if Buckets,
 Auto-bucket, or History layout shifts. Regenerating also re-saves `history.png`, so
 only commit PNGs that changed on purpose.
 
-Captured at **412×915**. Bucket names and manifest entries in
+The run also saves `public/screenshots/household-picker.png` (the `/login/family`
+picker on a fresh device; marketing site only, not in the manifest). Captured at **412×915**. Bucket names and manifest entries in
 [`scripts/seed/pwaScreenshots.ts`](../scripts/seed/pwaScreenshots.ts).
 
 ## Marketing site
