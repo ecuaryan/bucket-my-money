@@ -96,7 +96,7 @@ describe('giveMemberEndpointLabel', () => {
 })
 
 describe('historyMoveActorLabel', () => {
-  it('returns you for the current member', () => {
+  it('returns You for the current member', () => {
     expect(
       historyMoveActorLabel({
         actorMemberId: 'm1',
@@ -104,7 +104,7 @@ describe('historyMoveActorLabel', () => {
         currentMemberId: 'm1',
         showActor: true,
       }),
-    ).toBe('you')
+    ).toBe('You')
   })
 
   it('returns the actor name for another adult', () => {
@@ -140,7 +140,7 @@ describe('historyBucketMoveSubtitle', () => {
         currentMemberId: 'm1',
         showActor: true,
       }),
-    ).toBe('Bucket move · by Jamie · 3:45 PM')
+    ).toBe('Bucket move · Jamie · 3:45 PM')
   })
 
   it('omits actor when not shown', () => {
@@ -205,7 +205,7 @@ describe('historyGiveSubtitle', () => {
         currentMemberId: 'm2',
         showActor: true,
       }),
-    ).toBe('Give · by Ryan · 3:45 PM')
+    ).toBe('Give · Ryan · 3:45 PM')
   })
 
   it('uses "you" when the viewer sent', () => {
@@ -217,7 +217,7 @@ describe('historyGiveSubtitle', () => {
         currentMemberId: 'm1',
         showActor: true,
       }),
-    ).toBe('Give · by you · 9:00 AM')
+    ).toBe('Give · You · 9:00 AM')
   })
 })
 
@@ -231,7 +231,7 @@ describe('historyTakeSubtitle', () => {
         currentMemberId: 'm2',
         showActor: true,
       }),
-    ).toBe('Take · by Ryan · 3:45 PM')
+    ).toBe('Take · Ryan · 3:45 PM')
   })
 
   it('shows parent name to the child who was taken from', () => {
@@ -243,7 +243,7 @@ describe('historyTakeSubtitle', () => {
         currentMemberId: 'kid',
         showActor: true,
       }),
-    ).toBe('Take · by R · 3:45 PM')
+    ).toBe('Take · R · 3:45 PM')
   })
 })
 

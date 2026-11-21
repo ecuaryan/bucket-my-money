@@ -299,7 +299,7 @@ export function TxItem({
           amount={amountValue}
           formatMoney={formatMoney}
         />
-        <div className="mt-5 flex flex-col gap-1">
+        <div className="mt-4 flex flex-col gap-1 border-t border-zinc-800 pt-3">
           {noteQuote}
           {noteFooter}
         </div>

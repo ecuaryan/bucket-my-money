@@ -32,7 +32,7 @@ export function historyMoveActorLabel(args: {
   showActor: boolean
 }): string | null {
   if (!args.showActor || !args.actorMemberId) return null
-  if (args.actorMemberId === args.currentMemberId) return 'you'
+  if (args.actorMemberId === args.currentMemberId) return 'You'
   if (args.actorName) return args.actorName
   return 'Someone'
 }
@@ -69,7 +69,7 @@ function historyTxSubtitle(args: {
   showActor: boolean
 }): string {
   const actor = historyMoveActorLabel(args)
-  if (actor) return `${args.kind} · by ${actor} · ${args.time}`
+  if (actor) return `${args.kind} · ${actor} · ${args.time}`
   return `${args.kind} · ${args.time}`
 }
 
