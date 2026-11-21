@@ -84,6 +84,17 @@ Deno.serve(async (req: Request) => {
     // access; the next PIN login re-derives the stable password (session.ts).
     const { data: authUser } = await admin.auth.admin.getUserById(member.user_id)
     if (authUser?.user?.email && isPinOnlyAuthEmail(authUser.user.email)) {
+      // One-time server ticket required to change a PIN-only password (migration 113).
+      const { error: ticketError } = await admin.rpc('allow_pin_password_set', {
+        p_user_id: member.user_id,
+      })
+      if (ticketError) {
+        console.error('set-pin password ticket', ticketError)
+        return jsonResponse(
+          { error: 'Could not sign them out on other devices. Try again.' },
+          500,
+        )
+      }
       const { error: pwError } = await admin.auth.admin.updateUserById(
         member.user_id,
         { password: crypto.randomUUID() + crypto.randomUUID() },
