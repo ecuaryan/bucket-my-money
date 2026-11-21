@@ -71,6 +71,14 @@ export async function issueSessionForMember(
     const password = await derivePinPassword(userId)
     sessionData = await anon.auth.signInWithPassword({ email, password })
     if (sessionData.error) {
+      // PIN-only passwords can only change with a one-time server ticket
+      // (migration 113) — a session holder can't set one with updateUser.
+      const { error: ticketError } = await admin.rpc('allow_pin_password_set', {
+        p_user_id: userId,
+      })
+      if (ticketError) {
+        throw new Error('password ticket failed')
+      }
       const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
         password,
       })
