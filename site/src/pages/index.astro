@@ -12,28 +12,28 @@ const features = [
     title: 'Auto-bucket the routine',
     body: 'Fill buckets on a schedule (weekly, every two weeks, or twice a month) or run the rules whenever you want.',
     img: 'feature-auto-bucket',
-    height: 724,
+    height: 798,
     alt: 'Auto-bucket rules: Fun money every week and Payday twice a month, each with Run now',
   },
   {
     title: 'Every move on the record',
     body: 'History shows each move between buckets and each send, with notes, for everyone who should see it.',
     img: 'feature-history',
-    height: 744,
+    height: 798,
     alt: 'History rows showing a $25 and a $40 send with Allowance notes and before and after balances',
   },
   {
     title: 'Arrange it your way',
     body: 'Group buckets into Home, Fun, or whatever fits your life. It’s your layout, and nobody else sees it.',
     img: 'feature-groups',
-    height: 836,
+    height: 880,
     alt: 'Buckets sorted into Home and Fun groups with a total for each group',
   },
   {
     title: 'Private in public',
     body: 'Switch on Hide amounts in Settings and every balance turns to dots, so a glance over your shoulder shows nothing. Hold Peek when you need a look.',
     img: 'feature-hide',
-    height: 1450,
+    height: 1556,
     alt: 'The Buckets screen with every amount hidden behind dots and a Peek button in the bottom right',
   },
 ]
@@ -383,12 +383,12 @@ const jsonLd = {
                 {/* Same frame height for the two cards in a row; taller crops are trimmed from the bottom. */}
                 <div
                   class="relative overflow-hidden rounded-xl bg-black ring-1 ring-zinc-800"
-                  style={`aspect-ratio: 768 / ${i < 2 ? 744 : 836}`}
+                  style={`aspect-ratio: 824 / ${i < 2 ? 798 : 880}`}
                 >
                   <img
                     src={feature(f.img)}
                     alt={f.alt}
-                    width="768"
+                    width="824"
                     height={f.height}
                     loading="lazy"
                     decoding="async"

@@ -12,12 +12,14 @@ import { signInPwaScreenshotAdmin, waitForNavSettled } from '../pwa-media/helper
  * Buckets / Auto-bucket / History layout shifts. Run BEFORE the rebalance step
  * (it turns Unbucketed red and adds a History row).
  */
-const CARD = { x: 14, width: 384 } as const
+// Full viewport width, so cards keep the page's 16px side margin. Heights match
+// the site's frame aspect ratios (824×798 top row, 824×880 bottom row at 2x).
+const CARD = { x: 0, width: 412 } as const
 
 const CROPS = {
-  autoBucket: { ...CARD, y: 392, height: 362 },
-  history: { ...CARD, y: 236, height: 372 },
-  groups: { ...CARD, y: 374, height: 418 },
+  autoBucket: { ...CARD, y: 388, height: 399 },
+  history: { ...CARD, y: 224, height: 399 },
+  groups: { ...CARD, y: 364, height: 440 },
   hideAmounts: { x: 0, width: 412, y: 72, height: 778 },
 } as const
 
