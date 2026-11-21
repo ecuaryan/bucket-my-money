@@ -3,6 +3,7 @@ import {
   prepareAuthStorageOnStartup,
   supabaseAuthStorage,
 } from '@/lib/authPersistence'
+import { dropStaleRestoredSession } from '@/lib/activityClock'
 import { resolveSupabasePublishableKey } from '@/lib/supabaseKeys'
 import type { Database } from '@/types/database'
 
@@ -16,6 +17,9 @@ if (!supabaseUrl) {
 }
 
 prepareAuthStorageOnStartup()
+// Before the client reads storage: a session from an app idle a minute or more
+// must never load (background policy — see activityClock.ts).
+dropStaleRestoredSession()
 
 export const supabase = createClient<Database>(
   supabaseUrl,

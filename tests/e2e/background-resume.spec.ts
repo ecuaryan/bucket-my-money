@@ -66,4 +66,53 @@ test.describe('Background sign-out', () => {
       ),
     ).toBe(false)
   })
+
+  test('a reload after a long background lands on PIN even when hidden-at was erased', async ({
+    page,
+  }) => {
+    const family = await createAdminFamily('e2e-bgerased')
+    const wife = await addMember(family.familyId, 'member', 'Wife')
+    await setMemberPin(wife.memberId, '1111')
+    const joinCode = await familyJoinCode(family.familyId)
+
+    await page.goto('/login/family')
+    await page.getByLabel(JOIN_CODE_LABEL).fill(joinCode)
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('button', { name: 'Wife' }).click()
+    await page.getByLabel('4-digit PIN').fill('1111')
+    await expect(page.locator('nav').getByLabel(NAV_BUCKETS_LABEL)).toBeVisible()
+
+    // A token refresh landing just after the app was hidden used to clear
+    // hidden-at and the gate flag, so a purged app reloaded an hour later had
+    // tokens and nothing saying it had been away — and walked straight in. Only
+    // the activity stamp (last visible use) is left to go on.
+    await page.addInitScript((lastActiveAt) => {
+      sessionStorage.removeItem('bucketmymoney:app-hidden-at')
+      sessionStorage.removeItem('bucketmymoney:session-gate-active')
+      sessionStorage.setItem('bucketmymoney:last-active-at', String(lastActiveAt))
+      const w = window as unknown as { __appShellSeen?: boolean }
+      const watch = () => {
+        if (document.querySelector('nav a[aria-label]')) w.__appShellSeen = true
+        requestAnimationFrame(watch)
+      }
+      requestAnimationFrame(watch)
+    }, Date.now() - TWO_HOURS_MS)
+
+    await page.reload()
+    await expect(page).toHaveURL(/\/login\/family/)
+    await expect(page.getByRole('button', { name: 'Wife' })).toBeVisible()
+    await page.waitForTimeout(2000)
+
+    await expect(page).toHaveURL(/\/login\/family/)
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __appShellSeen?: boolean }).__appShellSeen ?? false,
+      ),
+    ).toBe(false)
+    expect(
+      await page.evaluate(() =>
+        Object.keys(sessionStorage).some((k) => k.endsWith('-auth-token')),
+      ),
+    ).toBe(false)
+  })
 })

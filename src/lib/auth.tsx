@@ -225,7 +225,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     promotePendingOAuth()
 
-    if (!isAppBackgroundExpired()) {
+    // Only a visible app may clear the background flags. Supabase re-emits
+    // SIGNED_IN / TOKEN_REFRESHED when a refresh started on refocus lands — if
+    // the app was hidden again by then, clearing here erased hidden-at and let
+    // a later reload skip the PIN.
+    if (document.visibilityState === 'visible' && !isAppBackgroundExpired()) {
       clearBackgroundPrivacyState()
     }
 
