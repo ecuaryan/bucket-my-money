@@ -346,6 +346,11 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   (email `/login` remains for account setup and `?signup=1`).
   Each person gets an `auth.users` row. **PIN-only members and children** use
   an internal `{memberId}@pin.bucketmymoney.internal` address (never shown in UI).
+  Its password and email can only change server-side: a trigger on `auth.users`
+  (migration 113) refuses `updateUser` from the member's own session and requires
+  a single-use `allow_pin_password_set` ticket (service role) for the admin API —
+  so whoever briefly holds a PIN member's session can't set a password and later
+  sign in without the PIN.
   **Admin PIN login** still uses the admin’s real email — the `pin-login` Edge
   Function issues a session via magic link without rotating the email password.
 - **PIN management:** two surfaces. (1) **Admin page → household members** —
