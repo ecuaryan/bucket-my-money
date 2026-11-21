@@ -376,7 +376,11 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   via family PIN when the device has a join code. Manual header Sign out remains available.
 - **Kill / cold start:** auth tokens are stored in `sessionStorage`, not `localStorage`, so
   force-quitting or reopening the PWA after the process ends requires sign-in again (tab
-  reload keeps the session). Legacy `localStorage` tokens are migrated only on reload, not on
+  reload keeps the session). A reload only keeps it if the app was **visibly in use within
+  60s**: a last-active stamp (`src/lib/activityClock.ts`, written every 10s while visible
+  and on hide, never cleared by auth events) is checked before the Supabase client reads
+  storage, and a stale or missing stamp drops the tokens — so an OS-reloaded app never
+  resumes without a PIN even if hidden-at was lost. Legacy `localStorage` tokens are migrated only on reload, not on
   navigate.
 - **Buckets tab bucket visibility:** admin and member see family-pool + adult-owned buckets
   only (not children's buckets). Each adult orders that list independently via

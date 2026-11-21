@@ -8,11 +8,20 @@ import { AuthProvider } from '@/lib/auth'
 import { ToastProvider } from '@/components/ui/ToastProvider'
 import { migrateLegacyStorageKeys } from '@/lib/localStorageMigrate'
 import { registerBackgroundPrivacyShield } from '@/lib/backgroundPrivacyShield'
+import { registerActivityClock } from '@/lib/activityClock'
+import { markAutoSignOut } from '@/lib/autoSignOut'
+import { runExpiredBackgroundCleanup } from '@/lib/backgroundSessionCleanup'
+import { supabase } from '@/lib/supabase'
 import { setupPwaUpdates } from '@/lib/pwaUpdate'
 import './index.css'
 
 migrateLegacyStorageKeys()
 registerBackgroundPrivacyShield()
+registerActivityClock(() => {
+  runExpiredBackgroundCleanup()
+  markAutoSignOut()
+  void supabase.auth.signOut({ scope: 'local' })
+})
 setupPwaUpdates()
 
 createRoot(document.getElementById('root')!).render(
