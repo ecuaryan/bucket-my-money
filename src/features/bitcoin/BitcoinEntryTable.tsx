@@ -2,6 +2,7 @@ import type { BitcoinEntryRow } from '@/lib/bitcoinData'
 import {
   entryCurrentValue,
   entryGainLoss,
+  entryPricePaid,
   totalsForEntries,
 } from './bitcoinMath'
 import BtcAmount from './BtcAmount'
@@ -36,6 +37,33 @@ function gainLossClass(value: number | null): string {
   if (value > 0) return 'text-emerald-300'
   if (value < 0) return 'text-red-300'
   return 'text-zinc-300'
+}
+
+/**
+ * The BTC price a purchase paid (cost ÷ BTC), under its amount like a trade
+ * receipt: "₿0.00067603 @ $44,377". Whole dollars — cents are noise at this
+ * scale, and a sixth column doesn't fit a phone-width table. On the total row
+ * it is the average (same figure as the header's "avg …/₿").
+ */
+function PricePaid({
+  value,
+  formatMoney,
+  average = false,
+}: {
+  value: number | null
+  formatMoney: (amount: number) => string
+  average?: boolean
+}) {
+  if (value === null) return null
+  const label = formatMoney(Math.round(value))
+  return (
+    <span className="block text-[11px] font-normal text-zinc-500">
+      <span aria-hidden>@ {label}</span>
+      <span className="sr-only">
+        {average ? 'average price paid' : 'price paid'} {label} per bitcoin
+      </span>
+    </span>
+  )
 }
 
 function signedMoney(
@@ -112,6 +140,10 @@ export default function BitcoinEntryTable({
                   unit={btcUnit}
                   hidden={btcHidden}
                 />
+                <PricePaid
+                  value={entryPricePaid(entry)}
+                  formatMoney={formatMoney}
+                />
               </td>
               <td className="py-2 pr-2 text-right tabular-nums">
                 {current !== null ? formatMoney(current) : '—'}
@@ -144,6 +176,11 @@ export default function BitcoinEntryTable({
           </td>
           <td className="py-2 pr-2 text-right font-semibold tabular-nums">
             <BtcAmount amount={totals.btc} unit={btcUnit} hidden={btcHidden} />
+            <PricePaid
+              value={totals.avgCostPerBtc}
+              formatMoney={formatMoney}
+              average
+            />
           </td>
           <td className="py-2 pr-2 text-right font-semibold tabular-nums">
             {totals.currentUsd !== null ? formatMoney(totals.currentUsd) : '—'}

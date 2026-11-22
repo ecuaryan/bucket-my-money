@@ -42,6 +42,17 @@ function toSats(btc: NumericLike): number {
   return Math.round(toNumber(btc) * 1e8)
 }
 
+/**
+ * What this purchase paid per whole BTC (cost ÷ BTC bought) — the spot price
+ * it effectively bought at. null when the entry holds no BTC (no
+ * divide-by-zero). Price-independent.
+ */
+export function entryPricePaid(entry: BitcoinEntryAmounts): number | null {
+  const btc = toSats(entry.btc_amount) / 1e8
+  if (btc <= 0) return null
+  return roundCents(toNumber(entry.usd_amount) / btc)
+}
+
 export function entryCurrentValue(
   entry: BitcoinEntryAmounts,
   priceUsd: number,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   entryCurrentValue,
   entryGainLoss,
+  entryPricePaid,
   totalsForEntries,
 } from './bitcoinMath'
 
@@ -75,5 +76,19 @@ describe('totalsForEntries', () => {
       currentUsd: 0,
       gainLoss: 0,
     })
+  })
+})
+
+describe('entryPricePaid', () => {
+  it('is cost per whole BTC, rounded to cents (Kaycee 1/5/24: $30 for 0.00067603)', () => {
+    expect(entryPricePaid({ usd_amount: 30, btc_amount: 0.00067603 })).toBe(44376.73)
+  })
+
+  it('accepts Supabase numeric strings', () => {
+    expect(entryPricePaid({ usd_amount: '20', btc_amount: '0.00033338' })).toBe(59991.6)
+  })
+
+  it('is null when the entry holds no BTC', () => {
+    expect(entryPricePaid({ usd_amount: 10, btc_amount: 0 })).toBeNull()
   })
 })
