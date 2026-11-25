@@ -398,11 +398,14 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   section sits; new groups are appended at the bottom (next to the New group button). Deleting a group only ungroups its
   buckets. Writes go through `create/rename/delete_bucket_group`,
   `set_bucket_group_collapsed`, and `save_bucket_layout`.
-- **Bank tab card order (v1.16):** each person can reorder the institution cards
-  on the Bank tab (grip, long-press the card heading, or the heading menu) —
-  whole institutions only, never the accounts inside. Per-member only
-  (`member_bank_order`, keyed by lower-cased institution name; written by
-  `save_bank_order`); unlisted institutions follow in first-seen order.
+- **Bank tab groups (v1.19.44):** the Bank tab shows two cards, **Credit cards**
+  then **Cash**, each listing its accounts largest balance first (ties by bank,
+  then name), with the bank named on each row when there is more than one.
+  Each person can reorder the two cards (grip, long-press the card heading, or
+  the heading menu) — never the accounts inside. Per-member only
+  (`member_bank_order` keys `group:cards` / `group:cash`, written by
+  `save_bank_order`; leftover institution keys from the v1.16 per-bank cards
+  are ignored). Grouping lives in `groupBankAccounts` (`src/lib/bankOrder.ts`).
 - **Pending card payments (v1.16.4):** while a card payment is pending, checking
   may already be lower while the card still shows the old balance, so the payment
   would be subtracted twice. For Plaid, the refresh path nets in-flight payments

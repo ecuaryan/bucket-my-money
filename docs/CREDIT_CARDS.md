@@ -84,7 +84,8 @@ cash − credit card balances = bucket allocations + Unbucketed
   subtext gains card context (see Copy).
 - Admin: card rows get a "counts against your balance" note; the
   assign-to-kid select excludes cards; manual-card add/edit forms.
-- Bank tab: card section with current balance and activity.
+- Bank tab: a **Credit cards** card (above **Cash** by default) with current
+  balance and activity.
 - Move/give dialogs, Auto-bucket: **no mechanical changes** — they read
   Unbucketed via the same functions and already tolerate negative values
   with the existing confirm sheet.
@@ -202,7 +203,7 @@ card balance, kid exclusion; unit tests for `availableBalance`,
 | On-link confirm | new `LINK_CARD_CONFIRM_TITLE` / `_BODY` | States balance and immediate Unbucketed drop |
 | Admin card rows | new card note string; `ADMIN_LINKED_ACCOUNTS_INTRO` | Add one clause: card balances count against the household balance |
 | Manual cards | new `ADMIN_MANUAL_CARD_*` strings | Add/edit/delete forms and hints |
-| Bank tab | new card section label | — |
+| Bank tab | `BREAKDOWN_CARD_DEBT_LABEL` / `BREAKDOWN_CASH_LABEL` group headings | Same words as the breakdown |
 
 `BANK_READ_ONLY_ASSURANCE` is unchanged — read-only applies to cards too.
 
