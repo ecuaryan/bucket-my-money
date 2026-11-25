@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { institutionKey, moveKey, sortByBankOrder } from '@/lib/bankOrder'
+import {
+  BANK_GROUP_CARDS_KEY,
+  BANK_GROUP_CASH_KEY,
+  groupBankAccounts,
+  moveKey,
+  sortByBankOrder,
+} from '@/lib/bankOrder'
 
 const items = ['chase', 'ally', 'fidelity'].map((key) => ({ key }))
 
@@ -27,7 +33,7 @@ describe('sortByBankOrder', () => {
   })
 })
 
-describe('moveKey / institutionKey', () => {
+describe('moveKey', () => {
   it('moves a key and leaves out-of-range moves alone', () => {
     const keys = ['a', 'b', 'c']
     expect(moveKey(keys, 0, 2)).toEqual(['b', 'c', 'a'])
@@ -35,9 +41,54 @@ describe('moveKey / institutionKey', () => {
     expect(moveKey(keys, 0, -1)).toBe(keys)
     expect(moveKey(keys, 1, 1)).toBe(keys)
   })
+})
 
-  it('keys by lower-cased name with a Bank fallback', () => {
-    expect(institutionKey('Ally Bank')).toBe('ally bank')
-    expect(institutionKey(null)).toBe('bank')
+describe('groupBankAccounts', () => {
+  const acct = (
+    account_name: string,
+    current_balance: number,
+    institution_name: string,
+    account_type: string | null = 'checking',
+  ) => ({ account_name, current_balance, institution_name, account_type })
+
+  it('puts cards first, each group largest balance first', () => {
+    const groups = groupBankAccounts([
+      acct('Checking', 0, 'X Money'),
+      acct('Card', 681.28, 'Robinhood', 'credit_card'),
+      acct('Joint', 44695.03, 'X Money'),
+      acct('Savings', 2985.67, 'Ally Bank'),
+      acct('Big card', 1200, 'Chase', 'credit_card'),
+    ])
+    expect(groups.map((g) => g.key)).toEqual([
+      BANK_GROUP_CARDS_KEY,
+      BANK_GROUP_CASH_KEY,
+    ])
+    expect(groups[0].accounts.map((a) => a.account_name)).toEqual([
+      'Big card',
+      'Card',
+    ])
+    expect(groups[1].accounts.map((a) => a.account_name)).toEqual([
+      'Joint',
+      'Savings',
+      'Checking',
+    ])
+  })
+
+  it('breaks balance ties by bank, then account name', () => {
+    const [cash] = groupBankAccounts([
+      acct('Savings', 0, 'Robinhood'),
+      acct('Checking', 0, 'X Money'),
+      acct('Checking', 0, 'Robinhood'),
+    ])
+    expect(
+      cash.accounts.map((a) => `${a.institution_name} ${a.account_name}`),
+    ).toEqual(['Robinhood Checking', 'Robinhood Savings', 'X Money Checking'])
+  })
+
+  it('leaves out an empty group', () => {
+    expect(
+      groupBankAccounts([acct('Checking', 10, 'Ally')]).map((g) => g.key),
+    ).toEqual([BANK_GROUP_CASH_KEY])
+    expect(groupBankAccounts([])).toEqual([])
   })
 })

@@ -3,6 +3,8 @@ import {
   ACCOUNT_CARD_OWED_SUFFIX,
   BANK_ACCOUNT_MEMBER_FALLBACK,
   BANK_ACCOUNT_SHARED_TAG,
+  BREAKDOWN_CARD_DEBT_LABEL,
+  BREAKDOWN_CASH_LABEL,
   bankCardPendingPaymentNote,
 } from '@/lib/brand'
 import {
@@ -20,8 +22,9 @@ import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
 import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
 import { useFlipList } from '@/hooks/useFlipList'
 import {
+  BANK_GROUP_CARDS_KEY,
   fetchBankOrder,
-  institutionKey,
+  groupBankAccounts,
   moveKey,
   saveBankOrder,
   sortByBankOrder,
@@ -41,14 +44,14 @@ type Props = {
 }
 
 /**
- * The Bank tab body: one card per institution, one tappable row per account
- * (name + tag + balance; tapping expands recent activity inline). Adults see
- * every family account; a child sees only their own (enforced by RLS + the
- * edge functions). Household (unassigned) accounts sort first within a card,
- * then accounts assigned to a kid.
+ * The Bank tab body: a Credit cards card and a Cash card, each listing its
+ * accounts largest balance first, one tappable row per account (name + tag +
+ * bank + balance; tapping expands recent activity inline). Adults see every
+ * family account; a child sees only their own (enforced by RLS + the edge
+ * functions).
  *
- * Cards reorder per person (grip, long-press on the card heading, or the
- * heading's menu) — whole institutions only, never the accounts inside.
+ * The two cards reorder per person (grip, long-press on the card heading, or
+ * the heading's menu) — whole groups only; accounts always sort by balance.
  */
 export default function BankAccountsTab({
   accounts,
@@ -75,28 +78,30 @@ export default function BankAccountsTab({
     [accounts, viewerMemberId],
   )
 
-  // One card per institution; within a card, household accounts first, then
-  // kid-assigned. Institutions keep first-seen order from the account list.
-  const institutionGroups = useMemo(() => {
-    const ordered = [...accounts].sort(
-      (a, b) =>
-        Number(Boolean(a.owner_member_id)) - Number(Boolean(b.owner_member_id)),
-    )
-    const groups = new Map<string, { name: string; accounts: Account[] }>()
-    for (const account of ordered) {
-      const name = account.institution_name ?? 'Bank'
-      const key = institutionKey(account.institution_name)
-      const group = groups.get(key)
-      if (group) group.accounts.push(account)
-      else groups.set(key, { name, accounts: [account] })
-    }
-    return [...groups.entries()].map(([key, g]) => ({ key, ...g }))
-  }, [accounts])
+  const accountGroups = useMemo(
+    () =>
+      groupBankAccounts(accounts).map((g) => ({
+        ...g,
+        name:
+          g.key === BANK_GROUP_CARDS_KEY
+            ? BREAKDOWN_CARD_DEBT_LABEL
+            : BREAKDOWN_CASH_LABEL,
+      })),
+    [accounts],
+  )
 
-  // The person's own card order (first-seen order until they set one).
+  // Without groups by bank, each row names its bank — unless there's only one.
+  const showInstitution = useMemo(
+    () =>
+      new Set(accounts.map((a) => (a.institution_name ?? '').toLowerCase()))
+        .size > 1,
+    [accounts],
+  )
+
+  // The person's own card order (cards, then cash, until they set one).
   const sortedGroups = useMemo(
-    () => sortByBankOrder(institutionGroups, orderKeys),
-    [institutionGroups, orderKeys],
+    () => sortByBankOrder(accountGroups, orderKeys),
+    [accountGroups, orderKeys],
   )
   const canReorder = sortedGroups.length >= 2
   const sortedKeys = useMemo(() => sortedGroups.map((g) => g.key), [sortedGroups])
@@ -219,7 +224,10 @@ export default function BankAccountsTab({
             }
           >
             {canReorder ? (
-              <DragHandle label="Reorder bank" {...getRowHandlers(headerId, true)} />
+              <DragHandle
+                label={`Reorder ${group.name}`}
+                {...getRowHandlers(headerId, true)}
+              />
             ) : null}
             <div
               data-reorder-row=""
@@ -292,23 +300,32 @@ export default function BankAccountsTab({
                           clipRule="evenodd"
                         />
                       </svg>
-                      <span className="truncate text-sm font-medium text-zinc-200">
-                        {a.account_name ?? 'Bank account'}
-                      </span>
-                      {/* Tag only when there's a mix to disambiguate; a kid
-                          tag always shows. */}
-                      {tag && (tag.kind === 'member' || hasAssignedAccounts) ? (
-                        <span
-                          className={
-                            'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ' +
-                            (tag.kind === 'shared'
-                              ? 'bg-zinc-800 text-zinc-400'
-                              : 'bg-sky-500/15 text-sky-300')
-                          }
-                        >
-                          {tag.label}
+                      <span className="flex min-w-0 flex-col">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium text-zinc-200">
+                            {a.account_name ?? 'Bank account'}
+                          </span>
+                          {/* Tag only when there's a mix to disambiguate; a kid
+                              tag always shows. */}
+                          {tag && (tag.kind === 'member' || hasAssignedAccounts) ? (
+                            <span
+                              className={
+                                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ' +
+                                (tag.kind === 'shared'
+                                  ? 'bg-zinc-800 text-zinc-400'
+                                  : 'bg-sky-500/15 text-sky-300')
+                              }
+                            >
+                              {tag.label}
+                            </span>
+                          ) : null}
                         </span>
-                      ) : null}
+                        {showInstitution && a.institution_name ? (
+                          <span className="truncate text-xs text-zinc-400">
+                            {a.institution_name}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                     {isCreditCardAccount(a) ? (
                       <span className="shrink-0 text-sm font-medium tabular-nums text-rose-300">
@@ -354,7 +371,11 @@ export default function BankAccountsTab({
         }}
       >
         <div className="flex items-center gap-1 rounded-2xl bg-zinc-900 py-1.5 pl-2 pr-3 shadow-lg ring-2 ring-emerald-400">
-          <DragHandle label="Reorder bank" className="cursor-grabbing text-zinc-400" tabIndex={-1} />
+          <DragHandle
+            label={`Reorder ${draggedGroup.name}`}
+            className="cursor-grabbing text-zinc-400"
+            tabIndex={-1}
+          />
           <span className="truncate px-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
             {draggedGroup.name}
           </span>
