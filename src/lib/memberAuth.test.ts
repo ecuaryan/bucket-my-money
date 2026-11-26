@@ -32,7 +32,7 @@ describe('validateJoinCode', () => {
 
   it('retries a dropped fetch and returns the roster once it recovers', async () => {
     vi.useFakeTimers()
-    const payload = { familyId: 'fam-1', familyName: 'Willmore', members: [] }
+    const payload = { familyId: 'fam-1', familyName: 'Rivera', members: [] }
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce(networkResult)
       .mockResolvedValueOnce(networkResult)
@@ -95,7 +95,7 @@ describe('validateJoinCode', () => {
   })
 
   it('returns the roster payload on a clean first call', async () => {
-    const payload = { familyId: 'fam-1', familyName: 'Willmore', members: [] }
+    const payload = { familyId: 'fam-1', familyName: 'Rivera', members: [] }
     vi.mocked(supabase.rpc).mockResolvedValue(rosterResult(payload))
 
     await expect(validateJoinCode('abc123')).resolves.toEqual(payload)

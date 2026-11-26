@@ -115,7 +115,7 @@ Regenerate after significant UI changes ([docs/MAINTENANCE.md § PWA assets](./d
 - **Marketing site** — a static Astro landing page in `site/` at
   [bucketmymoney.com](https://bucketmymoney.com), with privacy, terms and contact pages.
 - **Feature flags** — owner-controlled, per-household flags gate experimental features
-  to a single family without shipping them to everyone; read-only in the client, zero
+  to a single household without shipping them to everyone; read-only in the client, zero
   cost for households without a flag ([docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md)).
 - **Tests** — Vitest unit tests, database RLS/RPC tests, Playwright smoke e2e; CI on every PR.
 
@@ -139,7 +139,7 @@ Product truth and balance model: [CONTEXT.md](./CONTEXT.md).
 ```
 src/
   components/{ui,layout}/   reusable primitives + app shell
-  features/                 auth, buckets, plan, give, kids, history, admin
+  features/                 auth, buckets, plan, give, kids, history, accounts, admin, settings, bitcoin
   lib/                      supabase, auth, buckets, accounts
   hooks/                    shared React hooks
   types/                    DB types (supabase gen types)
@@ -162,6 +162,7 @@ supabase/
 | `simplefin-transactions-list` | Recent bank activity window (fetched on demand, not persisted) |
 | `simplefin-disconnect` | Remove a connection + its local accounts |
 | `simplefin-scheduled-refresh` | pg_cron cadence sweep — keeps balances fresh |
+| `plaid-*` | Plaid connector behind the per-household `plaid` flag: link, exchange, refresh, transactions, webhook ([docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)) |
 | `teller-*` | Quiesced Teller provider, kept for a possible v2 ([docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)) |
 | `check-invariant` | Ledger check stub (deferred) |
 
@@ -206,6 +207,7 @@ Full command list, seed scenarios, PWA asset regen, and security checklists:
 | [docs/AUTO_ORGANIZE.md](./docs/AUTO_ORGANIZE.md) | Auto-bucket feature and cron |
 | [docs/PLAN.md](./docs/PLAN.md) | Plan tab: zero-based pay plan, exact math, the Auto-bucket link |
 | [docs/CREDIT_CARDS.md](./docs/CREDIT_CARDS.md) | How card balances count against Unbucketed |
+| [docs/BITCOIN.md](./docs/BITCOIN.md) | Per-kid Bitcoin purchase tracking (flag-gated) |
 | [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md) | SimpleFIN, Plaid and Teller provider strategy |
 | [docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md) | Google / Apple sign-in setup |
 | [docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md) | Owner-controlled per-household feature flags |

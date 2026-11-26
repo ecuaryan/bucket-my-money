@@ -1,6 +1,6 @@
-# Bucket My Money — Project Context for Cursor
+# Bucket My Money — Product context
 
-This document contains the full product brief, technical stack, architecture decisions, and build instructions for Bucket My Money. Feed this into Cursor at the start of every session to maintain full context.
+The product brief, balance model, schema, architecture decisions and security model for Bucket My Money. It is the source of product truth: update it when product decisions change.
 
 ---
 
@@ -21,7 +21,7 @@ The primary use case is: **open app → move money from one bucket to another �
 
 **Organize first.** The core job is **bucket budgeting**: label cash, see **Unbucketed**, move money between buckets in a few taps. That invariant (`cash − credit card balances = buckets + Unbucketed` across the household) must stay rock solid. **Household features** (roles, linked kid accounts, Send to kids without a linked account) support multi-person use but are secondary — they must not add ledger layers that compete with bank truth or complicate the Buckets tab.
 
-**Intentional friction, minimal automation.** When you overspend, you should come in and consciously face the trade-off — moving money from a bucket back into **Unbucketed** — rather than having the app auto-fix or auto-rebalance. The at-a-glance view surfaces reality so you decide; balance refresh is user-initiated, not background polling. This is a clarity tool, not a transaction tracker: one small move when you spend keeps Unbucketed honest.
+**Intentional friction, minimal automation.** When you overspend, you should come in and consciously face the trade-off — moving money from a bucket back into **Unbucketed** — rather than having the app auto-fix or auto-rebalance. The at-a-glance view surfaces reality so you decide: bank balances refresh on their own, but buckets never move unless you move them. This is a clarity tool, not a transaction tracker: one small move when you spend keeps Unbucketed honest.
 
 ### Product stage
 
@@ -309,7 +309,7 @@ History view hardening in `00000000000057_transactions_client_security_invoker.s
   onboarding frictionless and set up a future one-click OAuth path. Sign-up sets
   `bootstrap_family` metadata so only the first admin creates a tenant (PIN
   users do not spawn extra families). The `handle_new_user` trigger defaults the
-  member display name to the **email local-part** (e.g. `ryan`) and the family
+  member display name to the **email local-part** (e.g. `alex`) and the family
   name to `<email>'s Family`; neither is prompted for at signup. The admin keeps
   a **real email** on `auth.users` (shown on Settings → Admin sign-in; password
   reset via the same forgot-password email flow as login).
@@ -525,9 +525,9 @@ role); the client only **reads** flags. Per household (`family_id`), **default
 off** (no row → registry default), so other households are unaffected. Table
 `feature_flags` (migration `82`): whole family may `SELECT`; no authenticated
 writes (mirrors `teller_events`). Registry + `useFeatureFlag` in
-`src/lib/featureFlags.ts` / `src/hooks/FeatureFlagsProvider.tsx`. The `bitcoin`
-flag is registered (off) but **not yet consumed** — it will gate future Bitcoin
-features for kids. Full spec: [docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md).
+`src/lib/featureFlags.ts` / `src/hooks/FeatureFlagsProvider.tsx`. Live flags:
+`bitcoin` (Bitcoin tracking, [docs/BITCOIN.md](./docs/BITCOIN.md)) and `plaid`
+(the Plaid connector, [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md)). Full spec: [docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md).
 
 ---
 
@@ -739,7 +739,7 @@ bucket-my-money/
 
 ---
 
-## Key Implementation Notes for Cursor
+## Implementation notes
 
 ### Ledger check (deferred)
 - Family beta relies on derived Unbucketed + RPC-only writes + `tests/db/`.
@@ -816,28 +816,9 @@ per-tab channels (complexity trade-off, not required for launch).
 
 ---
 
-## First Cursor Session — Scaffold Prompt
+## Environment variables
 
-Use this to kick off the build:
-
-> I am building a PWA called Bucket My Money. Full context is in the attached `CONTEXT.md`. Please scaffold the complete project using the stack and folder structure defined in that document. Start with:
-> 1. Initialize Vite + React + TypeScript
-> 2. Install and configure Tailwind CSS
-> 3. Install and configure vite-plugin-pwa with manifest.json and service worker
-> 4. Set up Supabase client with environment variable placeholders
-> 5. Create the folder structure as specified
-> 6. Set up React Router with routes for: login, home (buckets), send, history, admin
-> 7. Create the initial Supabase migration file with the full database schema and RLS policy stubs
-> Do not build any UI yet — just the scaffold, config, and routing skeleton.
-
----
-
-## Environment Variables Needed
-
-```
-VITE_SUPABASE_URL=
-VITE_SUPABASE_PUBLISHABLE_KEY=
-VITE_SUPABASE_ANON_KEY=
-VITE_TELLER_APPLICATION_ID=   # quiesced Teller provider (docs/BANK_PROVIDERS.md)
-TELLER_SIGNING_SECRET=        # Edge Function only, never exposed to client
-```
+The full list, with comments, is in [`.env.example`](./.env.example). Server
+secrets (the Supabase service role key, bank-provider credentials such as
+`TELLER_SIGNING_SECRET`) live only in Edge Function env: never prefixed with
+`VITE_`, never imported by client code.
