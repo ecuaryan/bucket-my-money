@@ -10,17 +10,17 @@ const feature = (name: string) => `/app-assets/features/${name}.png`
 const features = [
   {
     title: 'Auto-bucket the routine',
-    body: 'Fill buckets on a schedule (weekly, every two weeks, or twice a month), with amounts straight from your plan, or run the rules whenever you want.',
+    body: 'Fill buckets on a schedule (weekly, every two weeks, twice a month, or monthly) or run a rule whenever you want. Link one rule to your plan and it follows the plan’s amounts.',
     img: 'feature-auto-bucket',
     height: 798,
     alt: 'Auto-bucket rules: Fun money every week and Payday twice a month, each with Run now',
   },
   {
     title: 'Every move on the record',
-    body: 'History shows each move between buckets and each send, with notes, for everyone who should see it.',
+    body: 'History shows every move between buckets and every give, with notes, for everyone who should see it.',
     img: 'feature-history',
     height: 798,
-    alt: 'History rows showing a $25 and a $40 send with Allowance notes and before and after balances',
+    alt: 'History rows showing a $25 and a $40 give with Allowance notes and before and after balances',
   },
   {
     title: 'Arrange it your way',
@@ -34,7 +34,7 @@ const features = [
     body: 'Switch on Hide amounts in Settings and every balance turns to dots, so a glance over your shoulder shows nothing. Hold Peek when you need a look.',
     img: 'feature-hide',
     height: 1556,
-    alt: 'The Buckets screen with every amount hidden behind dots and a Peek button in the bottom right',
+    alt: 'The Buckets screen with Unbucketed, the total balance and every bucket amount hidden behind dots',
   },
 ]
 
@@ -118,11 +118,11 @@ const faqs = [
   },
   {
     q: 'Can my partner use it with me?',
-    a: 'Yes. Adults in a household share one Unbucketed number and the family buckets, and each person signs in with their own PIN.',
+    a: 'Yes. You share one Unbucketed number and the household buckets, and each of you signs in on your own.',
   },
   {
     q: 'What can my kids see?',
-    a: 'Only their own buckets and balance, never the family’s money or anyone else’s. That’s enforced by the database, not just hidden on screen.',
+    a: 'Only their own buckets and balance, never the household’s money or anyone else’s. That’s enforced by the database, not just hidden on screen.',
   },
 ]
 
@@ -161,8 +161,8 @@ const jsonLd = {
       </a>
       <div class="hidden items-center gap-7 text-sm text-zinc-400 md:flex">
         <a href="#how" class="hover:text-white">How it works</a>
-        <a href="#plan" class="hover:text-white">Plan</a>
         <a href="#cards" class="hover:text-white">Credit cards</a>
+        <a href="#plan" class="hover:text-white">Plan</a>
         <a href="#households" class="hover:text-white">Households</a>
         <a href="#faq" class="hover:text-white">FAQ</a>
       </div>
@@ -211,11 +211,11 @@ const jsonLd = {
               See how it works
             </a>
           </div>
-          <p class="mt-4 text-sm text-zinc-500">No bank link needed to start. Add a balance by hand.</p>
-          <ul class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-500">
-            <li>✓ Read-only bank access</li>
-            <li>✓ Credit cards included</li>
-            <li>✓ Solo or household</li>
+          <p class="mt-4 text-sm text-zinc-400">No bank link needed to start. Add a balance by hand.</p>
+          <ul class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-400">
+            <li><span aria-hidden="true">✓ </span>Read-only bank access</li>
+            <li><span aria-hidden="true">✓ </span>Credit cards included</li>
+            <li><span aria-hidden="true">✓ </span>Solo or household</li>
           </ul>
         </div>
         <Phone
@@ -241,7 +241,7 @@ const jsonLd = {
     </section>
 
     <!-- Bank vs. real -->
-    <section class="bg-zinc-950">
+    <section class="border-y border-zinc-900 bg-zinc-950">
       <div class="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 md:grid-cols-2 md:py-28">
         <div>
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -366,7 +366,7 @@ const jsonLd = {
           <div>
             <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Credit cards count.</h2>
             <p class="mt-4 text-lg leading-relaxed text-zinc-400">
-              A card balance comes out of Unbucketed as soon as it syncs, so a swipe can’t hide from
+              A card balance comes out of Unbucketed as soon as it refreshes, so a swipe can’t hide from
               your budget. Paying the statement doesn’t move the number. You already covered that
               spending.
             </p>
@@ -391,7 +391,7 @@ const jsonLd = {
       <div class="mx-auto grid max-w-6xl items-center gap-14 px-5 py-20 md:grid-cols-[1fr_1.1fr] md:py-28">
         <Phone
           src={shot('plan')}
-          alt="Plan tab: two paychecks, withholding, bills and buckets planned down to $0.00 Unplanned, with the Twice a month column linked to the Payday rule"
+          alt="Plan tab: two paychecks and withholding across Every 2 weeks, Twice a month and Monthly, with $0.00 Unplanned and the Twice a month column linked to Auto-bucket"
           class="order-last md:order-first"
         />
         <div>
@@ -467,9 +467,9 @@ const jsonLd = {
           </h2>
           <dl class="mt-10 space-y-8">
             <div>
-              <dt class="text-lg font-semibold text-white">One number for the adults</dt>
+              <dt class="text-lg font-semibold text-white">One number for the household</dt>
               <dd class="mt-1.5 leading-relaxed text-zinc-400">
-                Partners share Unbucketed and the family buckets, so you’re both looking at the same
+                Partners share Unbucketed and the household buckets, so you’re both looking at the same
                 truth.
               </dd>
             </div>
@@ -551,14 +551,14 @@ const jsonLd = {
 
   <footer class="border-t border-zinc-900">
     <div
-      class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-zinc-500 sm:flex-row"
+      class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-zinc-400 sm:flex-row"
     >
       <p>© {new Date().getFullYear()} Bucket My Money</p>
       <div class="flex gap-6">
         <a href="#faq" class="hover:text-zinc-300">FAQ</a>
-        <a href="/privacy" class="hover:text-zinc-300">Privacy</a>
-        <a href="/terms" class="hover:text-zinc-300">Terms</a>
-        <a href="/contact" class="hover:text-zinc-300">Contact</a>
+        <a href="/privacy/" class="hover:text-zinc-300">Privacy</a>
+        <a href="/terms/" class="hover:text-zinc-300">Terms</a>
+        <a href="/contact/" class="hover:text-zinc-300">Contact</a>
         <a href={SIGN_IN_URL} class="hover:text-zinc-300">Sign in</a>
       </div>
     </div>

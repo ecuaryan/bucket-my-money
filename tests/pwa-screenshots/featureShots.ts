@@ -18,7 +18,8 @@ const CARD = { x: 0, width: 412 } as const
 
 const CROPS = {
   autoBucket: { ...CARD, y: 394, height: 399 },
-  history: { ...CARD, y: 224, height: 399 },
+  // Ends in the gap after the second row, so no note is cut in half.
+  history: { ...CARD, y: 130, height: 399 },
   groups: { ...CARD, y: 376, height: 440 },
   hideAmounts: { x: 0, width: 412, y: 72, height: 778 },
 } as const

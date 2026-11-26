@@ -1,9 +1,12 @@
 # Plan — product & implementation spec
 
 **Status:** Built: foundation (migration `115`), the Plan tab, the link to
-Auto-bucket (migrations `116`, `117`), and drag to reorder lines.
+Auto-bucket (migrations `116`, `117`), drag to reorder lines, hardening (`118`)
+and household Notes (`119`).
+
 **One vocabulary:** customers see **Plan**; Postgres, RPCs, TypeScript and tests
 use **`plan_*`**.
+
 **Related:** [AUTO_ORGANIZE.md](./AUTO_ORGANIZE.md), [CONTEXT.md](../CONTEXT.md),
 [BRAND.md](./BRAND.md).
 
