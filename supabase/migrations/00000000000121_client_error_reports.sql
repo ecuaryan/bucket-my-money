@@ -67,7 +67,7 @@ revoke all on function public._scrub_client_error_text(text, boolean) from publi
 
 -- _scrub_client_error_stack(stack, message): a stack keeps its frames' line and
 -- column numbers (they locate the code) and nothing else with digits. Chrome
--- repeats the message as the first line, so that copy goes first.
+-- repeats the message as the first line, so that copy is replaced first.
 create or replace function public._scrub_client_error_stack(p_stack text, p_message text)
 returns text
 language sql
@@ -81,7 +81,12 @@ as $$
            end,
            E'\n' order by n)
     from regexp_split_to_table(
-           replace(p_stack, coalesce(nullif(btrim(p_message), ''), E'\x01'), '<message>'),
+           -- Only a message long enough to be that copy (a short one like "x"
+           -- would mangle the frames); the per-line scrub covers the rest.
+           case when char_length(btrim(p_message)) >= 8
+                then replace(p_stack, btrim(p_message), '<message>')
+                else p_stack
+           end,
            E'\n'
          ) with ordinality as t(line, n)
 $$;
@@ -114,9 +119,11 @@ begin
     return;
   end if;
 
-  v_message := left(public._scrub_client_error_text(btrim(p_message), true), 300);
-  v_stack := left(public._scrub_client_error_stack(p_stack, p_message), 4000);
-  v_route := left(public._scrub_client_error_text(p_route, true), 120);
+  -- Cut the raw input first, so an oversized request costs no regex work.
+  v_message := left(public._scrub_client_error_text(btrim(left(p_message, 1000)), true), 300);
+  v_stack := left(public._scrub_client_error_stack(left(p_stack, 8000), left(p_message, 1000)), 4000);
+  -- Routes are fixed paths (no ids or codes in them); anything else is "other".
+  v_route := case when left(p_route, 200) ~ '^/[a-z/-]*$' then left(p_route, 120) else 'other' end;
   -- Same error, same place: the message plus the first stack frame.
   v_fingerprint := md5(p_kind || '|' || v_message || '|' ||
                        coalesce(substring(v_stack from '[^\n]*:[0-9]+:[0-9]+[^\n]*'), ''));

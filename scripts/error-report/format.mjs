@@ -6,7 +6,10 @@ import { readFileSync } from 'node:fs'
 const rows = JSON.parse(readFileSync(0, 'utf8') || '[]')
 const day = process.argv[2] ?? ''
 const fence = (text) => '```\n' + String(text ?? '').replaceAll('```', "'''") + '\n```'
-const inline = (text) => '`' + String(text ?? '—').replaceAll('`', "'") + '`'
+// One line only: a newline (or a blank line) could end the code span early.
+const inline = (text) => '`' + String(text || '—').replace(/[\r\n`]+/g, ' ').slice(0, 80) + '`'
+// Twenty errors stay well under GitHub's 65,536-character comment limit.
+const STACK_CHARS = 1500
 
 if (rows.length === 0) process.exit(0)
 
@@ -28,7 +31,7 @@ for (const r of rows) {
     '',
   )
   if (r.stack) {
-    const top = r.stack.split('\n').slice(0, 12).join('\n')
+    const top = r.stack.split('\n').slice(0, 12).join('\n').slice(0, STACK_CHARS)
     lines.push('<details><summary>Stack</summary>', '', fence(top), '', '</details>', '')
   }
 }

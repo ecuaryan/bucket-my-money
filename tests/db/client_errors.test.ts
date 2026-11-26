@@ -47,10 +47,20 @@ describe('client error reports', () => {
       message: 'Could not move $# to "…" for <email> (:id)',
       // Frames keep their line and column; the message copy and other digits go.
       stack: `TypeError: <message>\n${frame}\n    in Kid #`,
-      route: '/kids/:id',
+      route: 'other', // a path with an id or code in it is never stored
       app_version: '1.21.14',
       browser: 'Safari 18 · iOS',
     })
+  })
+
+  it('keeps a plain route, and a short message never mangles the stack', async () => {
+    const stack = 'Error: x\n    at fix (https://app.test/assets/index-B3x9.js:1:2)'
+    expect(
+      (await anonClient().rpc('report_client_error', { p_kind: 'render', p_message: 'x', p_stack: stack, p_route: '/settings' }))
+        .error,
+    ).toBeNull()
+    const { data } = await serviceClient().from('client_errors').select('route, stack').eq('kind', 'render').single()
+    expect(data).toEqual({ route: '/settings', stack })
   })
 
   it('drops bad input instead of failing', async () => {
