@@ -83,7 +83,12 @@ export default function PlanTable(props: Props) {
     <div
       role="table"
       aria-label={PLAN_TABLE_ARIA_LABEL}
-      className="max-h-[min(72dvh,52rem)] overflow-auto overscroll-contain rounded-2xl bg-zinc-950 ring-1 ring-zinc-800"
+      // Its own scroll keeps the header and Unplanned pinned, so it must fit the
+      // screen: at most the viewport minus the app header and the page's bottom
+      // gap (NAV_CENTER_MAIN_PB). Scrolling past its end carries on to the page
+      // (no overscroll containment), so the last row clears the nav with the
+      // same healthy gap as the Buckets list.
+      className="max-h-[max(18rem,calc(100dvh-15.75rem-env(safe-area-inset-top,0px)-max(0.5rem,env(safe-area-inset-bottom,0px))))] overflow-auto rounded-2xl bg-zinc-950 ring-1 ring-zinc-800"
     >
       <div className="w-max min-w-full">
         <div role="rowgroup" className="sticky top-0 z-20">
