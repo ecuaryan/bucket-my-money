@@ -1,9 +1,7 @@
 # Plan — product & implementation spec
 
-**Status:** Built: foundation (migration `115`), the Plan tab, and the link to
-Auto-bucket (migration `116`). Still to come: drag-to-reorder lines (the
-`reorder_plan_lines` RPC exists; new lines append to the end of their section
-until the UI lands).
+**Status:** Built: foundation (migration `115`), the Plan tab, the link to
+Auto-bucket (migrations `116`, `117`), and drag to reorder lines.
 **One vocabulary:** customers see **Plan**; Postgres, RPCs, TypeScript and tests
 use **`plan_*`**.
 **Related:** [AUTO_ORGANIZE.md](./AUTO_ORGANIZE.md), [CONTEXT.md](../CONTEXT.md),
@@ -169,8 +167,14 @@ Each total appears once, and there's no Allocated row (it's Gross − Unplanned)
 
 ### Lines
 
-- **Fields:** section, amount + unit, sort order (drag to reorder within a
-  section via a `reorder_plan_lines` RPC, like `reorder_buckets`).
+- **Fields:** section, amount + unit, sort order. New lines go to the end of
+  their section.
+- **Reorder (admins):** long-press a line's name and drag it within its
+  section: the same gesture and hook as the Buckets list
+  (`useRowLongPressReorder`, with the table as its scroll box). A tap still
+  opens the line. The line sheet's **Move up** / **Move down** do the same from
+  the keyboard or a screen reader. Both save through `reorder_plan_lines`; a
+  linked rule's lines follow the new order.
 - **Names are the user's own**, income included, 1–40 characters.
   - A Buckets line has **no name of its own**: it shows its bucket's name, and
     renaming it there renames the bucket through the existing bucket rename

@@ -58,6 +58,19 @@ export function planLineFromRow(row: PlanLineRow): PlanLine {
   }
 }
 
+const PLAN_LINE_CONTENT_FIELDS = [
+  'section', 'name', 'unit', 'amount_cents', 'percent_bp', 'bucket_id', 'paid_by', 'notes',
+] as const
+
+/**
+ * Whether a realtime update only moved a line (sort order), with nothing the
+ * table shows changed. Reorders don't glow: the rows moving is the signal.
+ */
+export function planLineOnlyMoved(oldRow: Record<string, unknown>, newRow: Record<string, unknown>): boolean {
+  if (!('sort_order' in oldRow)) return false // no old row to compare
+  return PLAN_LINE_CONTENT_FIELDS.every((field) => oldRow[field] === newRow[field])
+}
+
 /** Lines in display order: section, then the household's own order. */
 export function sortPlanLines(lines: readonly PlanLine[]): PlanLine[] {
   return [...lines].sort(
@@ -141,6 +154,35 @@ export async function deletePlanLine(lineId: string): Promise<void> {
 
 export async function reorderPlanLines(section: PlanSection, lineIds: string[]): Promise<void> {
   await rpc('reorder_plan_lines', { p_section: section, p_line_ids: lineIds })
+}
+
+/** The section's line ids, in order, with one line moved up or down; null at an end. */
+export function movedSectionIds(
+  lines: readonly PlanLine[],
+  lineId: string,
+  direction: 'up' | 'down',
+): string[] | null {
+  const line = lines.find((l) => l.id === lineId)
+  if (!line) return null
+  const ids = sortPlanLines(lines.filter((l) => l.section === line.section)).map((l) => l.id)
+  const from = ids.indexOf(lineId)
+  const to = direction === 'up' ? from - 1 : from + 1
+  if (to < 0 || to >= ids.length) return null
+  ids.splice(from, 1)
+  ids.splice(to, 0, lineId)
+  return ids
+}
+
+/** Lines with one section put in the given order (an optimistic reorder). */
+export function withSectionOrder(
+  lines: readonly PlanLine[],
+  section: PlanSection,
+  lineIds: readonly string[],
+): PlanLine[] {
+  const order = new Map(lineIds.map((id, index) => [id, index]))
+  return sortPlanLines(
+    lines.map((l) => (l.section === section && order.has(l.id) ? { ...l, sortOrder: order.get(l.id)! } : l)),
+  )
 }
 
 // ---------------------------------------------------------------------------

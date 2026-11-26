@@ -177,3 +177,55 @@ test('linking a rule to a plan with only income keeps the rule: its buckets are 
     [gas, 60],
   ])
 })
+
+test('an admin reorders lines: long-press drag, and Move up from the line sheet', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-reorder')
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  for (const name of ['Mortgage', 'Electric', 'Phone']) {
+    await admin.rpc('add_plan_line', { p_section: 'bills', p_name: name, p_unit: 'month', p_amount_cents: 10_000 })
+  }
+  const billOrder = async () => {
+    const { data } = await serviceClient()
+      .from('plan_lines')
+      .select('name')
+      .eq('family_id', family.familyId)
+      .eq('section', 'bills')
+      .order('sort_order')
+    return (data ?? []).map((l) => l.name)
+  }
+
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  const phone = page.getByRole('button', { name: 'Phone, details' })
+  const mortgage = page.getByRole('button', { name: 'Mortgage, details' })
+  await expect(phone).toBeVisible()
+
+  // Hold Phone's name, then drag it above Mortgage.
+  await phone.scrollIntoViewIfNeeded()
+  const from = (await phone.boundingBox())!
+  const to = (await mortgage.boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(550)
+  await page.mouse.move(to.x + to.width / 2, to.y + 4, { steps: 12 })
+  await page.mouse.up()
+  await expect.poll(billOrder).toEqual(['Phone', 'Mortgage', 'Electric'])
+  await expect(page.getByRole('dialog')).toHaveCount(0) // a drag never opens the line
+
+  // A tap still opens the line; Move up applies right away and the sheet stays open.
+  await page.getByRole('button', { name: 'Electric, details' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Edit line' })
+  await sheet.getByRole('button', { name: 'Move up' }).click()
+  await expect.poll(billOrder).toEqual(['Phone', 'Electric', 'Mortgage'])
+  await expect(sheet).toBeVisible()
+  await sheet.getByRole('button', { name: 'Move up' }).click()
+  await expect.poll(billOrder).toEqual(['Electric', 'Phone', 'Mortgage'])
+  await expect(sheet.getByRole('button', { name: 'Move up' })).toBeDisabled()
+
+  // Keyboard: Enter on a line's name opens it.
+  await sheet.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Mortgage, details' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog', { name: 'Edit line' })).toBeVisible()
+})

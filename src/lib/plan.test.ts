@@ -2,12 +2,15 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   DEFAULT_PLAN_VIEW,
   isPlanLinkableRule,
+  movedSectionIds,
   planColumnForRule,
+  planLineOnlyMoved,
   planLineFromRow,
   planViewStorageKey,
   PLAN_COLUMNS,
   readPlanView,
   sortPlanLines,
+  withSectionOrder,
   writePlanView,
 } from './plan'
 
@@ -117,5 +120,38 @@ describe('planColumnForRule / isPlanLinkableRule', () => {
     expect(isPlanLinkableRule(rule({ auto_organize_kind: 'top_up' }) as never)).toBe(false)
     expect(isPlanLinkableRule(rule({ owner_member_id: 'kid' }) as never)).toBe(false)
     expect(isPlanLinkableRule(rule({ days_of_month: [1, 2, 3] }) as never)).toBe(false)
+  })
+})
+
+describe('reordering a section', () => {
+  const lines = [
+    planLineFromRow({ ...row, id: 'i', section: 'income', sort_order: 0 }),
+    planLineFromRow({ ...row, id: 'b1', section: 'bills', sort_order: 0 }),
+    planLineFromRow({ ...row, id: 'b2', section: 'bills', sort_order: 1 }),
+    planLineFromRow({ ...row, id: 'b3', section: 'bills', sort_order: 2 }),
+  ]
+
+  it('moves a line up or down within its section only', () => {
+    expect(movedSectionIds(lines, 'b2', 'up')).toEqual(['b2', 'b1', 'b3'])
+    expect(movedSectionIds(lines, 'b2', 'down')).toEqual(['b1', 'b3', 'b2'])
+    expect(movedSectionIds(lines, 'b1', 'up')).toBeNull()
+    expect(movedSectionIds(lines, 'b3', 'down')).toBeNull()
+    expect(movedSectionIds(lines, 'i', 'down')).toBeNull() // the only income line
+    expect(movedSectionIds(lines, 'missing', 'up')).toBeNull()
+  })
+
+  it('applies a new order to one section and keeps the rest', () => {
+    const next = withSectionOrder(lines, 'bills', ['b3', 'b1', 'b2'])
+    expect(next.map((l) => l.id)).toEqual(['i', 'b3', 'b1', 'b2'])
+    expect(next.find((l) => l.id === 'i')?.sortOrder).toBe(0)
+  })
+})
+
+describe('planLineOnlyMoved', () => {
+  it('is true only when the sort order is all that changed', () => {
+    expect(planLineOnlyMoved(row, { ...row, sort_order: 5, updated_at: 'later' } as never)).toBe(true)
+    expect(planLineOnlyMoved(row, { ...row, sort_order: 5, amount_cents: 1 } as never)).toBe(false)
+    expect(planLineOnlyMoved(row, { ...row, notes: 'hi' } as never)).toBe(false)
+    expect(planLineOnlyMoved({}, row as never)).toBe(false) // no old row: treat as a change
   })
 })

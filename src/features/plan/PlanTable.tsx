@@ -1,4 +1,8 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
+import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
+import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
+import { prefersReducedMotion } from '@/lib/motion'
 import {
   PLAN_COLUMN_LABELS,
   PLAN_LINK_BUTTON_ARIA,
@@ -51,6 +55,8 @@ interface Props {
   onCommit: (via: 'enter' | 'blur') => void
   onCancel: () => void
   onOpenLine: (line: PlanLine) => void
+  /** A finished drag: the section's line ids in their new order. */
+  onReorder: (section: PlanSection, lineIds: string[]) => void
   onAdd: (section: PlanSection) => void
   onOpenView: () => void
   /** The column the linked Auto-bucket rule runs on (⚡), if linked. */
@@ -65,7 +71,7 @@ interface Props {
  * Income → Withheld → Take-home → Bills → Buckets (docs/PLAN.md § The table).
  */
 export default function PlanTable(props: Props) {
-  const { lines, totals, columns, compact, canEdit, flashIds, masked } = props
+  const { lines, totals, columns, compact, canEdit, masked } = props
   const gross = totals.grossCents
 
   // Compact fits the names plus three full money columns on a 390px phone.
@@ -82,12 +88,14 @@ export default function PlanTable(props: Props) {
   const lineCell = (column: PlanColumn) =>
     `${cellW(column)} shrink-0 ${compact ? 'px-0.5' : 'px-1'} text-right tabular-nums whitespace-nowrap`
 
+  const scrollRef = useRef<HTMLDivElement>(null)
   const unplanned = totals.unplannedUnits
   const unplannedTone =
     unplanned === 0n ? 'text-emerald-300' : unplanned < 0n ? 'text-red-300' : 'text-zinc-100'
 
   return (
     <div
+      ref={scrollRef}
       role="table"
       aria-label={PLAN_TABLE_ARIA_LABEL}
       // Its own scroll keeps the header and Unplanned pinned, so it must fit the
@@ -165,11 +173,14 @@ export default function PlanTable(props: Props) {
               }
               onOpenLink={props.onOpenLink}
             />
-            {lines
-              .filter((line) => line.section === section)
-              .map((line) => (
-                <LineRow key={line.id} line={line} flash={flashIds.has(line.id)} {...props} nameCell={nameCell} numCell={lineCell} />
-              ))}
+            <SectionLines
+              section={section}
+              rows={lines.filter((line) => line.section === section)}
+              table={props}
+              scrollRef={scrollRef}
+              nameCell={nameCell}
+              numCell={lineCell}
+            />
             {section === 'withheld' ? (
               <TotalRow
                 label={PLAN_TAKE_HOME_LABEL}
@@ -294,6 +305,123 @@ function TotalRow({
   )
 }
 
+/** Where a row sits while another line is dragged (see useRowLongPressReorder). */
+interface RowDrag {
+  /** Long-press handlers for the name button; absent when the line can't move. */
+  handlers?: Record<string, unknown>
+  pending: boolean
+  dragging: boolean
+  style?: CSSProperties
+}
+
+/**
+ * One section's lines. Admins reorder them by long-pressing a line's name
+ * (the same gesture and hook as the Buckets list); a tap still opens the line.
+ */
+function SectionLines({
+  section,
+  rows,
+  table,
+  scrollRef,
+  nameCell,
+  numCell,
+}: {
+  section: PlanSection
+  rows: PlanLine[]
+  table: Props
+  scrollRef: RefObject<HTMLDivElement | null>
+  nameCell: string
+  numCell: (column: PlanColumn) => string
+}) {
+  const listRef = useRef<HTMLDivElement>(null)
+  // Row heights and the visible table box, measured when a drag starts: names
+  // can wrap, so rows differ in height, and the ghost stays inside the table.
+  const [measured, setMeasured] = useState<{ heights: number[]; box: DOMRect } | null>(null)
+  const ids = rows.map((line) => line.id)
+  const dragEnabled = table.canEdit && rows.length >= 2 && table.editing === null
+
+  const { pendingBucketId, manualDragBucketId, manualDragRowHeight, manualDragOverlay, manualDragOverIndex, getRowHandlers } =
+    useRowLongPressReorder({
+      listRef,
+      scrollRef,
+      bucketIds: ids,
+      onMoveMoney: (id) => {
+        const line = rows.find((l) => l.id === id)
+        if (line) table.onOpenLine(line)
+      },
+      onDragReorder: (next) => table.onReorder(section, next),
+      onDragArmed: () => {
+        const list = listRef.current
+        const box = scrollRef.current?.getBoundingClientRect()
+        if (!list || !box) return
+        const heights = Array.from(list.children).map((row) => row.getBoundingClientRect().height)
+        setMeasured({ heights, box })
+      },
+      onDragEnded: () => setMeasured(null),
+      notifyDragStarted: () => {},
+      disabled: !dragEnabled,
+    })
+
+  const activeIndex = manualDragBucketId ? ids.indexOf(manualDragBucketId) : -1
+  const shifting =
+    activeIndex >= 0 &&
+    manualDragOverIndex !== null &&
+    manualDragOverIndex >= 0 &&
+    measured !== null &&
+    measured.heights.length === ids.length
+  const transition = prefersReducedMotion() ? undefined : 'transform 250ms ease'
+  const dragged = activeIndex >= 0 ? rows[activeIndex] : null
+
+  return (
+    <>
+      <div ref={listRef}>
+        {rows.map((line, index) => {
+          const shift = shifting ? blockShiftY(index, activeIndex, manualDragOverIndex, measured.heights) : 0
+          const drag: RowDrag = {
+            handlers: dragEnabled ? getRowHandlers(line.id) : undefined,
+            pending: pendingBucketId === line.id,
+            dragging: manualDragBucketId === line.id,
+            style: shifting
+              ? { transform: shift ? `translateY(${shift}px)` : undefined, transition }
+              : undefined,
+          }
+          return (
+            <LineRow
+              key={line.id}
+              line={line}
+              flash={table.flashIds.has(line.id)}
+              {...table}
+              drag={drag}
+              nameCell={nameCell}
+              numCell={numCell}
+            />
+          )
+        })}
+      </div>
+      {dragged && manualDragOverlay && measured
+        ? createPortal(
+            <div
+              aria-hidden="true"
+              className="pointer-events-none fixed z-[999] flex items-center rounded-lg bg-zinc-900 px-3 text-[13px] leading-tight text-zinc-200 shadow-lg ring-2 ring-emerald-400"
+              style={{
+                left: measured.box.left,
+                width: measured.box.width,
+                height: manualDragRowHeight ?? undefined,
+                top: Math.min(
+                  Math.max(manualDragOverlay.top, measured.box.top),
+                  measured.box.bottom - (manualDragRowHeight ?? 0),
+                ),
+              }}
+            >
+              <LineLabel name={table.lineName(dragged)} hasNote={table.lineHasNote(dragged)} paidBy={dragged.paidBy} />
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  )
+}
+
 function LineRow({
   line,
   flash,
@@ -311,16 +439,28 @@ function LineRow({
   onCancel,
   onOpenLine,
   compact,
+  drag,
   nameCell,
   numCell,
-}: Props & { line: PlanLine; flash: boolean; nameCell: string; numCell: (column: PlanColumn) => string }) {
+}: Props & {
+  line: PlanLine
+  flash: boolean
+  drag: RowDrag
+  nameCell: string
+  numCell: (column: PlanColumn) => string
+}) {
   const gross = totals.grossCents
   const yearly = lineYearlyUnits(line, gross)
   const name = lineName(line)
 
   return (
     // `isolate`: the glow stays inside this row, never over the pinned header.
-    <div role="row" className="relative isolate flex min-h-11 items-stretch border-b border-zinc-900">
+    <div
+      role="row"
+      data-flip-id={line.id}
+      style={drag.style}
+      className={`relative isolate flex min-h-11 items-stretch border-b border-zinc-900 ${drag.dragging ? 'opacity-40' : ''}`}
+    >
       {flash ? (
         <span aria-hidden="true" className="plan-row-flash pointer-events-none absolute inset-0 z-20 bg-emerald-500/20" />
       ) : null}
@@ -328,9 +468,18 @@ function LineRow({
         {lineHasDetails(line) ? (
           <button
             type="button"
-            onClick={() => onOpenLine(line)}
+            {...drag.handlers}
+            onClick={(e) => {
+              // With long-press reorder on, a pointer tap opens the line from the
+              // press handlers; this click only serves the keyboard (detail 0).
+              if (drag.handlers && e.detail !== 0) return
+              onOpenLine(line)
+            }}
             aria-label={planLineDetailsAriaLabel(name)}
-            className="flex w-full min-w-0 flex-col items-start justify-center gap-0.5 px-3 py-1.5 text-left text-[13px] leading-tight text-zinc-300 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400"
+            className={
+              'flex w-full min-w-0 select-none flex-col items-start justify-center gap-0.5 px-3 py-1.5 text-left text-[13px] leading-tight text-zinc-300 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400 [-webkit-touch-callout:none] ' +
+              (drag.pending ? 'bg-zinc-800/70 ring-2 ring-inset ring-emerald-400/45' : '')
+            }
           >
             <LineLabel name={name} hasNote={lineHasNote(line)} paidBy={line.paidBy} />
           </button>
