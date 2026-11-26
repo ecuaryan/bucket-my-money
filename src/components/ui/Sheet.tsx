@@ -16,6 +16,9 @@ type Props = {
   closeOnBackdropClick?: boolean
 }
 
+/** A little past the panel's 250ms close transition (src/index.css `.sheet-panel`). */
+export const SHEET_UNMOUNT_AFTER_CLOSE_MS = 350
+
 /** Open sheets, oldest first: Escape closes only the top one (a confirm over an editor). */
 const openSheets: object[] = []
 
@@ -47,6 +50,12 @@ export function Sheet({
       return () => cancelAnimationFrame(frame)
     }
     setShown(false)
+    // The panel's transitionend unmounts it as soon as the slide-out ends. This
+    // timer is the backstop: with no transition (reduced motion, or closed
+    // before it ever opened) or an interrupted one, transitionend never fires,
+    // and the invisible backdrop would stay over the page blocking every tap.
+    const timer = setTimeout(() => setPresent(false), SHEET_UNMOUNT_AFTER_CLOSE_MS)
+    return () => clearTimeout(timer)
   }, [open])
 
   useEffect(() => {
