@@ -68,12 +68,19 @@ export default function PlanTable(props: Props) {
   const { lines, totals, columns, compact, canEdit, flashIds, masked } = props
   const gross = totals.grossCents
 
-  const nameW = compact ? 'w-[120px]' : 'w-[150px]'
-  const cellW = compact ? 'w-[88px] text-[12px]' : 'w-[108px] text-[13px]'
+  // Compact fits the names plus three full money columns on a 390px phone.
+  // Yearly is wider in both views so six-figure totals fit.
+  const nameW = compact ? 'w-[124px]' : 'w-[150px]'
+  const cellW = (column: PlanColumn) =>
+    compact
+      ? `${column === 'year' ? 'w-[92px]' : 'w-[77px]'} text-[11px]`
+      : `${column === 'year' ? 'w-[120px]' : 'w-[108px]'} text-[13px]`
+  const pad = compact ? 'px-1' : 'px-3'
   const nameCell = `sticky left-0 z-10 ${nameW} shrink-0 border-r border-zinc-800`
-  const numCell = `${cellW} shrink-0 px-3 text-right tabular-nums whitespace-nowrap`
+  const numCell = (column: PlanColumn) => `${cellW(column)} shrink-0 ${pad} text-right tabular-nums whitespace-nowrap`
   // Line cells hold a full-width button or input, so they pad less.
-  const lineCell = `${cellW} shrink-0 px-1 text-right tabular-nums whitespace-nowrap`
+  const lineCell = (column: PlanColumn) =>
+    `${cellW(column)} shrink-0 ${compact ? 'px-0.5' : 'px-1'} text-right tabular-nums whitespace-nowrap`
 
   const unplanned = totals.unplannedUnits
   const unplannedTone =
@@ -105,12 +112,12 @@ export default function PlanTable(props: Props) {
             </div>
             {columns.map((column) =>
               column === props.linkedColumn ? (
-                <div key={column} role="columnheader" className={`${cellW} flex shrink-0 items-stretch`}>
+                <div key={column} role="columnheader" className={`${cellW(column)} flex shrink-0 items-stretch`}>
                   <button
                     type="button"
                     onClick={props.onOpenLink}
                     aria-label={planLinkedColumnAria(props.linkedRuleName ?? '', PLAN_COLUMN_LABELS[column])}
-                    className="flex w-full items-center justify-end gap-1 px-3 text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400"
+                    className={`flex w-full items-center justify-end gap-1 ${pad} text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400`}
                   >
                     <BoltIcon />
                     <span className="whitespace-normal text-right">{PLAN_COLUMN_LABELS[column]}</span>
@@ -120,7 +127,7 @@ export default function PlanTable(props: Props) {
                 <div
                   key={column}
                   role="columnheader"
-                  className={`${numCell} flex items-center justify-end text-[12px] font-semibold leading-tight text-zinc-400`}
+                  className={`${numCell(column)} flex items-center justify-end text-[12px] font-semibold leading-tight text-zinc-400`}
                 >
                   <span className="whitespace-normal">{PLAN_COLUMN_LABELS[column]}</span>
                 </div>
@@ -135,7 +142,7 @@ export default function PlanTable(props: Props) {
               <div
                 key={column}
                 role="cell"
-                className={`${numCell} flex items-center justify-end text-sm font-bold ${unplannedTone}`}
+                className={`${numCell(column)} flex items-center justify-end text-sm font-bold ${unplannedTone}`}
               >
                 {cellText(unplanned, column, gross, masked)}
               </div>
@@ -148,7 +155,7 @@ export default function PlanTable(props: Props) {
             <SectionHeader
               section={section}
               subtotal={totals.sections[section]}
-              {...{ columns, gross, masked, canEdit, nameCell, numCell }}
+              {...{ columns, gross, masked, canEdit, compact, nameCell, numCell }}
               onAdd={props.onAdd}
               linkedColumn={props.linkedColumn}
               linkedRunCents={
@@ -185,6 +192,7 @@ function SectionHeader({
   gross,
   masked,
   canEdit,
+  compact,
   nameCell,
   numCell,
   onAdd,
@@ -202,14 +210,19 @@ function SectionHeader({
   gross: bigint
   masked: boolean
   canEdit: boolean
+  compact: boolean
   nameCell: string
-  numCell: string
+  numCell: (column: PlanColumn) => string
   onAdd: (section: PlanSection) => void
 }) {
+  // 44pt tall; narrower so the label and both actions fit the name column.
+  const actionW = compact ? 'w-8' : 'w-10'
   return (
     <div role="row" className="flex min-h-11 items-stretch border-y border-zinc-800 bg-zinc-900">
-      <div role="rowheader" className={`${nameCell} flex items-center justify-between bg-zinc-900 pl-3`}>
-        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+      <div role="rowheader" className={`${nameCell} flex items-center justify-between bg-zinc-900 ${compact ? 'pl-2' : 'pl-3'}`}>
+        <span
+          className={`font-bold uppercase text-zinc-400 ${compact ? 'text-[10px] tracking-wide' : 'text-[11px] tracking-wider'}`}
+        >
           {PLAN_SECTION_LABELS[section]}
         </span>
         {canEdit || (section === 'buckets' && linkedColumn) ? (
@@ -219,10 +232,9 @@ function SectionHeader({
                 type="button"
                 onClick={onOpenLink}
                 aria-label={PLAN_LINK_BUTTON_ARIA}
-                className={
-                  'flex size-11 items-center justify-center rounded-lg hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
-                  (linkedColumn ? 'text-emerald-300' : 'text-zinc-500')
-                }
+                className={`flex h-11 ${actionW} items-center justify-center rounded-lg hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${
+                  linkedColumn ? 'text-emerald-300' : 'text-zinc-500'
+                }`}
               >
                 <BoltIcon />
               </button>
@@ -232,7 +244,7 @@ function SectionHeader({
                 type="button"
                 onClick={() => onAdd(section)}
                 aria-label={planAddLineAriaLabel(section)}
-                className="flex size-11 items-center justify-center rounded-lg text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                className={`flex h-11 ${actionW} items-center justify-center rounded-lg text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400`}
               >
                 <PlusIcon />
               </button>
@@ -241,7 +253,7 @@ function SectionHeader({
         ) : null}
       </div>
       {columns.map((column) => (
-        <div key={column} role="cell" className={`${numCell} flex items-center justify-end font-bold text-zinc-200`}>
+        <div key={column} role="cell" className={`${numCell(column)} flex items-center justify-end font-bold text-zinc-200`}>
           {column === linkedColumn && linkedRunCents !== null
             ? formatCellCents(linkedRunCents, masked)
             : cellText(subtotal, column, gross, masked)}
@@ -266,7 +278,7 @@ function TotalRow({
   gross: bigint
   masked: boolean
   nameCell: string
-  numCell: string
+  numCell: (column: PlanColumn) => string
 }) {
   return (
     <div role="row" className="mt-2.5 flex min-h-11 items-stretch border-y border-zinc-700 bg-zinc-900">
@@ -274,7 +286,7 @@ function TotalRow({
         {label}
       </div>
       {columns.map((column) => (
-        <div key={column} role="cell" className={`${numCell} flex items-center justify-end text-sm font-bold text-zinc-100`}>
+        <div key={column} role="cell" className={`${numCell(column)} flex items-center justify-end text-sm font-bold text-zinc-100`}>
           {cellText(units, column, gross, masked)}
         </div>
       ))}
@@ -298,9 +310,10 @@ function LineRow({
   onCommit,
   onCancel,
   onOpenLine,
+  compact,
   nameCell,
   numCell,
-}: Props & { line: PlanLine; flash: boolean; nameCell: string; numCell: string }) {
+}: Props & { line: PlanLine; flash: boolean; nameCell: string; numCell: (column: PlanColumn) => string }) {
   const gross = totals.grossCents
   const yearly = lineYearlyUnits(line, gross)
   const name = lineName(line)
@@ -354,7 +367,7 @@ function LineRow({
               onClick={() => onStartEdit(line, column)}
               aria-label={`${label}, ${text}`}
               className={
-                'h-9 w-full rounded-lg px-2 text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
+                `h-9 w-full rounded-lg ${compact ? 'px-1' : 'px-2'} text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ` +
                 (isInput
                   ? 'bg-zinc-950 text-zinc-200 ring-1 ring-inset ring-zinc-700'
                   : 'text-zinc-400 hover:bg-zinc-900')
@@ -364,10 +377,10 @@ function LineRow({
             </button>
           )
         } else {
-          content = <span className={'px-2 ' + (isInput ? 'text-zinc-100' : 'text-zinc-400')}>{text}</span>
+          content = <span className={(compact ? 'px-1 ' : 'px-2 ') + (isInput ? 'text-zinc-100' : 'text-zinc-400')}>{text}</span>
         }
         return (
-          <div key={column} role="cell" className={`${numCell} flex items-center justify-end`}>
+          <div key={column} role="cell" className={`${numCell(column)} flex items-center justify-end`}>
             {content}
           </div>
         )
