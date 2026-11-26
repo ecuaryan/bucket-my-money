@@ -60,6 +60,9 @@ export async function renameBucket(
   if (error) throw new Error(humaniseBucketWriteError(error))
 }
 
+/** Longest bucket note the database accepts (migration 118, `buckets_notes_length`). */
+export const BUCKET_NOTES_MAX_LENGTH = 10_000
+
 /** Update a bucket's freeform notes. RLS gates it to the owner or an admin. */
 export async function updateBucketNotes(
   bucketId: string,

@@ -3,18 +3,20 @@ type Props = {
   onChange: (checked: boolean) => void
   /** Screen-reader name for the switch. */
   label: string
+  disabled?: boolean
 }
 
 /** The on/off switch used on Settings cards. */
-export default function SwitchToggle({ checked, onChange, label }: Props) {
+export default function SwitchToggle({ checked, onChange, label, disabled = false }: Props) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
       className={
-        'relative h-7 w-12 shrink-0 rounded-full transition ' +
+        'relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-40 ' +
         (checked ? 'bg-emerald-500' : 'bg-zinc-700')
       }
     >

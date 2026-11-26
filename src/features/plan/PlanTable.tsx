@@ -112,12 +112,14 @@ export default function PlanTable(props: Props) {
     // A value we set on one side fires its scroll event a frame later; skip
     // that echo so it never drags the other side back mid-fling.
     const echo = new WeakMap<HTMLElement, number>()
+    // Sub-pixel tolerance: high-DPI screens can round scrollLeft when it's set.
+    const same = (a: number | undefined, b: number) => a !== undefined && Math.abs(a - b) < 1
     const follow = (from: HTMLElement, to: HTMLElement) => () => {
-      if (echo.get(from) === from.scrollLeft) {
+      if (same(echo.get(from), from.scrollLeft)) {
         echo.delete(from)
         return
       }
-      if (to.scrollLeft !== from.scrollLeft) {
+      if (!same(to.scrollLeft, from.scrollLeft)) {
         echo.set(to, from.scrollLeft)
         to.scrollLeft = from.scrollLeft
       }
@@ -212,7 +214,7 @@ export default function PlanTable(props: Props) {
         </div>
       </div>
 
-      <div ref={bodyRef} className="overflow-x-auto overscroll-x-none">
+      <div ref={bodyRef} data-plan-body="" className="overflow-x-auto overscroll-x-none">
         <div className="w-max min-w-full">
         {PLAN_SECTIONS.map((section) => (
           <div role="rowgroup" key={section} className="mt-2.5">
@@ -234,6 +236,7 @@ export default function PlanTable(props: Props) {
               rows={lines.filter((line) => line.section === section)}
               table={props}
               boxRef={bodyRef}
+              pinnedRef={headRef}
               nameCell={nameCell}
               numCell={lineCell}
             />
@@ -384,6 +387,7 @@ function SectionLines({
   rows,
   table,
   boxRef,
+  pinnedRef,
   nameCell,
   numCell,
 }: {
@@ -392,6 +396,8 @@ function SectionLines({
   table: Props
   /** The table's sideways scroller: the drag ghost spans its visible width. */
   boxRef: RefObject<HTMLDivElement | null>
+  /** The pinned header: dragging up scrolls the page from its bottom edge. */
+  pinnedRef: RefObject<HTMLDivElement | null>
   nameCell: string
   numCell: (column: PlanColumn) => string
 }) {
@@ -405,6 +411,7 @@ function SectionLines({
   const { pendingBucketId, manualDragBucketId, manualDragRowHeight, manualDragOverlay, manualDragOverIndex, getRowHandlers } =
     useRowLongPressReorder({
       listRef,
+      scrollTopInset: () => pinnedRef.current?.getBoundingClientRect().bottom ?? 0,
       bucketIds: ids,
       onMoveMoney: (id) => {
         const line = rows.find((l) => l.id === id)
@@ -510,6 +517,7 @@ function LineRow({
   const gross = totals.grossCents
   const yearly = lineYearlyUnits(line, gross)
   const name = lineName(line)
+  const pressedWithDrag = useRef(false)
 
   return (
     // `isolate`: the glow stays inside this row, never over the pinned header.
@@ -527,10 +535,14 @@ function LineRow({
           <button
             type="button"
             {...drag.handlers}
+            onPointerDownCapture={() => {
+              pressedWithDrag.current = Boolean(drag.handlers)
+            }}
             onClick={(e) => {
-              // With long-press reorder on, a pointer tap opens the line from the
-              // press handlers; this click only serves the keyboard (detail 0).
-              if (drag.handlers && e.detail !== 0) return
+              // A pointer press that started with long-press reorder on opens the
+              // line from the press handlers; otherwise (keyboard, or a press that
+              // began while a cell was open) this click opens it.
+              if (pressedWithDrag.current && e.detail !== 0) return
               onOpenLine(line)
             }}
             aria-label={planLineDetailsAriaLabel(name)}
@@ -574,7 +586,7 @@ function LineRow({
               onClick={() => onStartEdit(line, column)}
               aria-label={`${label}, ${text}`}
               className={
-                `h-9 w-full rounded-lg ${compact ? 'px-0.5' : 'px-2'} text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ` +
+                `min-h-11 w-full self-stretch rounded-lg ${compact ? 'px-0.5' : 'px-2'} text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ` +
                 // The typed value reads brighter than the ones calculated from it.
                 (isInput ? 'text-zinc-100 hover:bg-zinc-900' : 'text-zinc-400 hover:bg-zinc-900')
               }
@@ -632,9 +644,25 @@ function CellInput({
   onCancel: () => void
 }) {
   const ref = useRef<HTMLInputElement>(null)
+  const wrapRef = useRef<HTMLSpanElement>(null)
   useEffect(() => {
-    ref.current?.focus()
-    ref.current?.select()
+    const input = ref.current
+    if (!input) return
+    input.focus()
+    input.select()
+    // The open input can be wider than its cell and grows left; bring all of
+    // it out from under the pinned names (and inside the right edge).
+    const scroller = input.closest<HTMLElement>('[data-plan-body]')
+    const names = scroller?.querySelector('[role="rowheader"]')
+    if (!scroller || !names) return
+    const left = names.getBoundingClientRect().right + 4
+    const right = scroller.getBoundingClientRect().right - 4
+    let box = input.getBoundingClientRect()
+    if (box.left < left) scroller.scrollLeft -= left - box.left
+    else if (box.right > right) scroller.scrollLeft += box.right - right
+    // In the first column there's nothing to scroll back to: grow right instead.
+    box = input.getBoundingClientRect()
+    if (box.left < left && wrapRef.current) wrapRef.current.style.marginRight = `${box.left - left}px`
   }, [])
 
   function refocusCell() {
@@ -659,7 +687,7 @@ function CellInput({
   return (
     // Phones force inputs to 16px (no zoom on focus), so the open input may be
     // wider than its cell; it grows to the left, under the pinned name column.
-    <span className="relative z-[5] ml-auto block w-full min-w-[8.5rem]">
+    <span ref={wrapRef} className="relative z-[5] ml-auto block w-full min-w-[8.5rem]">
       {isPercent ? null : (
         <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-zinc-500">
           $

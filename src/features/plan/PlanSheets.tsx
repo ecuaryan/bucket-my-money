@@ -1,4 +1,5 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { BUCKET_NOTES_MAX_LENGTH } from '@/lib/buckets'
 import { Sheet } from '@/components/ui/Sheet'
 import { SheetHeader } from '@/components/ui/SheetHeader'
 import { FieldLabel } from '@/components/ui/FieldLabel'
@@ -141,6 +142,9 @@ export interface AddLineValues {
 }
 
 /** Add a line to one section. "Add" stays disabled until the line is valid. */
+/** Longest plan line note (plan_lines check in migration 115). */
+const PLAN_LINE_NOTES_MAX_LENGTH = 2000
+
 export function PlanAddLineSheet({
   section,
   bucketOptions,
@@ -303,7 +307,7 @@ export function PlanAddLineSheet({
           <FieldLabel>{isBuckets ? PLAN_BUCKET_NOTE_LABEL : PLAN_NOTE_LABEL}</FieldLabel>
           <textarea
             rows={3}
-            maxLength={2000}
+            maxLength={isBuckets ? BUCKET_NOTES_MAX_LENGTH : PLAN_LINE_NOTES_MAX_LENGTH}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             className={INPUT_CLASS + ' min-h-20 resize-y'}
@@ -366,6 +370,16 @@ export function PlanLineSheet({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // A Move button that just reached the end turns off; keep keyboard focus in
+  // the sheet by moving it to the other one.
+  const moveUpRef = useRef<HTMLButtonElement>(null)
+  const moveDownRef = useRef<HTMLButtonElement>(null)
+  const lastMove = useRef<'up' | 'down' | null>(null)
+  useEffect(() => {
+    if (lastMove.current === 'up' && !canMoveUp) moveDownRef.current?.focus()
+    if (lastMove.current === 'down' && !canMoveDown) moveUpRef.current?.focus()
+    lastMove.current = null
+  }, [canMoveUp, canMoveDown])
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -439,7 +453,7 @@ export function PlanLineSheet({
             <FieldLabel>{isBucketLine ? PLAN_BUCKET_NOTE_LABEL : PLAN_NOTE_LABEL}</FieldLabel>
             <textarea
               rows={4}
-              maxLength={2000}
+              maxLength={isBucketLine ? BUCKET_NOTES_MAX_LENGTH : PLAN_LINE_NOTES_MAX_LENGTH}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className={INPUT_CLASS + ' min-h-24 resize-y'}
@@ -456,16 +470,24 @@ export function PlanLineSheet({
           {canMoveUp || canMoveDown ? (
             <div className="grid grid-cols-2 gap-2">
               <button
+                ref={moveUpRef}
                 type="button"
-                onClick={() => onMove('up')}
+                onClick={() => {
+                  lastMove.current = 'up'
+                  onMove('up')
+                }}
                 disabled={saving || !canMoveUp}
                 className="rounded-lg py-2.5 text-sm font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 transition hover:bg-zinc-800 disabled:opacity-40"
               >
                 {PLAN_MOVE_UP_LABEL}
               </button>
               <button
+                ref={moveDownRef}
                 type="button"
-                onClick={() => onMove('down')}
+                onClick={() => {
+                  lastMove.current = 'down'
+                  onMove('down')
+                }}
                 disabled={saving || !canMoveDown}
                 className="rounded-lg py-2.5 text-sm font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 transition hover:bg-zinc-800 disabled:opacity-40"
               >
@@ -544,12 +566,15 @@ export function PlanViewSheet({
       <p className="mt-4 mb-1 text-xs font-medium text-zinc-400">{PLAN_COLUMNS_LABEL}</p>
       {PLAN_COLUMNS.map((column) => {
         const visible = !prefs.hiddenColumns.includes(column)
+        // The last visible column can't be hidden, so its switch says so.
+        const onlyVisible = visible && prefs.hiddenColumns.length === PLAN_COLUMNS.length - 1
         return (
           <div key={column} className="flex min-h-12 items-center justify-between border-b border-zinc-800 last:border-0">
             <span className="text-sm text-zinc-200">{PLAN_COLUMN_LABELS[column]}</span>
             <SwitchToggle
               checked={visible}
               label={PLAN_COLUMN_LABELS[column]}
+              disabled={onlyVisible}
               onChange={(next) => toggleColumn(column, next)}
             />
           </div>

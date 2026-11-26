@@ -227,12 +227,22 @@ Each total appears once, and there's no Allocated row (it's Gross − Unplanned)
   Your own edits don't flash. The client tracks glowing row ids from realtime
   events.
 - **Concurrent edits:** every plan RPC locks the `plans` row (`for update`), so
-  syncs run one after another. The last write wins per line.
+  syncs run one after another. The last write wins per line, but **leaving an
+  open cell without typing never writes**: the client compares with the text
+  the cell opened with, so it can't undo the other person's change. Reorders
+  from one device save one after another and reload once at the end.
 - **Sync vs a running rule:** an Auto-bucket run already locks its
   `auto_organizes` row. The sync takes the same lock before rewriting lines, so
   a run sees either all old or all new lines, never half. **Lock order is always
   `plans` → `auto_organizes`** in every function (plan RPCs, `save_auto_organize`,
-  `delete_bucket`), so they can't deadlock.
+  `delete_bucket`), so they can't deadlock. Paths that change a bucket lock it
+  first (bucket → plans), as `delete_bucket` does.
+- **Race hardening (migration `118`):** the rule-line guard waits on the rule
+  row (`for share`) so a write can't slip in while the rule is being linked,
+  and the "bucket became personal" trigger takes the plan lock first, so a
+  bucket made personal mid-add still leaves the plan. Bucket notes cap at
+  10,000 characters (`buckets_notes_length`, `not valid` so old rows never
+  block a deploy); plan line notes cap at 2,000.
 
 ### Accessibility
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BUCKET_NOTES_MAX_LENGTH } from '@/lib/buckets'
 import { Sheet } from '@/components/ui/Sheet'
 import type { Database } from '@/types/database'
 
@@ -77,6 +78,7 @@ export default function BucketNotesSheet({
             id="bucket-notes-editor"
             autoFocus
             rows={8}
+            maxLength={BUCKET_NOTES_MAX_LENGTH}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="What is this bucket for? What should come out of it?"
