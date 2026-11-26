@@ -177,10 +177,11 @@ export default function PlanTable(props: Props) {
                     aria-label={planLinkedColumnAria(props.linkedRuleName ?? '', PLAN_COLUMN_LABELS[column])}
                     className={`flex w-full items-center justify-end ${pad} text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400`}
                   >
-                    {/* Inline, so the bolt sits right against the label's first line. */}
+                    {/* Inline, so the bolt sits right against the label's first line;
+                        sized to the text (1em) and centered on its capitals. */}
                     <span className="whitespace-normal text-right">
-                      <span className="mr-0.5 inline-block align-[-2px]">
-                        <BoltIcon />
+                      <span className="mr-1 inline-block align-[-0.15em]">
+                        <BoltIcon className="size-[1em]" />
                       </span>
                       {PLAN_COLUMN_LABELS[column]}
                     </span>
@@ -746,9 +747,9 @@ function LockIcon() {
   )
 }
 
-function BoltIcon() {
+function BoltIcon({ className = 'size-3.5' }: { className?: string }) {
   return (
-    <svg {...iconProps} strokeWidth={2} className="size-3.5 shrink-0">
+    <svg {...iconProps} strokeWidth={2} className={`${className} shrink-0`}>
       <path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
     </svg>
   )
