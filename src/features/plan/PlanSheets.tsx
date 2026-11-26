@@ -17,6 +17,8 @@ import {
   PLAN_DELETE_BUCKET_LINE_BODY,
   PLAN_DELETE_LINE_BODY,
   PLAN_DELETE_LINE_LABEL,
+  PLAN_MOVE_DOWN_LABEL,
+  PLAN_MOVE_UP_LABEL,
   PLAN_DELETING_LABEL,
   PLAN_EDIT_LINE_TITLE,
   PLAN_GROSS_AMOUNT_LABEL,
@@ -311,16 +313,23 @@ export function PlanLineSheet({
   displayName,
   displayNotes,
   canEdit,
+  canMoveUp,
+  canMoveDown,
   onClose,
   onSave,
+  onMove,
   onDelete,
 }: {
   line: PlanLine
   displayName: string
   displayNotes: string | null
   canEdit: boolean
+  canMoveUp: boolean
+  canMoveDown: boolean
   onClose: () => void
   onSave: (values: LineDetailsValues) => Promise<void>
+  /** Moves the line within its section right away (the keyboard path for drag to reorder). */
+  onMove: (direction: 'up' | 'down') => void
   onDelete: () => Promise<void>
 }) {
   const isBucketLine = line.section === 'buckets'
@@ -418,6 +427,26 @@ export function PlanLineSheet({
           <button type="submit" disabled={saving || !name.trim()} className={PRIMARY_CLASS}>
             {saving ? PLAN_SAVING_LABEL : PLAN_SAVE_LABEL}
           </button>
+          {canMoveUp || canMoveDown ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onMove('up')}
+                disabled={saving || !canMoveUp}
+                className="rounded-lg py-2.5 text-sm font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 transition hover:bg-zinc-800 disabled:opacity-40"
+              >
+                {PLAN_MOVE_UP_LABEL}
+              </button>
+              <button
+                type="button"
+                onClick={() => onMove('down')}
+                disabled={saving || !canMoveDown}
+                className="rounded-lg py-2.5 text-sm font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 transition hover:bg-zinc-800 disabled:opacity-40"
+              >
+                {PLAN_MOVE_DOWN_LABEL}
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}

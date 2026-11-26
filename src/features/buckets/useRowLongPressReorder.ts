@@ -51,7 +51,7 @@ type PressState = {
   rowEl: HTMLElement | null
 }
 
-function getListBounds(listEl: HTMLUListElement | null): ListBounds | null {
+function getListBounds(listEl: HTMLElement | null): ListBounds | null {
   if (!listEl) return null
   const rect = listEl.getBoundingClientRect()
   return {
@@ -63,11 +63,11 @@ function getListBounds(listEl: HTMLUListElement | null): ListBounds | null {
 }
 
 function getSourceRowMetrics(
-  listEl: HTMLUListElement | null,
+  listEl: HTMLElement | null,
   bucketId: string,
   pressY: number,
 ): { grabOffsetY: number; rowHeight: number } | null {
-  const li = listEl?.querySelector(`:scope > li[data-flip-id="${bucketId}"]`)
+  const li = listEl?.querySelector(`:scope > [data-flip-id="${bucketId}"]`)
   if (!(li instanceof HTMLElement)) return null
   const rect = li.getBoundingClientRect()
   return {
@@ -77,10 +77,10 @@ function getSourceRowMetrics(
 }
 
 function getRowRects(
-  listEl: HTMLUListElement | null,
+  listEl: HTMLElement | null,
 ): Array<{ top: number; bottom: number }> {
   if (!listEl) return []
-  const items = listEl.querySelectorAll(':scope > li[data-flip-id]')
+  const items = listEl.querySelectorAll(':scope > [data-flip-id]')
   return Array.from(items).map((li) => {
     const rect = li.getBoundingClientRect()
     return { top: rect.top, bottom: rect.bottom }
@@ -98,7 +98,7 @@ type BlockSnapshot = {
  * Group blocks (a header plus the rows under it) as they rest, measured when a
  * group drag arms. Hit-testing and displacement use this snapshot, not live rects.
  */
-function getBlockSnapshot(listEl: HTMLUListElement | null): BlockSnapshot | null {
+function getBlockSnapshot(listEl: HTMLElement | null): BlockSnapshot | null {
   if (!listEl) return null
   const listTop = listEl.getBoundingClientRect().top
   const ids: string[] = []
@@ -139,7 +139,7 @@ function releasePointer(node: EventTarget | null, pointerId: number) {
 
 type TouchTracking = {
   onMove: (clientY: number, clientX: number, e: TouchEvent) => void
-  onEnd: (clientY: number, clientX: number) => void
+  onEnd: (clientY: number, clientX: number, e: TouchEvent) => void
 }
 
 function attachDocumentTouchTracking(handlers: TouchTracking): () => void {
@@ -152,7 +152,7 @@ function attachDocumentTouchTracking(handlers: TouchTracking): () => void {
   function onTouchEnd(e: TouchEvent) {
     const touch = e.changedTouches[0]
     if (!touch) return
-    handlers.onEnd(touch.clientY, touch.clientX)
+    handlers.onEnd(touch.clientY, touch.clientX, e)
   }
 
   // Non-passive so an armed drag can preventDefault to take over from scroll.
@@ -168,7 +168,13 @@ function attachDocumentTouchTracking(handlers: TouchTracking): () => void {
 }
 
 type Args = {
-  listRef: RefObject<HTMLUListElement | null>
+  /** The element whose direct children are the rows (each with `data-flip-id`). */
+  listRef: RefObject<HTMLElement | null>
+  /**
+   * The list's own scroll box, when it scrolls inside one (not the page).
+   * Auto-scroll then scrolls this box near its edges instead of the window.
+   */
+  scrollRef?: RefObject<HTMLElement | null>
   /** Ids of the rows currently in the DOM, top to bottom (buckets and group headers). */
   bucketIds: string[]
   /** A short tap on a row (bucket → Move money, group header → toggle). */
@@ -184,6 +190,7 @@ type Args = {
 
 export function useRowLongPressReorder({
   listRef,
+  scrollRef,
   bucketIds,
   onMoveMoney,
   onDragReorder,
@@ -305,7 +312,7 @@ export function useRowLongPressReorder({
 
   // Single guarded release path shared by touch and pointer end events.
   const finishRelease = useCallback(
-    (end: PressPoint) => {
+    (end: PressPoint, touchEnd?: TouchEvent) => {
       if (releaseHandledRef.current) return
       releaseHandledRef.current = true
 
@@ -325,6 +332,10 @@ export function useRowLongPressReorder({
           dragCommitted: false,
         })
       ) {
+        // A touch tap opens something (a dialog or sheet) right away. Cancel the
+        // browser's follow-up click, which would otherwise land on whatever now
+        // sits under the finger in that new surface.
+        if (touchEnd?.cancelable) touchEnd.preventDefault()
         latestRef.current.onMoveMoney(press.bucketId)
       }
 
@@ -408,17 +419,27 @@ export function useRowLongPressReorder({
     [listRef, notifyDragStarted, cancelPress],
   )
 
-  // Auto-scroll the page while dragging near a viewport edge.
+  // Auto-scroll the page (or the list's scroll box) while dragging near its edge.
   useEffect(() => {
     if (!manualDrag) return
 
     function tick() {
       rafRef.current = null
       if (!manualDragRef.current) return
-      const speed = autoScrollSpeed(lastClientYRef.current, window.innerHeight)
-      if (speed !== 0) {
-        window.scrollBy(0, speed)
-        updateManualDragPosition(lastClientYRef.current)
+      const box = scrollRef?.current
+      if (box) {
+        const rect = box.getBoundingClientRect()
+        const speed = autoScrollSpeed(lastClientYRef.current - rect.top, rect.height)
+        if (speed !== 0) {
+          box.scrollBy(0, speed)
+          updateManualDragPosition(lastClientYRef.current)
+        }
+      } else {
+        const speed = autoScrollSpeed(lastClientYRef.current, window.innerHeight)
+        if (speed !== 0) {
+          window.scrollBy(0, speed)
+          updateManualDragPosition(lastClientYRef.current)
+        }
       }
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -430,7 +451,7 @@ export function useRowLongPressReorder({
         rafRef.current = null
       }
     }
-  }, [manualDrag, updateManualDragPosition])
+  }, [manualDrag, scrollRef, updateManualDragPosition])
 
   // Mouse/pen drag is driven by document pointer events once armed.
   useEffect(() => {
@@ -506,8 +527,8 @@ export function useRowLongPressReorder({
                 cancelPress()
               }
             },
-            onEnd: (clientY, clientX) => {
-              finishRelease({ x: clientX, y: clientY })
+            onEnd: (clientY, clientX, ev) => {
+              finishRelease({ x: clientX, y: clientY }, ev)
             },
           })
         } else {

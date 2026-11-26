@@ -65,6 +65,8 @@ export const PLAN_PAID_BY_LABEL = 'Paid by'
 export const PLAN_SAVE_LABEL = 'Save'
 export const PLAN_ADD_LABEL = 'Add'
 export const PLAN_DELETE_LINE_LABEL = 'Delete line'
+export const PLAN_MOVE_UP_LABEL = 'Move up'
+export const PLAN_MOVE_DOWN_LABEL = 'Move down'
 
 export const PLAN_PAID_BY_NONE = 'None'
 export const PLAN_PAID_BY_LABELS = {

@@ -32,11 +32,15 @@ import {
   fetchPlanRuleId,
   isPlanLinkableRule,
   linkPlanRule,
+  movedSectionIds,
   planColumnForRule,
+  planLineOnlyMoved,
   PLAN_COLUMNS,
   readPlanView,
+  reorderPlanLines,
   setPlanLineAmount,
   updatePlanLineDetails,
+  withSectionOrder,
   writePlanView,
   type PlanColumn,
   type PlanLine,
@@ -195,7 +199,10 @@ export default function PlanSection({
       if (payload.table === 'plan_lines' && payload.eventType !== 'DELETE') {
         const id = (payload.new as { id?: string }).id
         const ownAdd = payload.eventType === 'INSERT' && Date.now() - lastOwnAdd.current < OWN_CHANGE_WINDOW_MS
-        if (id && !isOwn(id) && !ownAdd) pendingFlash.current.add(id)
+        const onlyMoved =
+          payload.eventType === 'UPDATE' &&
+          planLineOnlyMoved(payload.old as Record<string, unknown>, payload.new as Record<string, unknown>)
+        if (id && !isOwn(id) && !ownAdd && !onlyMoved) pendingFlash.current.add(id)
       }
       if (reloadTimer.current) clearTimeout(reloadTimer.current)
       reloadTimer.current = setTimeout(() => {
@@ -374,6 +381,24 @@ export default function PlanSection({
     await load()
   }
 
+  /** Put a section's lines in a new order: shown at once, then saved. */
+  async function reorderSection(section: Section, lineIds: string[]) {
+    invalidateLoads()
+    setLines((prev) => (prev ? withSectionOrder(prev, section, lineIds) : prev))
+    for (const id of lineIds) markOwn(id)
+    try {
+      await reorderPlanLines(section, lineIds)
+    } catch (e) {
+      toast.error(formatErrorMessage(e))
+    }
+    void load()
+  }
+
+  function moveLine(line: PlanLine, direction: 'up' | 'down') {
+    const ids = lines ? movedSectionIds(lines, line.id, direction) : null
+    if (ids) void reorderSection(line.section, ids)
+  }
+
   async function removeLine(line: PlanLine) {
     markOwn(line.id)
     invalidateLoads()
@@ -431,6 +456,7 @@ export default function PlanSection({
           onCommit={(via) => void commitEdit(via)}
           onCancel={cancelEdit}
           onOpenLine={(line) => setOpenLineId(line.id)}
+          onReorder={(section, ids) => void reorderSection(section, ids)}
           onAdd={setAddSection}
           onOpenView={() => setViewOpen(true)}
           linkedColumn={linkedColumn}
@@ -456,8 +482,11 @@ export default function PlanSection({
           displayName={lineName(openLine)}
           displayNotes={lineNotes(openLine)}
           canEdit={isAdmin}
+          canMoveUp={movedSectionIds(lines, openLine.id, 'up') !== null}
+          canMoveDown={movedSectionIds(lines, openLine.id, 'down') !== null}
           onClose={() => setOpenLineId(null)}
           onSave={(values) => saveDetails(openLine, values)}
+          onMove={(direction) => moveLine(openLine, direction)}
           onDelete={() => removeLine(openLine)}
         />
       ) : null}
