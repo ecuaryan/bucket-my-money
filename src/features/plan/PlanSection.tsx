@@ -324,12 +324,12 @@ export default function PlanSection({
     void load()
   }
 
-  async function createHouseholdBucket(name: string): Promise<string> {
+  async function createHouseholdBucket(name: string, notes: string | null): Promise<string> {
     const invalid = validateBucketNameForList(buckets.map((b) => b.name), name)
     if (invalid) throw new Error(invalid)
     const { data, error } = await supabase
       .from('buckets')
-      .insert({ family_id: familyId, owner_member_id: null, name, allocated_amount: 0 })
+      .insert({ family_id: familyId, owner_member_id: null, name, allocated_amount: 0, notes: notes?.trim() || null })
       .select('id')
       .single()
     if (error) throw new Error(humaniseBucketWriteError(error))
@@ -338,7 +338,9 @@ export default function PlanSection({
   }
 
   async function addLine(values: AddLineValues) {
-    const createdBucketId = values.newBucketName ? await createHouseholdBucket(values.newBucketName) : null
+    const createdBucketId = values.newBucketName
+      ? await createHouseholdBucket(values.newBucketName, values.notes)
+      : null
     lastOwnAdd.current = Date.now()
     invalidateLoads()
     try {
@@ -349,6 +351,8 @@ export default function PlanSection({
         name: values.name,
         bucketId: createdBucketId ?? values.bucketId,
         paidBy: values.paidBy,
+        // A Buckets line keeps no note of its own: the note is the bucket's.
+        notes: values.section === 'buckets' ? null : values.notes,
       })
     } catch (e) {
       // Don't leave behind an empty bucket the plan never got: a retry would
@@ -358,6 +362,16 @@ export default function PlanSection({
         onBucketsChanged()
       }
       throw e
+    }
+    // An existing bucket's note changes only once its line is on the plan.
+    const picked = values.bucketId ? bucketsById.get(values.bucketId) : undefined
+    if (picked && (values.notes?.trim() || null) !== (picked.notes?.trim() || null)) {
+      try {
+        await updateBucketNotes(picked.id, values.notes)
+        onBucketsChanged()
+      } catch (e) {
+        toast.error(formatErrorMessage(e))
+      }
     }
     setAddSection(null)
     await load()
@@ -418,7 +432,7 @@ export default function PlanSection({
   const plannedBucketIds = new Set(lines.map((l) => l.bucketId).filter(Boolean))
   const bucketOptions = buckets
     .filter((b) => b.owner_member_id === null && !plannedBucketIds.has(b.id))
-    .map((b) => ({ id: b.id, name: b.name }))
+    .map((b) => ({ id: b.id, name: b.name, notes: b.notes ?? null }))
 
   return (
     <section aria-label={PLAN_TAB_LABEL}>
