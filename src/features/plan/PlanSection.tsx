@@ -124,12 +124,32 @@ export default function PlanSection({
   // value back on screen over a fresher edit.
   const loadSeq = useRef(0)
   const hasLoaded = useRef(false)
+  const reorderQueue = useRef<Promise<void>>(Promise.resolve())
+  const reordersPending = useRef(0)
+
+  const flash = useCallback((id: string) => {
+    setFlashIds((prev) => new Set(prev).add(id))
+    const timer = setTimeout(() => {
+      flashTimers.current.delete(timer)
+      setFlashIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }, FLASH_MS)
+    flashTimers.current.add(timer)
+  }, [])
+
   const load = useCallback(async (): Promise<boolean> => {
     const seq = ++loadSeq.current
     try {
       const next = await fetchPlanLines()
       if (seq !== loadSeq.current) return false
       setLines(next)
+      // Remote changes glow once their numbers are on screen, whichever load
+      // (realtime or after a local write) brings them.
+      for (const id of pendingFlash.current) flash(id)
+      pendingFlash.current.clear()
       setLoadError(null)
       hasLoaded.current = true
       return true
@@ -139,7 +159,7 @@ export default function PlanSection({
       else setLoadError(formatErrorMessage(e))
       return false
     }
-  }, [])
+  }, [flash])
   function invalidateLoads() {
     loadSeq.current += 1
   }
@@ -180,19 +200,6 @@ export default function PlanSection({
     return at !== undefined && Date.now() - at < OWN_CHANGE_WINDOW_MS
   }
 
-  function flash(id: string) {
-    setFlashIds((prev) => new Set(prev).add(id))
-    const timer = setTimeout(() => {
-      flashTimers.current.delete(timer)
-      setFlashIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }, FLASH_MS)
-    flashTimers.current.add(timer)
-  }
-
   const onRealtime = useCallback(
     (payload: PostgresChangePayload) => {
       if (payload.table === 'plans' || payload.table === 'auto_organizes') void loadLink()
@@ -205,14 +212,7 @@ export default function PlanSection({
         if (id && !isOwn(id) && !ownAdd && !onlyMoved) pendingFlash.current.add(id)
       }
       if (reloadTimer.current) clearTimeout(reloadTimer.current)
-      reloadTimer.current = setTimeout(() => {
-        void load().then((applied) => {
-          if (!applied) return // a newer load will bring these rows (and their glow)
-          // Glow once the new numbers are on screen, not over the old ones.
-          for (const id of pendingFlash.current) flash(id)
-          pendingFlash.current.clear()
-        })
-      }, 150)
+      reloadTimer.current = setTimeout(() => void load(), 150)
     },
     [load, loadLink],
   )
@@ -265,6 +265,8 @@ export default function PlanSection({
   }
 
   async function changeLink(ruleId: string | null) {
+    // Linking may copy the rule's buckets in: those new rows are ours, no glow.
+    lastOwnAdd.current = Date.now()
     await linkPlanRule(ruleId)
     await Promise.all([load(), loadLink()])
     onLinkChanged()
@@ -272,6 +274,10 @@ export default function PlanSection({
   const columns = PLAN_COLUMNS.filter((c) => !view.hiddenColumns.includes(c))
   // An admin who locked editing sees the plan as a shared member does.
   const canEdit = isAdmin && !view.locked
+  // An open cell whose line was deleted (or editing locked) is no longer open;
+  // otherwise it would keep drag-to-reorder off everywhere.
+  const liveEditing =
+    editing && canEdit && (lines ?? []).some((l) => l.id === editing.lineId) ? editing : null
 
   function changeView(next: PlanViewPrefs) {
     setView(next)
@@ -281,7 +287,8 @@ export default function PlanSection({
   function startEdit(line: PlanLine, column: PlanColumn) {
     // While Hide amounts is on, opening a cell would reveal the real number.
     if (masked) return
-    setEditing({ lineId: line.id, column, text: cellInputText(line, column, totals.grossCents), invalid: false })
+    const text = cellInputText(line, column, totals.grossCents)
+    setEditing({ lineId: line.id, column, text, initial: text, invalid: false })
   }
 
   function cancelEdit() {
@@ -309,7 +316,9 @@ export default function PlanSection({
     const line = lines.find((l) => l.id === edit.lineId)
     if (!line) return
     // Tapping a cell stores nothing; only a new typed value does (no drift).
-    if (text === cellInputText(line, edit.column, totals.grossCents)) return
+    // Compare with what the cell opened with, not with the line now: if the
+    // other person changed it meanwhile, leaving the cell must not undo that.
+    if (text === edit.initial.trim()) return
 
     const updated: PlanLine =
       edit.column === 'percent'
@@ -397,17 +406,26 @@ export default function PlanSection({
     await load()
   }
 
-  /** Put a section's lines in a new order: shown at once, then saved. */
+  /**
+   * Put a section's lines in a new order: shown at once, then saved. Saves run
+   * one after another (quick Move up taps land in the order they were made),
+   * and the plan reloads only once the last one is done, so the list never
+   * steps back through an older order.
+   */
   async function reorderSection(section: Section, lineIds: string[]) {
     invalidateLoads()
     setLines((prev) => (prev ? withSectionOrder(prev, section, lineIds) : prev))
     for (const id of lineIds) markOwn(id)
+    reordersPending.current += 1
+    const save = reorderQueue.current.then(() => reorderPlanLines(section, lineIds))
+    reorderQueue.current = save.catch(() => {})
     try {
-      await reorderPlanLines(section, lineIds)
+      await save
     } catch (e) {
       toast.error(formatErrorMessage(e))
     }
-    void load()
+    reordersPending.current -= 1
+    if (reordersPending.current === 0) void load()
   }
 
   function moveLine(line: PlanLine, direction: 'up' | 'down') {
@@ -460,7 +478,7 @@ export default function PlanSection({
           locked={isAdmin && view.locked}
           canEdit={canEdit}
           flashIds={flashIds}
-          editing={editing}
+          editing={liveEditing}
           lineName={lineName}
           lineHasNote={(line) => Boolean(lineNotes(line)?.trim())}
           lineHasDetails={(line) => canEdit || Boolean(line.paidBy) || Boolean(lineNotes(line)?.trim())}

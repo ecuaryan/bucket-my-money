@@ -341,6 +341,18 @@ describe('bucket lines stay household buckets of the same family', () => {
   })
 })
 
+// Migration 118: bucket notes (shown on Buckets lines) have a size cap.
+describe('bucket notes', () => {
+  it('an admin can write a long note, up to 10,000 characters', async () => {
+    const { family, admin } = await householdWithPlan('plan-bucket-notes')
+    const bucket = await insertBucket(serviceClient(), family.familyId, 'Groceries', null)
+    const ok = await admin.from('buckets').update({ notes: 'x'.repeat(10_000) } as never).eq('id', bucket)
+    expect(ok.error).toBeNull()
+    const tooLong = await admin.from('buckets').update({ notes: 'x'.repeat(10_001) } as never).eq('id', bucket)
+    expect(tooLong.error?.message).toMatch(/buckets_notes_length/)
+  })
+})
+
 describe('editing lines', () => {
   it('set_plan_line_amount moves the input to the typed unit', async () => {
     const { admin } = await householdWithPlan('plan-amount')

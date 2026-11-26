@@ -318,3 +318,28 @@ test('an admin can lock editing on this device, and unlock it', async ({ page })
   await expect(page.getByRole('button', { name: 'Salary, Monthly, $10,000.00' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add line to Bills' })).toBeVisible()
 })
+
+test('leaving an open cell untouched never undoes the other person’s change', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-stale-cell')
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  const { data: groceries } = await admin.rpc('add_plan_line', {
+    p_section: 'bills', p_name: 'Groceries', p_unit: 'month', p_amount_cents: 80_000,
+  })
+  await page.getByRole('tab', { name: 'Plan' }).click()
+
+  // Open the cell, then the other person changes the same line.
+  await page.getByRole('button', { name: 'Groceries, Monthly, $800.00' }).click()
+  const cell = page.getByRole('textbox', { name: 'Groceries, Monthly' })
+  await expect(cell).toBeFocused()
+  await admin.rpc('set_plan_line_amount', { p_line_id: groceries as string, p_unit: 'month', p_amount_cents: 90_000 })
+  await page.waitForTimeout(1500) // realtime brings the new value in underneath
+
+  // Leaving without typing stores nothing: their $900 stays.
+  await cell.press('Tab')
+  await expect(cell).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $900.00' })).toBeVisible()
+  const { data } = await serviceClient().from('plan_lines').select('amount_cents').eq('id', groceries as string).single()
+  expect(Number(data?.amount_cents)).toBe(90_000)
+})

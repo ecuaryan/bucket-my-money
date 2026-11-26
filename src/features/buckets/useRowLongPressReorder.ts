@@ -175,6 +175,11 @@ type Args = {
    * Auto-scroll then scrolls this box near its edges instead of the window.
    */
   scrollRef?: RefObject<HTMLElement | null>
+  /**
+   * Page scrolling only: how far from the top something pinned covers the
+   * list (px), so dragging up starts scrolling at its edge, not under it.
+   */
+  scrollTopInset?: () => number
   /** Ids of the rows currently in the DOM, top to bottom (buckets and group headers). */
   bucketIds: string[]
   /** A short tap on a row (bucket → Move money, group header → toggle). */
@@ -191,6 +196,7 @@ type Args = {
 export function useRowLongPressReorder({
   listRef,
   scrollRef,
+  scrollTopInset,
   bucketIds,
   onMoveMoney,
   onDragReorder,
@@ -435,7 +441,8 @@ export function useRowLongPressReorder({
           updateManualDragPosition(lastClientYRef.current)
         }
       } else {
-        const speed = autoScrollSpeed(lastClientYRef.current, window.innerHeight)
+        const inset = Math.max(0, scrollTopInset?.() ?? 0)
+        const speed = autoScrollSpeed(lastClientYRef.current - inset, window.innerHeight - inset)
         if (speed !== 0) {
           window.scrollBy(0, speed)
           updateManualDragPosition(lastClientYRef.current)
@@ -451,7 +458,7 @@ export function useRowLongPressReorder({
         rafRef.current = null
       }
     }
-  }, [manualDrag, scrollRef, updateManualDragPosition])
+  }, [manualDrag, scrollRef, scrollTopInset, updateManualDragPosition])
 
   // Mouse/pen drag is driven by document pointer events once armed.
   useEffect(() => {

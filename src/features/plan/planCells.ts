@@ -72,6 +72,8 @@ export interface PlanCellEdit {
   lineId: string
   column: PlanColumn
   text: string
+  /** What the cell showed when it opened: leaving it unchanged stores nothing. */
+  initial: string
   /** Set after Enter on text that isn't a valid amount; the cell stays open. */
   invalid: boolean
 }
