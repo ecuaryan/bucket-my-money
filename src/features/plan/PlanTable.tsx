@@ -284,11 +284,12 @@ function SectionHeader({
   numCell: (column: PlanColumn) => string
   onAdd: (section: PlanSection) => void
 }) {
-  // 44pt tall; narrower so the label and both actions fit the name column.
-  const actionW = compact ? 'w-8' : 'w-10'
+  // 44pt tall; narrower so the label and both actions fit the name column
+  // with the same 12px edge as every other row.
+  const actionW = compact ? 'w-7' : 'w-10'
   return (
     <div role="row" className={`flex min-h-11 items-stretch border-y border-zinc-800 bg-zinc-900${rowEnd(compact)}`}>
-      <div role="rowheader" className={`${nameCell} flex items-center justify-between bg-zinc-900 ${compact ? 'pl-2' : 'pl-3'}`}>
+      <div role="rowheader" className={`${nameCell} flex items-center justify-between bg-zinc-900 pl-3`}>
         <span
           className={`font-bold uppercase text-zinc-400 ${compact ? 'text-[10px] tracking-wide' : 'text-[11px] tracking-wider'}`}
         >
@@ -573,7 +574,7 @@ function LineRow({
               onClick={() => onStartEdit(line, column)}
               aria-label={`${label}, ${text}`}
               className={
-                `h-9 w-full rounded-lg ${compact ? 'px-1' : 'px-2'} text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ` +
+                `h-9 w-full rounded-lg ${compact ? 'px-0.5' : 'px-2'} text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ` +
                 // The typed value reads brighter than the ones calculated from it.
                 (isInput ? 'text-zinc-100 hover:bg-zinc-900' : 'text-zinc-400 hover:bg-zinc-900')
               }
@@ -582,7 +583,7 @@ function LineRow({
             </button>
           )
         } else {
-          content = <span className={(compact ? 'px-1 ' : 'px-2 ') + (isInput ? 'text-zinc-100' : 'text-zinc-400')}>{text}</span>
+          content = <span className={(compact ? 'px-0.5 ' : 'px-2 ') + (isInput ? 'text-zinc-100' : 'text-zinc-400')}>{text}</span>
         }
         return (
           <div key={column} role="cell" className={`${numCell(column)} flex items-center justify-end`}>
