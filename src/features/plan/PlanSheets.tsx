@@ -122,6 +122,7 @@ const DEFAULT_UNIT: Record<PlanSection, PlanUnit> = {
 export interface PlanBucketOption {
   id: string
   name: string
+  notes: string | null
 }
 
 export interface AddLineValues {
@@ -133,6 +134,8 @@ export interface AddLineValues {
   bucketId: string | null
   newBucketName: string | null
   paidBy: PlanPaidBy | null
+  /** The line's note; on a Buckets line, the bucket's note. Null when empty. */
+  notes: string | null
 }
 
 /** Add a line to one section. "Add" stays disabled until the line is valid. */
@@ -153,6 +156,8 @@ export function PlanAddLineSheet({
   const isBuckets = section === 'buckets'
   const [name, setName] = useState('')
   const [bucketChoice, setBucketChoice] = useState<string>(bucketOptions[0]?.id ?? 'new')
+  // A Buckets line's note is its bucket's: picking a bucket shows the note it has.
+  const [notes, setNotes] = useState(isBuckets ? (bucketOptions[0]?.notes ?? '') : '')
   const [newBucketName, setNewBucketName] = useState('')
   const [amountText, setAmountText] = useState('')
   const [unit, setUnit] = useState<PlanUnit>(DEFAULT_UNIT[section])
@@ -187,6 +192,7 @@ export function PlanAddLineSheet({
         bucketId: isBuckets && !usingNewBucket ? bucketChoice : null,
         newBucketName: usingNewBucket ? newBucketName.trim() : null,
         paidBy: section === 'bills' || section === 'buckets' ? paidBy : null,
+        notes: notes.trim() ? notes : null,
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -210,7 +216,10 @@ export function PlanAddLineSheet({
               <FieldLabel>{PLAN_BUCKET_LABEL}</FieldLabel>
               <select
                 value={bucketChoice}
-                onChange={(e) => setBucketChoice(e.target.value)}
+                onChange={(e) => {
+                  setBucketChoice(e.target.value)
+                  setNotes(bucketOptions.find((b) => b.id === e.target.value)?.notes ?? '')
+                }}
                 className={INPUT_CLASS}
               >
                 {bucketOptions.map((b) => (
@@ -283,6 +292,17 @@ export function PlanAddLineSheet({
         {section === 'bills' || section === 'buckets' ? (
           <ChoiceChips label={PLAN_PAID_BY_LABEL} choices={PAID_BY_CHOICES} value={paidBy} onChange={setPaidBy} />
         ) : null}
+
+        <label className="block">
+          <FieldLabel>{isBuckets ? PLAN_BUCKET_NOTE_LABEL : PLAN_NOTE_LABEL}</FieldLabel>
+          <textarea
+            rows={3}
+            maxLength={2000}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className={INPUT_CLASS + ' min-h-20 resize-y'}
+          />
+        </label>
 
         {error ? (
           <p role="alert" className={ERROR_CLASS}>

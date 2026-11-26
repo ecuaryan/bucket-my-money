@@ -229,3 +229,61 @@ test('an admin reorders lines: long-press drag, and Move up from the line sheet'
   await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog', { name: 'Edit line' })).toBeVisible()
 })
+
+test('a note can be written while adding a line; a Buckets line’s note is its bucket’s', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-add-note')
+  const svc = serviceClient()
+  const groceries = await insertBucket(svc, family.familyId, 'Groceries', null)
+  await svc.from('buckets').update({ notes: 'Costco runs count here' } as never).eq('id', groceries)
+  await insertBucket(svc, family.familyId, 'Gas', null)
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  await page.getByRole('tab', { name: 'Plan' }).click()
+
+  // A bill: the note is saved with the line.
+  await page.getByRole('button', { name: 'Add line to Bills' }).click()
+  const addBill = page.getByRole('dialog', { name: 'Add bill' })
+  await addBill.getByLabel('Name').fill('Electric')
+  await addBill.getByLabel('Amount').fill('120')
+  await addBill.getByLabel('Note').fill('Due the 3rd')
+  await addBill.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(addBill).toBeHidden()
+  await page.getByRole('button', { name: 'Electric, details' }).click()
+  await expect(page.getByRole('dialog', { name: 'Edit line' }).getByLabel('Note')).toHaveValue('Due the 3rd')
+  await page.getByRole('dialog', { name: 'Edit line' }).getByRole('button', { name: 'Close' }).click()
+
+  // An existing bucket shows its note; editing it here updates the bucket.
+  await page.getByRole('button', { name: 'Add line to Buckets' }).click()
+  const addBucket = page.getByRole('dialog', { name: 'Add bucket' })
+  const bucketSelect = addBucket.getByRole('combobox', { name: 'Bucket' })
+  await bucketSelect.selectOption({ label: 'Groceries' })
+  await expect(addBucket.getByLabel('Bucket note')).toHaveValue('Costco runs count here')
+  await addBucket.getByLabel('Bucket note').fill('Costco and farmers market')
+  await addBucket.getByLabel('Amount').fill('400')
+  await addBucket.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(addBucket).toBeHidden()
+
+  // A new bucket is created with the note.
+  await page.getByRole('button', { name: 'Add line to Buckets' }).click()
+  await bucketSelect.selectOption({ label: 'New bucket' })
+  await expect(addBucket.getByLabel('Bucket note')).toHaveValue('')
+  await addBucket.getByLabel('New bucket name').fill('Vacation')
+  await addBucket.getByLabel('Amount').fill('50')
+  await addBucket.getByLabel('Bucket note').fill('Beach in June')
+  await addBucket.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(addBucket).toBeHidden()
+
+  await expect
+    .poll(async () => {
+      const { data } = await svc.from('buckets').select('name, notes').eq('family_id', family.familyId).order('name')
+      return data
+    })
+    .toEqual([
+      { name: 'Gas', notes: null },
+      { name: 'Groceries', notes: 'Costco and farmers market' },
+      { name: 'Vacation', notes: 'Beach in June' },
+    ])
+  const { data: bucketLines } = await svc.from('plan_lines').select('notes').eq('family_id', family.familyId).eq('section', 'buckets')
+  expect(bucketLines?.map((l) => l.notes)).toEqual([null, null]) // the note lives on the bucket
+})
