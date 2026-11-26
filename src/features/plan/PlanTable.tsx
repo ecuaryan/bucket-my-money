@@ -23,6 +23,15 @@ import { cellCents, lineYearlyUnits, type PlanSection, type PlanTotals } from '@
 import { PLAN_SECTIONS, type PlanColumn, type PlanLine } from '@/lib/plan'
 import { canEditColumn, cellText, formatCellCents, planCellButtonId, type PlanCellEdit } from './planCells'
 
+/**
+ * Compact pads cells thinly, so each row ends with an 8px spacer (a flex
+ * pseudo-element in the row's own color): the last column never sits on the
+ * table's edge.
+ */
+function rowEnd(compact: boolean): string {
+  return compact ? " after:w-2 after:shrink-0 after:content-['']" : ''
+}
+
 /** Sum of each bucket line's floored amount in one column: what a linked rule moves per run. */
 function sumPerRun(lines: readonly PlanLine[], gross: bigint, column: PlanColumn): bigint {
   if (column === 'percent') return 0n
@@ -128,13 +137,16 @@ export default function PlanTable(props: Props) {
     unplanned === 0n ? 'text-emerald-300' : unplanned < 0n ? 'text-red-300' : 'text-zinc-100'
 
   return (
+    // On wider screens the table breaks out of the app's narrow column to the
+    // window's width (less a margin), then sizes to its columns, centered.
+    <div className="sm:mx-[calc(50%-50vw+1.5rem)]">
     <div
       role="table"
       aria-label={PLAN_TABLE_ARIA_LABEL}
       // No vertical scroll of its own (a nested one eats the first swipe), and
       // `overflow: clip` rounds the corners without becoming a scroll box, so
       // the header can still pin to the page.
-      className="rounded-2xl bg-zinc-950 ring-1 ring-zinc-800 [overflow:clip]"
+      className="rounded-2xl bg-zinc-950 ring-1 ring-zinc-800 [overflow:clip] sm:mx-auto sm:w-max sm:max-w-full"
     >
       <div
         ref={headRef}
@@ -142,7 +154,7 @@ export default function PlanTable(props: Props) {
         className="sticky-below-header z-20 overflow-x-auto overscroll-x-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="w-max min-w-full">
-          <div role="row" className="flex min-h-11 items-stretch border-b border-zinc-800 bg-zinc-900">
+          <div role="row" className={`flex min-h-11 items-stretch border-b border-zinc-800 bg-zinc-900${rowEnd(compact)}`}>
             <div role="columnheader" className={`${nameCell} flex items-center bg-zinc-900 px-1.5`}>
               <button
                 type="button"
@@ -183,7 +195,7 @@ export default function PlanTable(props: Props) {
               ),
             )}
           </div>
-          <div role="row" className="flex min-h-11 items-stretch border-b border-zinc-700 bg-zinc-900">
+          <div role="row" className={`flex min-h-11 items-stretch border-b border-zinc-700 bg-zinc-900${rowEnd(compact)}`}>
             <div role="rowheader" className={`${nameCell} flex items-center bg-zinc-900 px-3 text-sm font-bold text-zinc-100`}>
               {PLAN_UNPLANNED_LABEL}
             </div>
@@ -229,7 +241,7 @@ export default function PlanTable(props: Props) {
               <TotalRow
                 label={PLAN_TAKE_HOME_LABEL}
                 units={totals.takeHomeUnits}
-                {...{ columns, gross, masked, nameCell, numCell }}
+                {...{ columns, gross, masked, compact, nameCell, numCell }}
               />
             ) : null}
           </div>
@@ -237,6 +249,7 @@ export default function PlanTable(props: Props) {
         <div className="h-4" />
         </div>
       </div>
+    </div>
     </div>
   )
 }
@@ -274,7 +287,7 @@ function SectionHeader({
   // 44pt tall; narrower so the label and both actions fit the name column.
   const actionW = compact ? 'w-8' : 'w-10'
   return (
-    <div role="row" className="flex min-h-11 items-stretch border-y border-zinc-800 bg-zinc-900">
+    <div role="row" className={`flex min-h-11 items-stretch border-y border-zinc-800 bg-zinc-900${rowEnd(compact)}`}>
       <div role="rowheader" className={`${nameCell} flex items-center justify-between bg-zinc-900 ${compact ? 'pl-2' : 'pl-3'}`}>
         <span
           className={`font-bold uppercase text-zinc-400 ${compact ? 'text-[10px] tracking-wide' : 'text-[11px] tracking-wider'}`}
@@ -325,6 +338,7 @@ function TotalRow({
   columns,
   gross,
   masked,
+  compact,
   nameCell,
   numCell,
 }: {
@@ -333,11 +347,12 @@ function TotalRow({
   columns: readonly PlanColumn[]
   gross: bigint
   masked: boolean
+  compact: boolean
   nameCell: string
   numCell: (column: PlanColumn) => string
 }) {
   return (
-    <div role="row" className="mt-2.5 flex min-h-11 items-stretch border-y border-zinc-700 bg-zinc-900">
+    <div role="row" className={`mt-2.5 flex min-h-11 items-stretch border-y border-zinc-700 bg-zinc-900${rowEnd(compact)}`}>
       <div role="rowheader" className={`${nameCell} flex items-center bg-zinc-900 px-3 text-sm font-bold text-zinc-100`}>
         {label}
       </div>
@@ -501,7 +516,7 @@ function LineRow({
       role="row"
       data-flip-id={line.id}
       style={drag.style}
-      className={`relative isolate flex min-h-11 items-stretch border-b border-zinc-900 ${drag.dragging ? 'opacity-40' : ''}`}
+      className={`relative isolate flex min-h-11 items-stretch border-b border-zinc-900 ${drag.dragging ? 'opacity-40' : ''}${rowEnd(compact)}`}
     >
       {flash ? (
         <span aria-hidden="true" className="plan-row-flash pointer-events-none absolute inset-0 z-20 bg-emerald-500/20" />

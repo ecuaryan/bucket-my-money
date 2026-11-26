@@ -11,6 +11,7 @@ import {
   PLAN_BUCKET_LABEL,
   PLAN_BUCKET_NAME_LABEL,
   PLAN_BUCKET_NOTE_LABEL,
+  PLAN_CHOOSE_BUCKET_OPTION,
   PLAN_COLUMN_LABELS,
   PLAN_COLUMNS_LABEL,
   PLAN_COMPACT_LABEL,
@@ -156,9 +157,10 @@ export function PlanAddLineSheet({
   const ids = useId()
   const isBuckets = section === 'buckets'
   const [name, setName] = useState('')
-  const [bucketChoice, setBucketChoice] = useState<string>(bucketOptions[0]?.id ?? 'new')
+  // No bucket is picked for you: Add stays off until one (or New bucket) is chosen.
+  const [bucketChoice, setBucketChoice] = useState<string>('')
   // A Buckets line's note is its bucket's: picking a bucket shows the note it has.
-  const [notes, setNotes] = useState(isBuckets ? (bucketOptions[0]?.notes ?? '') : '')
+  const [notes, setNotes] = useState('')
   const [newBucketName, setNewBucketName] = useState('')
   const [amountText, setAmountText] = useState('')
   const [unit, setUnit] = useState<PlanUnit>(DEFAULT_UNIT[section])
@@ -223,6 +225,9 @@ export function PlanAddLineSheet({
                 }}
                 className={INPUT_CLASS}
               >
+                <option value="" disabled>
+                  {PLAN_CHOOSE_BUCKET_OPTION}
+                </option>
                 {bucketOptions.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}

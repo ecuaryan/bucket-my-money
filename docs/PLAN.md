@@ -86,6 +86,9 @@ swipe on a phone). **The column header and Unplanned pin under the app bar**
 (`.sticky-below-header`, like History's dates). They sit in their own sideways
 scroller, kept in step with the body's, and the table rounds its corners with
 `overflow: clip`, which doesn't create a scroll box that would stop the pinning.
+On screens 640px and wider, the table breaks out of the app's narrow column:
+it sizes to its columns (all six fit at about 810px), centered, never wider
+than the window. The rest of the page stays narrow.
 
 ### Columns
 
@@ -197,7 +200,9 @@ Each total appears once, and there's no Allocated row (it's Gross − Unplanned)
 - **% lines** are a share of **total gross**. A deduction that's a percentage of
   one earner's pay should be typed as the dollar amount from that earner's stub.
 - **Buckets lines** pick a family-pool bucket with one picker whose last option
-  is **New bucket** (reuses the create-bucket sheet). One plan line per bucket.
+  is **New bucket** (reuses the create-bucket sheet). Nothing is picked at
+  first ("Choose a bucket…"), so Add stays off until a choice is made. One plan
+  line per bucket.
   **Deleting a bucket deletes its plan line** (`on delete cascade`). A bucket
   line without a bucket would be meaningless.
 - **Paid by** (Bills and Buckets lines, optional): **Autopay**, **Bill pay** or
