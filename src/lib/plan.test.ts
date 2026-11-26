@@ -60,8 +60,8 @@ describe('plan view preferences', () => {
   })
 
   it('round-trips per member', () => {
-    writePlanView('m1', { hiddenColumns: ['week', 'percent'], compact: true })
-    expect(readPlanView('m1')).toEqual({ hiddenColumns: ['week', 'percent'], compact: true })
+    writePlanView('m1', { hiddenColumns: ['week', 'percent'], compact: true, locked: true })
+    expect(readPlanView('m1')).toEqual({ hiddenColumns: ['week', 'percent'], compact: true, locked: true })
     expect(readPlanView('m2')).toEqual(DEFAULT_PLAN_VIEW)
   })
 

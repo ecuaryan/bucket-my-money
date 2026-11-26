@@ -196,9 +196,11 @@ export const PLAN_COLUMNS: readonly PlanColumn[] = [...PLAN_MONEY_UNITS, 'percen
 export interface PlanViewPrefs {
   hiddenColumns: PlanColumn[]
   compact: boolean
+  /** An admin's own safety lock: the plan reads like a shared member's until unlocked. */
+  locked: boolean
 }
 
-export const DEFAULT_PLAN_VIEW: PlanViewPrefs = { hiddenColumns: [], compact: false }
+export const DEFAULT_PLAN_VIEW: PlanViewPrefs = { hiddenColumns: [], compact: false, locked: false }
 
 const PLAN_VIEW_STORAGE_PREFIX = 'bucketmymoney_plan_view:'
 
@@ -218,6 +220,7 @@ export function readPlanView(memberId: string): PlanViewPrefs {
     return {
       hiddenColumns: hidden.length >= PLAN_COLUMNS.length ? [] : hidden,
       compact: parsed.compact === true,
+      locked: parsed.locked === true,
     }
   } catch {
     return DEFAULT_PLAN_VIEW

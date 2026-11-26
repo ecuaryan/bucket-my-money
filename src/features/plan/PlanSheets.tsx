@@ -14,6 +14,7 @@ import {
   PLAN_COLUMN_LABELS,
   PLAN_COLUMNS_LABEL,
   PLAN_COMPACT_LABEL,
+  PLAN_LOCK_LABEL,
   PLAN_DELETE_BUCKET_LINE_BODY,
   PLAN_DELETE_LINE_BODY,
   PLAN_DELETE_LINE_LABEL,
@@ -495,10 +496,13 @@ export function PlanLineSheet({
 /** Per-person view settings: Compact and which columns show. */
 export function PlanViewSheet({
   prefs,
+  canLock,
   onChange,
   onClose,
 }: {
   prefs: PlanViewPrefs
+  /** Admins can lock their own editing on this device; shared members can't edit anyway. */
+  canLock: boolean
   onChange: (prefs: PlanViewPrefs) => void
   onClose: () => void
 }) {
@@ -514,6 +518,16 @@ export function PlanViewSheet({
   return (
     <Sheet open onClose={onClose} aria-label={PLAN_VIEW_LABEL}>
       <SheetHeader title={PLAN_VIEW_LABEL} onClose={onClose} />
+      {canLock ? (
+        <div className="flex min-h-12 items-center justify-between border-b border-zinc-800">
+          <span className="text-sm text-zinc-200">{PLAN_LOCK_LABEL}</span>
+          <SwitchToggle
+            checked={prefs.locked}
+            label={PLAN_LOCK_LABEL}
+            onChange={(locked) => onChange({ ...prefs, locked })}
+          />
+        </div>
+      ) : null}
       <div className="flex min-h-12 items-center justify-between border-b border-zinc-800">
         <span className="text-sm text-zinc-200">{PLAN_COMPACT_LABEL}</span>
         <SwitchToggle

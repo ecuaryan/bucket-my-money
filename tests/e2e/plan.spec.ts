@@ -287,3 +287,34 @@ test('a note can be written while adding a line; a Buckets line’s note is its 
   const { data: bucketLines } = await svc.from('plan_lines').select('notes').eq('family_id', family.familyId).eq('section', 'buckets')
   expect(bucketLines?.map((l) => l.notes)).toEqual([null, null]) // the note lives on the bucket
 })
+
+test('an admin can lock editing on this device, and unlock it', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-lock')
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  await expect(page.getByRole('button', { name: 'Salary, Monthly, $10,000.00' })).toBeVisible()
+
+  const lock = async (on: boolean) => {
+    await page.getByRole('button', { name: /^View/ }).click()
+    const sheet = page.getByRole('dialog', { name: 'View' })
+    const toggle = sheet.getByRole('switch', { name: 'Lock editing' })
+    if ((await toggle.getAttribute('aria-checked')) !== String(on)) await toggle.click()
+    await sheet.getByRole('button', { name: 'Close' }).click()
+  }
+
+  await lock(true)
+  await expect(page.getByRole('button', { name: 'View, editing locked' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Add line to/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Salary, Monthly/ })).toHaveCount(0)
+  await expect(page.getByRole('row').filter({ hasText: 'Salary' })).toContainText('$10,000.00')
+
+  // It stays locked after a reload (a per-device preference).
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'View, editing locked' })).toBeVisible()
+
+  await lock(false)
+  await expect(page.getByRole('button', { name: 'Salary, Monthly, $10,000.00' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add line to Bills' })).toBeVisible()
+})

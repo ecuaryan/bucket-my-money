@@ -13,6 +13,7 @@ import {
   PLAN_TAKE_HOME_LABEL,
   PLAN_UNPLANNED_LABEL,
   PLAN_VIEW_LABEL,
+  PLAN_VIEW_LOCKED_ARIA,
   planAddLineAriaLabel,
   planCellAriaLabel,
   planLineDetailsAriaLabel,
@@ -59,6 +60,8 @@ interface Props {
   onReorder: (section: PlanSection, lineIds: string[]) => void
   onAdd: (section: PlanSection) => void
   onOpenView: () => void
+  /** Editing is locked on this device (View sheet): the View button shows a lock. */
+  locked: boolean
   /** The column the linked Auto-bucket rule runs on (⚡), if linked. */
   linkedColumn: PlanColumn | null
   linkedRuleName: string | null
@@ -88,33 +91,66 @@ export default function PlanTable(props: Props) {
   const lineCell = (column: PlanColumn) =>
     `${cellW(column)} shrink-0 ${compact ? 'px-0.5' : 'px-1'} text-right tabular-nums whitespace-nowrap`
 
-  const scrollRef = useRef<HTMLDivElement>(null)
+  // The page scrolls vertically; the table scrolls only sideways. The header
+  // (column names + Unplanned) pins under the app bar and keeps its own
+  // sideways scroll in step with the body's.
+  const headRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const head = headRef.current
+    const body = bodyRef.current
+    if (!head || !body) return
+    // A value we set on one side fires its scroll event a frame later; skip
+    // that echo so it never drags the other side back mid-fling.
+    const echo = new WeakMap<HTMLElement, number>()
+    const follow = (from: HTMLElement, to: HTMLElement) => () => {
+      if (echo.get(from) === from.scrollLeft) {
+        echo.delete(from)
+        return
+      }
+      if (to.scrollLeft !== from.scrollLeft) {
+        echo.set(to, from.scrollLeft)
+        to.scrollLeft = from.scrollLeft
+      }
+    }
+    const onBody = follow(body, head)
+    const onHead = follow(head, body)
+    body.addEventListener('scroll', onBody, { passive: true })
+    head.addEventListener('scroll', onHead, { passive: true })
+    return () => {
+      body.removeEventListener('scroll', onBody)
+      head.removeEventListener('scroll', onHead)
+    }
+  }, [])
+
   const unplanned = totals.unplannedUnits
   const unplannedTone =
     unplanned === 0n ? 'text-emerald-300' : unplanned < 0n ? 'text-red-300' : 'text-zinc-100'
 
   return (
     <div
-      ref={scrollRef}
       role="table"
       aria-label={PLAN_TABLE_ARIA_LABEL}
-      // Its own scroll keeps the header and Unplanned pinned, so it must fit the
-      // screen: at most the viewport minus the app header and the page's bottom
-      // gap (NAV_CENTER_MAIN_PB). Scrolling past its end carries on to the page
-      // (no overscroll containment), so the last row clears the nav with the
-      // same healthy gap as the Buckets list.
-      className="max-h-[max(18rem,calc(100dvh-15.75rem-env(safe-area-inset-top,0px)-max(0.5rem,env(safe-area-inset-bottom,0px))))] overflow-auto rounded-2xl bg-zinc-950 ring-1 ring-zinc-800"
+      // No vertical scroll of its own (a nested one eats the first swipe), and
+      // `overflow: clip` rounds the corners without becoming a scroll box, so
+      // the header can still pin to the page.
+      className="rounded-2xl bg-zinc-950 ring-1 ring-zinc-800 [overflow:clip]"
     >
-      <div className="w-max min-w-full">
-        <div role="rowgroup" className="sticky top-0 z-20">
+      <div
+        ref={headRef}
+        role="rowgroup"
+        className="sticky-below-header z-20 overflow-x-auto overscroll-x-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="w-max min-w-full">
           <div role="row" className="flex min-h-11 items-stretch border-b border-zinc-800 bg-zinc-900">
             <div role="columnheader" className={`${nameCell} flex items-center bg-zinc-900 px-1.5`}>
               <button
                 type="button"
                 onClick={props.onOpenView}
-                className="flex h-9 items-center gap-1.5 rounded-lg bg-zinc-800 px-2.5 text-[13px] font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                aria-label={props.locked ? PLAN_VIEW_LOCKED_ARIA : undefined}
+                className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-800 px-2 text-[13px] font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
               >
-                <ColumnsIcon />
+                {props.locked ? <LockIcon /> : <ColumnsIcon />}
                 {PLAN_VIEW_LABEL}
               </button>
             </div>
@@ -125,10 +161,15 @@ export default function PlanTable(props: Props) {
                     type="button"
                     onClick={props.onOpenLink}
                     aria-label={planLinkedColumnAria(props.linkedRuleName ?? '', PLAN_COLUMN_LABELS[column])}
-                    className={`flex w-full items-center justify-end gap-1 ${pad} text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400`}
+                    className={`flex w-full items-center justify-end ${pad} text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400`}
                   >
-                    <BoltIcon />
-                    <span className="whitespace-normal text-right">{PLAN_COLUMN_LABELS[column]}</span>
+                    {/* Inline, so the bolt sits right against the label's first line. */}
+                    <span className="whitespace-normal text-right">
+                      <span className="mr-0.5 inline-block align-[-2px]">
+                        <BoltIcon />
+                      </span>
+                      {PLAN_COLUMN_LABELS[column]}
+                    </span>
                   </button>
                 </div>
               ) : (
@@ -157,7 +198,10 @@ export default function PlanTable(props: Props) {
             ))}
           </div>
         </div>
+      </div>
 
+      <div ref={bodyRef} className="overflow-x-auto overscroll-x-none">
+        <div className="w-max min-w-full">
         {PLAN_SECTIONS.map((section) => (
           <div role="rowgroup" key={section} className="mt-2.5">
             <SectionHeader
@@ -177,7 +221,7 @@ export default function PlanTable(props: Props) {
               section={section}
               rows={lines.filter((line) => line.section === section)}
               table={props}
-              scrollRef={scrollRef}
+              boxRef={bodyRef}
               nameCell={nameCell}
               numCell={lineCell}
             />
@@ -191,6 +235,7 @@ export default function PlanTable(props: Props) {
           </div>
         ))}
         <div className="h-4" />
+        </div>
       </div>
     </div>
   )
@@ -322,14 +367,15 @@ function SectionLines({
   section,
   rows,
   table,
-  scrollRef,
+  boxRef,
   nameCell,
   numCell,
 }: {
   section: PlanSection
   rows: PlanLine[]
   table: Props
-  scrollRef: RefObject<HTMLDivElement | null>
+  /** The table's sideways scroller: the drag ghost spans its visible width. */
+  boxRef: RefObject<HTMLDivElement | null>
   nameCell: string
   numCell: (column: PlanColumn) => string
 }) {
@@ -343,7 +389,6 @@ function SectionLines({
   const { pendingBucketId, manualDragBucketId, manualDragRowHeight, manualDragOverlay, manualDragOverIndex, getRowHandlers } =
     useRowLongPressReorder({
       listRef,
-      scrollRef,
       bucketIds: ids,
       onMoveMoney: (id) => {
         const line = rows.find((l) => l.id === id)
@@ -352,7 +397,7 @@ function SectionLines({
       onDragReorder: (next) => table.onReorder(section, next),
       onDragArmed: () => {
         const list = listRef.current
-        const box = scrollRef.current?.getBoundingClientRect()
+        const box = boxRef.current?.getBoundingClientRect()
         if (!list || !box) return
         const heights = Array.from(list.children).map((row) => row.getBoundingClientRect().height)
         setMeasured({ heights, box })
@@ -407,10 +452,7 @@ function SectionLines({
                 left: measured.box.left,
                 width: measured.box.width,
                 height: manualDragRowHeight ?? undefined,
-                top: Math.min(
-                  Math.max(manualDragOverlay.top, measured.box.top),
-                  measured.box.bottom - (manualDragRowHeight ?? 0),
-                ),
+                top: manualDragOverlay.top,
               }}
             >
               <LineLabel name={table.lineName(dragged)} hasNote={table.lineHasNote(dragged)} paidBy={dragged.paidBy} />
@@ -517,9 +559,8 @@ function LineRow({
               aria-label={`${label}, ${text}`}
               className={
                 `h-9 w-full rounded-lg ${compact ? 'px-1' : 'px-2'} text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ` +
-                (isInput
-                  ? 'bg-zinc-950 text-zinc-200 ring-1 ring-inset ring-zinc-700'
-                  : 'text-zinc-400 hover:bg-zinc-900')
+                // The typed value reads brighter than the ones calculated from it.
+                (isInput ? 'text-zinc-100 hover:bg-zinc-900' : 'text-zinc-400 hover:bg-zinc-900')
               }
             >
               {text}
@@ -648,6 +689,15 @@ function ColumnsIcon() {
     <svg {...iconProps} strokeWidth={1.75} className="size-4">
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M9 4v16M15 4v16" />
+    </svg>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg {...iconProps} strokeWidth={1.75} className="size-4">
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </svg>
   )
 }

@@ -49,6 +49,8 @@ export const PLAN_COLUMN_LABELS: Record<PlanMoneyUnit | 'percent', string> = {
 export const PLAN_VIEW_LABEL = 'View'
 export const PLAN_COMPACT_LABEL = 'Compact'
 export const PLAN_COLUMNS_LABEL = 'Columns'
+export const PLAN_LOCK_LABEL = 'Lock editing'
+export const PLAN_VIEW_LOCKED_ARIA = 'View, editing locked'
 
 export const PLAN_EDIT_LINE_TITLE = 'Edit line'
 export const PLAN_NAME_LABEL = 'Name'
