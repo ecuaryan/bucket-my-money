@@ -92,4 +92,17 @@ describe('reportError', () => {
     vi.runAllTimers()
     expect(fetchMock).toHaveBeenCalledTimes(10)
   })
+
+  it('retries without keepalive when the browser refuses it', async () => {
+    vi.stubEnv('PROD', true)
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://db.test')
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'pk_test')
+    fetchMock.mockImplementationOnce(() => Promise.reject(new TypeError('keepalive with preflight not supported')))
+    const { reportError } = await import('@/lib/errorReports')
+    reportError('error', new Error('boom'))
+    await vi.runAllTimersAsync()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const calls = fetchMock.mock.calls as unknown as [string, RequestInit][]
+    expect(calls.map(([, init]) => init.keepalive)).toEqual([true, false])
+  })
 })

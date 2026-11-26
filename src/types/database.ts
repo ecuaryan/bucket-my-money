@@ -413,10 +413,8 @@ export type Database = {
           count: number
           day: string
           fingerprint: string
-          first_seen: string
           id: number
           kind: string
-          last_seen: string
           message: string
           route: string | null
           stack: string | null
@@ -427,10 +425,8 @@ export type Database = {
           count?: number
           day?: string
           fingerprint: string
-          first_seen?: string
           id?: never
           kind: string
-          last_seen?: string
           message: string
           route?: string | null
           stack?: string | null
@@ -441,10 +437,8 @@ export type Database = {
           count?: number
           day?: string
           fingerprint?: string
-          first_seen?: string
           id?: never
           kind?: string
-          last_seen?: string
           message?: string
           route?: string | null
           stack?: string | null

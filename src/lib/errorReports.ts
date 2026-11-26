@@ -6,10 +6,11 @@ import { resolveSupabasePublishableKey } from '@/lib/supabaseKeys'
  * Anonymous crash reports (docs/MAINTENANCE.md § Error reports).
  *
  * Uncaught errors, unhandled promise rejections and render errors go to the
- * `report_client_error` RPC, which scrubs amounts, names, emails and ids before
- * storing them. Sent as anon with no session, so no person or household is
- * attached. Production builds only, a few per session, off the main path: a
- * report never slows or breaks the app.
+ * `report_client_error` RPC, which scrubs numbers, emails, ids, tokens and
+ * quoted text before storing them. Sent as anon with no session, so no person
+ * or household is attached. Never include user-entered text or ids here.
+ * Production builds only, a few per session, off the main path: a report never
+ * slows or breaks the app.
  */
 
 export type ErrorReportKind = 'error' | 'rejection' | 'render'
@@ -92,14 +93,14 @@ export function reportError(kind: ErrorReportKind, error: unknown, extraStack?: 
     })
     const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/report_client_error`
     const apikey = resolveSupabasePublishableKey(import.meta.env)
-    // After the current frame, and keepalive so a report survives a reload.
+    const send = (keepalive: boolean) =>
+      fetch(url, { method: 'POST', keepalive, headers: { apikey, 'content-type': 'application/json' }, body })
+    // After the current frame. keepalive lets a report outlive a reload; a
+    // browser that refuses keepalive with a CORS preflight gets a plain send.
     setTimeout(() => {
-      void fetch(url, {
-        method: 'POST',
-        keepalive: true,
-        headers: { apikey, 'content-type': 'application/json' },
-        body,
-      }).catch(() => {})
+      send(true)
+        .catch(() => send(false))
+        .catch(() => {})
     }, 0)
   } catch {
     // Reporting must never become the error.

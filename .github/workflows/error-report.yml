@@ -1,10 +1,10 @@
 name: Error report
 
-# Daily digest of the app's anonymous crash reports (table client_errors,
-# migration 121). Posts yesterday's errors (UTC) as a comment on the open
-# "Error report" issue, or opens one; GitHub emails the owner. Quiet days post
-# nothing. Close the issue once its errors are handled: the next report opens a
-# fresh one. Details: docs/MAINTENANCE.md § Error reports.
+# Daily nudge about the app's anonymous crash reports (table client_errors,
+# migration 121). Posts yesterday's (UTC) counts as a comment on the open
+# "Error report" issue this workflow opened, or opens one; GitHub emails the
+# owner. Numbers only: the reports themselves stay private, in the Supabase
+# dashboard. Quiet days post nothing. Details: docs/MAINTENANCE.md § Error reports.
 on:
   schedule:
     - cron: '7 14 * * *'
@@ -26,28 +26,40 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Read-only query; the backup's connection secret, passed through the
-      # environment (never the command line), client from the postgres:17 image.
-      - name: Read yesterday's errors
+      # The backup's connection secret, passed through the environment (never
+      # the command line); query.sql runs in a read-only transaction.
+      - name: Count yesterday's reports
         env:
           BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
-          docker run --rm -i -e BACKUP_DATABASE_URL postgres:17 \
-            sh -c 'psql "$BACKUP_DATABASE_URL" -X -At -v ON_ERROR_STOP=1 -f -' \
-            < scripts/error-report/query.sql > "$RUNNER_TEMP/errors.json"
+          counts=$(docker run --rm -i -e BACKUP_DATABASE_URL postgres:17 \
+            sh -c 'psql "$BACKUP_DATABASE_URL" -X -q -At -v ON_ERROR_STOP=1 -f -' \
+            < scripts/error-report/query.sql)
+          if ! [[ "$counts" =~ ^[0-9]+\|[0-9]+\|[0-9]+$ ]]; then
+            echo "::error::Unexpected query output."
+            exit 1
+          fi
+          echo "COUNTS=$counts" >> "$GITHUB_ENV"
 
       - name: Post to the Error report issue
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          IFS='|' read -r reports errors fresh <<< "$COUNTS"
           day=$(date -u -d yesterday +%F)
-          node scripts/error-report/format.mjs "$day" < "$RUNNER_TEMP/errors.json" > "$RUNNER_TEMP/report.md"
-          if [ ! -s "$RUNNER_TEMP/report.md" ]; then
+          if [ "$reports" -eq 0 ]; then
             echo "No errors reported on $day."
             exit 0
           fi
+          plural() { [ "$1" -eq 1 ] && echo "$2" || echo "$2s"; }
+          printf '%s\n' \
+            "**$day:** $reports $(plural "$reports" report) of $errors $(plural "$errors" error), $fresh new." \
+            "" \
+            "Read them in the Supabase dashboard: Table Editor → \`client_errors\` (filter \`day\` = $day)." \
+            > "$RUNNER_TEMP/report.md"
           title="Error report"
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+          # Only an issue this workflow opened: anyone can open one with this title.
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --author app/github-actions \
             --search "in:title \"$title\"" --json number,title \
             --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           if [ -n "$existing" ]; then

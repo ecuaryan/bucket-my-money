@@ -12,7 +12,7 @@ const sections = [
       'Bank data, only if you link a bank: account names and balances, and transactions, pulled read-only through SimpleFIN Bridge, or through Plaid for households where it is turned on. We never receive your bank login; you connect through the provider.',
       'Sign-in security data: passkey public keys if you turn on Face ID / Touch ID unlock, and failed-PIN counters.',
       'Technical data: your IP address, kept briefly to rate-limit sign-in attempts, and standard server logs kept by our hosting providers.',
-      'Crash reports: when the app hits an error, it sends the error text (with numbers, email addresses, IDs, and quoted text removed before it is stored), the screen it happened on, the app version, and your browser and system type, such as “Safari 18 · iOS”. Reports are not linked to you or your household, and are kept 30 days.',
+      'Crash reports: when the app hits an error, it sends a description of the error (its message and where in the app’s code it happened), the screen it happened on, the app version, and your browser and system type, such as “Safari 18 · iOS”. Before a report is stored, numbers, email addresses, IDs, long codes, and quoted phrases are removed from it. Reports are not linked to you or your household, record the day but not the time, and are deleted after 30 days (copies in our encrypted backups age out 30 days later).',
       'The app stores your sign-in session and preferences on your own device. We use no advertising cookies and no analytics or tracking tools, in the app or on this site.',
     ],
   },
@@ -30,7 +30,6 @@ const sections = [
     items: [
       'Only the people in your household, and only what their role allows. Kids see only their own money and never see the household plan. Every household is isolated from every other, enforced by the database.',
       'Service providers that run the app on our behalf: Supabase (database and sign-in), Vercel and Cloudflare (hosting and encrypted backups), Google (only if you choose Google sign-in), SimpleFIN Bridge (only if you link a bank), and Plaid (only where it is turned on and you link a bank through it). They process data only to provide their service.',
-      'A daily summary of crash reports is posted to the issue tracker of the app’s public GitHub repository, where fixes are tracked. It holds only the scrubbed reports described above.',
       'Where Bitcoin tracking is turned on, your browser fetches the public Bitcoin price from mempool.space. That request carries no household data.',
       'We may disclose information if the law requires it.',
     ],
