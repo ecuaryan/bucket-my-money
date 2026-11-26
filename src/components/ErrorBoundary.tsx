@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { isChunkLoadError, reportError } from '@/lib/errorReports'
 
 /**
  * App-wide error boundary. Without one, any render-time throw unmounts the whole
@@ -11,18 +12,6 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
  *  - Anything else shows a recovery screen with a Reload button and the error
  *    text, so the user isn't stranded and can report what happened.
  */
-
-/** A lazy `import()` failed to fetch its chunk (usually a stale tab post-deploy). */
-function isChunkLoadError(error: unknown): boolean {
-  const err = error as { name?: string; message?: string } | null
-  const message = err?.message ?? ''
-  return (
-    err?.name === 'ChunkLoadError' ||
-    /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(
-      message,
-    )
-  )
-}
 
 const CHUNK_RELOAD_KEY = 'bmm:chunk-reload-at'
 const CHUNK_RELOAD_WINDOW_MS = 10_000
@@ -58,6 +47,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       }
     }
     console.error('App crashed:', error, info.componentStack)
+    reportError('render', error, info.componentStack ?? undefined)
   }
 
   render(): ReactNode {

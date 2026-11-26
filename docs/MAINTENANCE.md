@@ -352,6 +352,47 @@ pg_restore --no-owner --clean --if-exists -d "<target connection string>" backup
 `scripts/backup/verify-restore.sh <file>` does the same into a Docker scratch
 database; run it by hand to test a downloaded backup.
 
+### Error reports
+
+The app reports its own crashes so they can be fixed. `src/lib/errorReports.ts`
+catches uncaught errors, unhandled promise rejections and render errors (from
+`ErrorBoundary`) in **production builds only**, skips noise (dropped
+connections, aborts, stale chunks, browser extensions), sends at most 10 a
+session, and posts them off the main path to the `report_client_error` RPC
+(migration 121) as **anon with no session**, so nothing ties a report to a
+person or household.
+
+The RPC scrubs before storing, whatever the client sends, and fails safe (when
+in doubt, text goes): numbers, emails, ids, long tokens, all-capital codes, URL
+user names, `=(…)` values, and everything from a quote to the end of its line
+(contractions like `it's` and single-word code identifiers like `'id'` are
+kept, so a stray quote can never leave quoted text behind). Stack frames keep
+their file name and final `line:col`; React keeps its `error #418` codes.
+Routes are stored only if they are one of the app's routes (else `other`;
+**add a new route to the list in `report_client_error`**), versions only if
+they look like `1.2.3`. It stores the day, not the time, and no row id; one row
+per error per day with a count; at most 200 rows a day; 30 an hour and 40 a day
+per address (pre-auth limiter endpoints `client_error`, `client_error_day`);
+kept 30 days (`client-errors-cleanup` cron). Only the service role can read
+`client_errors`; nothing a reporter sends is ever published.
+
+**Reading them:** Supabase dashboard → Table Editor → `client_errors` (sort by
+`day`, then `count`). An error's identity (`fingerprint`) is its message and
+the code chunk of its first stack frame (base name, no build hash), so it holds
+across deploys.
+
+**Daily nudge:** `error-report.yml` (14:07 UTC, or **Actions → Error report →
+Run workflow**) counts yesterday's (UTC) reports with `BACKUP_DATABASE_URL` in
+a read-only transaction (`scripts/error-report/query.sql`) and comments the
+numbers on the open `Error report` issue it opened, or opens one; GitHub emails
+the owner. Numbers only, because the repo is public and anyone can send a
+report. Quiet days post nothing. Close the issue whenever; the next report
+opens a fresh one.
+
+Stacks are minified. To read one, check out that version's merge commit
+(`git log --oneline --grep '^v<version>:'`), run `npx vite build --sourcemap`,
+and look up the line and column in the matching chunk's map.
+
 ## Security and production checklist
 
 ### Production deploy automation
