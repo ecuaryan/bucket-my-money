@@ -2,7 +2,7 @@
 export const TOAST_AUTO_SUCCESS_MAX_CHARS = 72
 
 export function toastDismissMode(
-  type: 'success' | 'error',
+  type: 'success' | 'error' | 'info',
   message: string,
 ): 'auto' | 'manual' {
   if (type === 'error') return 'manual'

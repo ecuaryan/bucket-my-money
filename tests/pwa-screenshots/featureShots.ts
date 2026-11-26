@@ -17,9 +17,9 @@ import { signInPwaScreenshotAdmin, waitForNavSettled } from '../pwa-media/helper
 const CARD = { x: 0, width: 412 } as const
 
 const CROPS = {
-  autoBucket: { ...CARD, y: 388, height: 399 },
+  autoBucket: { ...CARD, y: 394, height: 399 },
   history: { ...CARD, y: 224, height: 399 },
-  groups: { ...CARD, y: 364, height: 440 },
+  groups: { ...CARD, y: 376, height: 440 },
   hideAmounts: { x: 0, width: 412, y: 72, height: 778 },
 } as const
 

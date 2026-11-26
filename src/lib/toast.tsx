@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { toastDismissMode } from '@/lib/toastDismiss'
 
-type ToastType = 'success' | 'error'
+type ToastType = 'success' | 'error' | 'info'
 
 export type ToastPayload = {
   type: ToastType
@@ -30,6 +30,14 @@ export const toast = {
       message,
       content,
       dismiss: toastDismissMode('success', message),
+    })
+  },
+  /** Neutral notice: nothing went wrong, nothing was done (e.g. "Editing is locked"). */
+  info(message: string) {
+    publishToast?.({
+      type: 'info',
+      message,
+      dismiss: toastDismissMode('info', message),
     })
   },
   error(message: string) {

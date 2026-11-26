@@ -490,3 +490,47 @@ describe('SQL plan math matches the shared vectors', () => {
     }
   })
 })
+
+// Migration 119: one household note on the plan.
+describe('plan notes', () => {
+  it('admins write them; shared members read them; kids never see them', async () => {
+    const { family, admin } = await householdWithPlan('plan-notes')
+    const member = await addMember(family.familyId, 'member', 'Partner')
+    const child = await addMember(family.familyId, 'child', 'Kid')
+    const memberDb = await userClient(member.email, member.password)
+    const childDb = await userClient(child.email, child.password)
+
+    expect((await admin.rpc('set_plan_notes', { p_notes: 'Mortgage autopays from checking.' } as never)).error).toBeNull()
+    expect((await memberDb.from('plans').select('notes').single()).data?.notes).toBe('Mortgage autopays from checking.')
+    expect((await childDb.from('plans').select('notes')).data).toEqual([])
+
+    for (const db of [memberDb, childDb]) {
+      expect((await db.rpc('set_plan_notes', { p_notes: 'nope' } as never)).error?.message).toMatch(/only admins/)
+      // no direct writes either
+      const direct = await db.from('plans').update({ notes: 'nope' } as never).eq('family_id', family.familyId).select('id')
+      expect(direct.data ?? []).toEqual([])
+    }
+    const { data } = await serviceClient().from('plans').select('notes').eq('family_id', family.familyId).single()
+    expect(data?.notes).toBe('Mortgage autopays from checking.')
+  })
+
+  it('blank clears them, and they cap at 20,000 characters', async () => {
+    const { family, admin } = await householdWithPlan('plan-notes-cap')
+    await admin.rpc('set_plan_notes', { p_notes: 'x' } as never)
+    expect((await admin.rpc('set_plan_notes', { p_notes: '   \n ' } as never)).error).toBeNull()
+    const { data } = await serviceClient().from('plans').select('notes').eq('family_id', family.familyId).single()
+    expect(data?.notes).toBeNull()
+    expect((await admin.rpc('set_plan_notes', { p_notes: 'x'.repeat(20_000) } as never)).error).toBeNull()
+    expect((await admin.rpc('set_plan_notes', { p_notes: 'x'.repeat(20_001) } as never)).error?.message).toMatch(/too long/)
+  })
+
+  it('another family’s admin can’t touch them', async () => {
+    const a = await householdWithPlan('plan-notes-a')
+    const b = await householdWithPlan('plan-notes-b')
+    await a.admin.rpc('set_plan_notes', { p_notes: 'A only' } as never)
+    await b.admin.rpc('set_plan_notes', { p_notes: 'B only' } as never)
+    const { data } = await serviceClient().from('plans').select('notes').eq('family_id', a.family.familyId).single()
+    expect(data?.notes).toBe('A only')
+    expect((await b.admin.from('plans').select('notes')).data?.map((r) => r.notes)).toEqual(['B only'])
+  })
+})

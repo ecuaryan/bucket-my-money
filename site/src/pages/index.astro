@@ -10,7 +10,7 @@ const feature = (name: string) => `/app-assets/features/${name}.png`
 const features = [
   {
     title: 'Auto-bucket the routine',
-    body: 'Fill buckets on a schedule (weekly, every two weeks, or twice a month) or run the rules whenever you want.',
+    body: 'Fill buckets on a schedule (weekly, every two weeks, or twice a month), with amounts straight from your plan, or run the rules whenever you want.',
     img: 'feature-auto-bucket',
     height: 798,
     alt: 'Auto-bucket rules: Fun money every week and Payday twice a month, each with Run now',
@@ -35,6 +35,21 @@ const features = [
     img: 'feature-hide',
     height: 1556,
     alt: 'The Buckets screen with every amount hidden behind dots and a Peek button in the bottom right',
+  },
+]
+
+const planPoints = [
+  {
+    title: 'In whatever rhythm you’re paid',
+    body: 'Weekly, every two weeks, twice a month, monthly, or yearly, side by side. Type a line in whichever column fits, and the rest is exact math to the cent.',
+  },
+  {
+    title: 'Paydays follow the plan',
+    body: 'Link it to an Auto-bucket rule, and each payday sets aside exactly what the plan says. Change the plan, and the next run follows.',
+  },
+  {
+    title: 'Agreed on together',
+    body: 'Partners see the same plan on their own phones, and every change shows up live. A notes section keeps the rest: what’s on autopay, where the papers are.',
   },
 ]
 
@@ -72,6 +87,10 @@ const faqs = [
   {
     q: 'How is this different from other budgeting apps?',
     a: 'One glance shows what’s free after your buckets and credit cards are covered. It doesn’t track spending: no categories to tag, no charts to maintain. One small move when you spend keeps that number honest.',
+  },
+  {
+    q: 'Does it help us make a budget?',
+    a: 'Yes. The Plan tab lays out your pay from gross to every bucket, until nothing is left unplanned, and can fill your buckets on payday to match. Admins edit it, partners see it, and kids never do.',
   },
   {
     q: 'Do I have to link my bank?',
@@ -142,6 +161,7 @@ const jsonLd = {
       </a>
       <div class="hidden items-center gap-7 text-sm text-zinc-400 md:flex">
         <a href="#how" class="hover:text-white">How it works</a>
+        <a href="#plan" class="hover:text-white">Plan</a>
         <a href="#cards" class="hover:text-white">Credit cards</a>
         <a href="#households" class="hover:text-white">Households</a>
         <a href="#faq" class="hover:text-white">FAQ</a>
@@ -363,6 +383,35 @@ const jsonLd = {
           src={shot('buckets-rebalance')}
           alt="Buckets tab with a negative, red Unbucketed balance"
         />
+      </div>
+    </section>
+
+    <!-- Plan -->
+    <section id="plan" class="scroll-mt-20 border-b border-zinc-900">
+      <div class="mx-auto grid max-w-6xl items-center gap-14 px-5 py-20 md:grid-cols-[1fr_1.1fr] md:py-28">
+        <Phone
+          src={shot('plan')}
+          alt="Plan tab: two paychecks, withholding, bills and buckets planned down to $0.00 Unplanned, with the Twice a month column linked to the Payday rule"
+          class="order-last md:order-first"
+        />
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Plan every paycheck to zero.</h2>
+          <p class="mt-4 text-lg leading-relaxed text-zinc-400">
+            Lay out your pay the way it really arrives: what you earn, what’s withheld, the bills,
+            then your buckets. Keep going until Unplanned reads $0.00, and every dollar has a job
+            before it lands.
+          </p>
+          <dl class="mt-10 space-y-8">
+            {
+              planPoints.map((point) => (
+                <div>
+                  <dt class="text-lg font-semibold text-white">{point.title}</dt>
+                  <dd class="mt-1.5 leading-relaxed text-zinc-400">{point.body}</dd>
+                </div>
+              ))
+            }
+          </dl>
+        </div>
       </div>
     </section>
 

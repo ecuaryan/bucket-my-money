@@ -51,6 +51,12 @@ export const PLAN_COMPACT_LABEL = 'Compact'
 export const PLAN_COLUMNS_LABEL = 'Columns'
 export const PLAN_LOCK_LABEL = 'Lock editing'
 export const PLAN_VIEW_LOCKED_ARIA = 'View, editing locked'
+export const PLAN_LOCKED_NOTICE = 'Editing is locked. Turn it off in View.'
+
+// Notes: one household note under the table (docs/PLAN.md § Notes)
+export const PLAN_NOTES_TITLE = 'Notes'
+export const PLAN_NOTES_ADD_LABEL = 'Add notes'
+export const PLAN_NOTES_EDIT_LABEL = 'Edit'
 
 export const PLAN_EDIT_LINE_TITLE = 'Edit line'
 export const PLAN_NAME_LABEL = 'Name'

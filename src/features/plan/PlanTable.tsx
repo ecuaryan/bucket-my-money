@@ -71,6 +71,8 @@ interface Props {
   onOpenView: () => void
   /** Editing is locked on this device (View sheet): the View button shows a lock. */
   locked: boolean
+  /** A tap on something that would be editable if editing weren't locked. */
+  onLockedTap: () => void
   /** The column the linked Auto-bucket rule runs on (⚡), if linked. */
   linkedColumn: PlanColumn | null
   linkedRuleName: string | null
@@ -504,6 +506,8 @@ function LineRow({
   onCommit,
   onCancel,
   onOpenLine,
+  locked,
+  onLockedTap,
   compact,
   drag,
   nameCell,
@@ -555,7 +559,10 @@ function LineRow({
             <LineLabel name={name} hasNote={lineHasNote(line)} paidBy={line.paidBy} />
           </button>
         ) : (
-          <span className="flex w-full min-w-0 flex-col items-start justify-center gap-0.5 px-3 py-1.5 text-[13px] leading-tight text-zinc-300">
+          <span
+            onClick={locked ? onLockedTap : undefined}
+            className="flex w-full min-w-0 flex-col items-start justify-center gap-0.5 px-3 py-1.5 text-[13px] leading-tight text-zinc-300"
+          >
             <LineLabel name={name} hasNote={false} paidBy={line.paidBy} />
           </span>
         )}
@@ -599,7 +606,13 @@ function LineRow({
           content = <span className={(compact ? 'px-0.5 ' : 'px-2 ') + (isInput ? 'text-zinc-100' : 'text-zinc-400')}>{text}</span>
         }
         return (
-          <div key={column} role="cell" className={`${numCell(column)} flex items-center justify-end`}>
+          <div
+            key={column}
+            role="cell"
+            // Locked: a tap on a number says why nothing opens.
+            onClick={locked && canEditColumn(line.section, column) ? onLockedTap : undefined}
+            className={`${numCell(column)} flex items-center justify-end`}
+          >
             {content}
           </div>
         )

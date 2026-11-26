@@ -507,9 +507,11 @@ one typed amount per line, exact integer math (BigInt cents + basis points). Adm
 edit; shared members view (tab appears once a plan exists) and see the other
 person's changes flash live; children never see it. Schema `plans` / `plan_lines`
 (migration `115`), admin-only definer RPCs, no client table writes. A plan can
-link one household Auto-bucket rule (migration `116`): the database keeps that
-rule's lines equal to the plan's per-run amounts and refuses any other writer.
-Full spec:
+link one household Auto-bucket rule (migrations `116`–`117`): the database keeps
+that rule's lines equal to the plan's per-run amounts and refuses any other
+writer. Lines reorder by long-press drag; admins can lock editing per device; a
+household **Notes** section under the table (migration `119`) holds what the
+table can't, like what's on autopay and where the papers are. Full spec:
 [docs/PLAN.md](./docs/PLAN.md).
 
 ---

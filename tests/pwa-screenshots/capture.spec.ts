@@ -22,6 +22,7 @@ import {
   PWA_SCREENSHOT_VIRTUAL_KIDS,
   PWA_SCREENSHOT_LINKED_KIDS,
 } from '../../scripts/seed/pwaScreenshots'
+import { PWA_PLAN_VIEW, seedPwaPlan } from '../../scripts/seed/pwaPlan'
 import { captureFeatureShots } from './featureShots'
 import {
   signInPwaScreenshotAdmin,
@@ -104,6 +105,27 @@ test('capture PWA install screenshots', async ({ page, browser }, testInfo) => {
     adminEmail,
     outputDir: featuresDir,
   })
+
+  // Plan tab: a zero-based plan linked to the Payday rule (needs the rules the
+  // feature crops seed). Plan lines never touch balances, so it can run here.
+  await seedPwaPlan(adminEmail)
+  const { data: jordan, error: jordanError } = await serviceClient()
+    .from('family_members')
+    .select('id')
+    .eq('name', PWA_SCREENSHOT_ADMIN_DISPLAY_NAME)
+    .eq('role', 'admin')
+    .single()
+  if (jordanError) throw jordanError
+  // Same key as planViewStorageKey() in src/lib/plan.ts (a per-device preference).
+  await page.evaluate(
+    ([key, prefs]) => localStorage.setItem(key, prefs),
+    [`bucketmymoney_plan_view:${jordan.id}`, JSON.stringify(PWA_PLAN_VIEW)],
+  )
+  await page.goto('/?tab=plan')
+  const unplanned = page.getByRole('row').filter({ hasText: 'Unplanned' })
+  await expect(unplanned).toContainText('$0.00')
+  await page.getByRole('button', { name: /linked to Payday/ }).waitFor()
+  await page.screenshot({ path: join(outputDir, 'plan.png') })
 
   await applyPwaScreenshotRebalance(adminEmail)
   await page.goto('/')

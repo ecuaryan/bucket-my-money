@@ -317,7 +317,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               (toast?.exiting ? 'toast-panel-exit ' : '') +
               (isError
                 ? 'bg-red-950/88 text-red-50 ring-red-400/60'
-                : 'bg-emerald-950/88 text-emerald-50 ring-emerald-400/60')
+                : item.type === 'info'
+                  ? 'bg-zinc-900/90 text-zinc-100 ring-zinc-500/50'
+                  : 'bg-emerald-950/88 text-emerald-50 ring-emerald-400/60')
             }
           >
             <div className="min-w-0 flex-1">
@@ -352,7 +354,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   
             {isAuto ? (
               <span
-                className="toast-progress absolute inset-x-3 bottom-1.5 h-0.5 origin-right rounded-full bg-emerald-300/60"
+                className={`toast-progress absolute inset-x-3 bottom-1.5 h-0.5 origin-right rounded-full ${item.type === 'info' ? 'bg-zinc-400/60' : 'bg-emerald-300/60'}`}
                 style={{
                   animationDuration: `${TOAST_AUTO_DISMISS_MS}ms`,
                   animationPlayState: paused ? 'paused' : 'running',

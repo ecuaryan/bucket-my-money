@@ -1,8 +1,8 @@
 # Credit cards as liabilities — design
 
 **Status: shipped** (migration `79`; stages 1–3 landed together in one PR,
-docs in the same PR). Remaining follow-up: refresh PWA screenshots + demo
-GIF (hero copy changed).
+docs in the same PR). Install screenshots and site crops are current; the README
+demo GIF is due for a refresh (`npm run pwa:gifs`).
 
 **Sign convention: verified.** Per Teller, an outstanding credit card
 balance comes back as a **positive** number in the ledger balance —
