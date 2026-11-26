@@ -6,6 +6,7 @@ import {
   parseBucketsPageTab,
   resolveBucketsPageTab,
   shouldShowAutoOrganizeTab,
+  shouldShowPlanTab,
 } from '@/lib/bucketsPageTabs'
 
 describe('parseBucketsPageTab', () => {
@@ -18,6 +19,10 @@ describe('parseBucketsPageTab', () => {
 
   it('parses auto-organize', () => {
     expect(parseBucketsPageTab('auto-bucket')).toBe('auto-bucket')
+  })
+
+  it('parses plan', () => {
+    expect(parseBucketsPageTab('plan')).toBe('plan')
   })
 
   it('parses bank', () => {
@@ -110,6 +115,29 @@ describe('bucketsPageTabOptions', () => {
       'bank',
       'bitcoin',
     ])
+  })
+})
+
+describe('Plan tab', () => {
+  it('sits right after Buckets, before Auto-bucket and Bank', () => {
+    expect(
+      bucketsPageTabOptions({ showPlan: true, showAutoOrganize: true, showAccount: true }).map((o) => o.value),
+    ).toEqual(['buckets', 'plan', 'auto-bucket', 'bank'])
+  })
+
+  it('falls back to buckets when Plan is unavailable', () => {
+    expect(resolveBucketsPageTab('plan', { plan: false, autoOrganize: true, account: true })).toBe('buckets')
+    expect(resolveBucketsPageTab('plan', { plan: true, autoOrganize: true, account: true })).toBe('plan')
+  })
+
+  it('shows for admins always, shared members once a plan exists, children never', () => {
+    expect(shouldShowPlanTab('admin', null)).toBe(true)
+    expect(shouldShowPlanTab('admin', false)).toBe(true)
+    expect(shouldShowPlanTab('member', null)).toBe(false)
+    expect(shouldShowPlanTab('member', false)).toBe(false)
+    expect(shouldShowPlanTab('member', true)).toBe(true)
+    expect(shouldShowPlanTab('child', true)).toBe(false)
+    expect(shouldShowPlanTab(null, true)).toBe(false)
   })
 })
 

@@ -124,6 +124,8 @@ import type { Database } from '@/types/database'
 import MoveMoneyDialog from '@/features/buckets/MoveMoneyDialog'
 import BucketNotesSheet from '@/features/buckets/BucketNotesSheet'
 import AutoOrganizeSection from '@/features/buckets/AutoOrganizeSection'
+import PlanSection from '@/features/plan/PlanSection'
+import { fetchPlanHasLines } from '@/lib/plan'
 import SortableBucketList from '@/features/buckets/SortableBucketList'
 import { ReorderHintProvider } from '@/features/buckets/ReorderHintContext'
 import { usePostgresChanges } from '@/hooks/usePostgresChanges'
@@ -151,6 +153,7 @@ import {
   bucketsPageTabOptions,
   applyBucketsPageTabToSearchParams,
   resolveBucketsPageTab,
+  shouldShowPlanTab,
   parseBucketsPageTab,
   shouldShowAutoOrganizeTab,
   isAutoOrganizeTabAvailabilityPending,
@@ -219,6 +222,11 @@ export default function BucketsPage() {
   const [autoOrganizePanelMounted, setAutoOrganizePanelMounted] = useState(
     () => searchParams.get('tab') === 'auto-bucket',
   )
+  // Shared members see Plan only once the household has one (null = not known yet).
+  const [planHasLines, setPlanHasLines] = useState<boolean | null>(null)
+  const [planPanelMounted, setPlanPanelMounted] = useState(
+    () => searchParams.get('tab') === 'plan',
+  )
   const [coachDismissed, setCoachDismissed] = useState(true)
   const [movePreferredIntent, setMovePreferredIntent] = useState<
     MoveMoneyIntent | undefined
@@ -266,14 +274,18 @@ export default function BucketsPage() {
   const plaidEnabled = useFeatureFlag('plaid')
   const showBitcoinTab =
     bitcoinEnabled && isChild && bitcoinTabAvailable === true
+  const isSharedMember = member?.role === 'member'
+  const showPlanTab = shouldShowPlanTab(member?.role, planHasLines)
   const showBucketsPageTabs =
-    showAutoOrganizeTab || showAccountTab || showBitcoinTab
+    showPlanTab || showAutoOrganizeTab || showAccountTab || showBitcoinTab
   const bucketsTabOptions = bucketsPageTabOptions({
+    showPlan: showPlanTab,
     showAutoOrganize: showAutoOrganizeTab,
     showAccount: showAccountTab,
     showBitcoin: showBitcoinTab,
   })
   const activeTab = resolveBucketsPageTab(searchParams.get('tab'), {
+    plan: showPlanTab,
     autoOrganize: showAutoOrganizeTab,
     account: showAccountTab,
     bitcoin: showBitcoinTab,
@@ -516,6 +528,33 @@ export default function BucketsPage() {
     refreshAutoOrganizeTabAvailability,
   ])
 
+  const refreshPlanAvailability = useCallback(() => {
+    fetchPlanHasLines()
+      .then(setPlanHasLines)
+      // A failed probe just hides the tab, never an error on this page.
+      .catch(() => setPlanHasLines(false))
+  }, [])
+
+  useEffect(() => {
+    if (isSharedMember && familyId) refreshPlanAvailability()
+    else setPlanHasLines(null)
+  }, [isSharedMember, familyId, refreshPlanAvailability])
+
+  // A shared member's Plan tab appears as soon as an admin starts the plan.
+  const planAvailabilitySpecs = useMemo(
+    () =>
+      isSharedMember && familyId
+        ? [{ event: '*' as const, table: 'plan_lines', filter: `family_id=eq.${familyId}` }]
+        : [],
+    [isSharedMember, familyId],
+  )
+  usePostgresChanges(
+    accessToken,
+    familyId ? `plan-availability:${familyId}` : null,
+    planAvailabilitySpecs,
+    refreshPlanAvailability,
+  )
+
   useEffect(() => {
     if (!bitcoinEnabled || !isChild || !familyId) {
       setBitcoinTabAvailable(null)
@@ -543,6 +582,8 @@ export default function BucketsPage() {
     // accounts to resolve lets a deep link (e.g. from the Kids page) land on
     // the Bank tab instead of bouncing to Buckets.
     const tabUnavailable =
+      // Plan is never for children; a shared member waits for the probe.
+      (urlTab === 'plan' && (isChild || (isSharedMember && planHasLines === false))) ||
       (urlTab === 'auto-bucket' && !showAutoOrganizeTab) ||
       (urlTab === 'bank' && accounts !== null && !showAccountTab) ||
       // Only strip ?tab=bitcoin after the availability probe resolves — while
@@ -559,6 +600,9 @@ export default function BucketsPage() {
     autoOrganizeTabAvailable,
     bitcoinTabAvailable,
     isAutoOrganizeAuthor,
+    isChild,
+    isSharedMember,
+    planHasLines,
     searchParams,
     setSearchParams,
     showAutoOrganizeTab,
@@ -568,6 +612,9 @@ export default function BucketsPage() {
   useEffect(() => {
     if (activeTab === 'auto-bucket') {
       setAutoOrganizePanelMounted(true)
+    }
+    if (activeTab === 'plan') {
+      setPlanPanelMounted(true)
     }
   }, [activeTab])
 
@@ -1364,6 +1411,25 @@ export default function BucketsPage() {
       </section>
       </ReorderHintProvider>
       </div>
+
+      {showPlanTab && planPanelMounted && familyId && memberId ? (
+        <div
+          role="tabpanel"
+          id="segmented-panel-plan"
+          aria-labelledby="segmented-tab-plan"
+          hidden={activeTab !== 'plan'}
+          className={panelMotion}
+        >
+          <PlanSection
+            familyId={familyId}
+            memberId={memberId}
+            accessToken={accessToken}
+            isAdmin={isAdmin}
+            buckets={buckets ?? []}
+            onBucketsChanged={() => void loadData()}
+          />
+        </div>
+      ) : null}
 
       {showAutoOrganizeTab &&
       autoOrganizePanelMounted &&

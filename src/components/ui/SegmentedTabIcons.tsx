@@ -24,6 +24,15 @@ function BucketIcon() {
   )
 }
 
+function PlanIcon() {
+  return (
+    <svg {...svgProps}>
+      <rect x="4.5" y="3" width="15" height="18" rx="2.25" />
+      <path d="M8.25 8.25h7.5M8.25 12h7.5M8.25 15.75h4.5" />
+    </svg>
+  )
+}
+
 function BoltIcon() {
   return (
     <svg {...svgProps}>
@@ -74,6 +83,7 @@ function BitcoinIcon() {
 
 const ICONS: Record<string, () => ReactNode> = {
   buckets: BucketIcon,
+  plan: PlanIcon,
   'auto-bucket': BoltIcon,
   bank: BankIcon,
   bitcoin: BitcoinIcon,

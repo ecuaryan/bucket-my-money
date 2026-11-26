@@ -5,7 +5,7 @@ type SegmentedTabsProps<T extends string> = {
   value: T
   options: readonly { value: T; label: string }[]
   onChange: (value: T) => void
-  /** Optional decorative icon shown before each label. */
+  /** Optional decorative icon: beside the label, or above it with 4+ tabs. */
   renderIcon?: (value: T) => ReactNode
   ariaLabel: string
   className?: string
@@ -19,9 +19,10 @@ export function SegmentedTabs<T extends string>({
   ariaLabel,
   className = '',
 }: SegmentedTabsProps<T>) {
-  // Icons need room: with more than three tabs the labels alone already fill
-  // a phone-width bar, so they drop the icons rather than truncate.
-  const showIcons = Boolean(renderIcon) && options.length <= 3
+  const showIcons = Boolean(renderIcon)
+  // With more than three tabs, icon-beside-label no longer fits a phone-width
+  // bar, so the icon stacks above a slightly smaller label instead.
+  const stacked = showIcons && options.length > 3
 
   function focusTab(tabValue: T) {
     document.getElementById(`segmented-tab-${tabValue}`)?.focus()
@@ -108,16 +109,24 @@ export function SegmentedTabs<T extends string>({
               focusTab(next.value)
             }}
             className={
-              'relative z-10 min-w-0 rounded-lg py-2 font-semibold transition-colors duration-200 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
+              'relative z-10 min-w-0 rounded-lg font-semibold transition-colors duration-200 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
               // Content-sized (then sharing spare room), so the longest label is not
               // squeezed into an equal third; text and padding scale with the screen.
-              'flex-auto whitespace-nowrap px-[clamp(4px,2.1vw,8px)] text-[clamp(13px,3.7vw,14px)] ' +
+              'flex-auto whitespace-nowrap px-[clamp(4px,2.1vw,8px)] ' +
+              (stacked
+                ? 'py-1.5 text-[clamp(11px,3.1vw,12px)] '
+                : 'py-2 text-[clamp(13px,3.7vw,14px)] ') +
               (selected
                 ? 'text-zinc-100'
                 : 'text-zinc-400 hover:text-zinc-300')
             }
           >
-            {showIcons ? (
+            {stacked ? (
+              <span className="flex flex-col items-center justify-center gap-0.5">
+                {renderIcon?.(option.value)}
+                <span className="truncate">{option.label}</span>
+              </span>
+            ) : showIcons ? (
               <span className="flex items-center justify-center gap-[clamp(4px,1.6vw,6px)]">
                 {renderIcon?.(option.value)}
                 <span className="truncate">{option.label}</span>

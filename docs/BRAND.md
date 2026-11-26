@@ -164,6 +164,15 @@ RPCs** keep `float` (`float` JSON key,
 `member_float()`, `float_balance_*` columns). A `NULL` bucket id
 in `move_money` means the Unbucketed pool.
 
+## Ubiquitous language: Plan and Unplanned
+
+**Plan** is the household's zero-based plan for its pay ([PLAN.md](./PLAN.md)):
+every dollar of income gets a job. Its leftover is **Unplanned** — income the plan
+hasn't given a job yet. Never call it "Unallocated": next to **Unbucketed** (real
+money not in a bucket) the two read as the same thing. Code keeps `plan_*`.
+Column words are **Weekly · Every 2 weeks · Twice a month · Monthly · Yearly · %**
+(never bi-weekly / bi-monthly). Strings live in `src/lib/brand/plan.ts`.
+
 ## Where strings live
 
 `src/lib/brand/` holds every user-facing string, one file per feature; import
