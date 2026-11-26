@@ -37,6 +37,11 @@ Entry point for AI coding agents (and humans) working in this repo.
 10. **[docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md)** — Google / Apple sign-in:
     dashboard setup, household bootstrap RPC, how it interacts with PIN/passkey.
 
+11. **[docs/PLAN.md](./docs/PLAN.md)** — **Plan** (zero-based household pay plan):
+    `plans` / `plan_lines`, admin-only plan RPCs, integer math in
+    `src/lib/planMath.ts` (BigInt cents + basis points, shared vectors with SQL),
+    and the planned link that feeds one Auto-bucket rule.
+
 ## Operating principles for this codebase
 
 - **Bump `package.json` version once per PR** (one step from current `main`; do
@@ -143,6 +148,7 @@ Entry point for AI coding agents (and humans) working in this repo.
 | Auth flows (login, PIN, biometric) | `src/features/auth/`               |
 | Buckets list + move flow        | `src/features/buckets/` |
 | Auto-bucket | `src/features/buckets/` + `src/lib/autoOrganize.ts`, `autoOrganizeCadence.ts`; [docs/AUTO_ORGANIZE.md](./docs/AUTO_ORGANIZE.md) |
+| Plan math (pure, BigInt) | `src/lib/planMath.ts` + `planMathVectors.ts` (shared with `tests/db/plan.test.ts`); [docs/PLAN.md](./docs/PLAN.md) |
 | Give money flow                 | `src/features/give/` |
 | Hide amounts + Peek FAB         | `HideAmountsProvider`, `HideAmountsPeekFab` (fixed), `HideAmountsPeekSheetAnchor` in `Sheet`, `hideAmountsPeekLogic.ts` |
 | Transaction history             | `src/features/history/`               |
