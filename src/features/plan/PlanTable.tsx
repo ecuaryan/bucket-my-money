@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from 'react-dom'
 import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
 import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
+import { GripDots } from '@/components/ui/DragHandle'
 import { prefersReducedMotion } from '@/lib/motion'
 import {
   PLAN_COLUMN_LABELS,
@@ -371,14 +372,19 @@ function TotalRow({
 interface RowDrag {
   /** Long-press handlers for the name button; absent when the line can't move. */
   handlers?: Record<string, unknown>
+  /** The grip column: 'none' when editing is off, 'blank' keeps names aligned. */
+  grip: 'none' | 'blank' | 'shown'
+  /** Press-and-drag-at-once handlers for the grip; absent while a cell is open. */
+  gripHandlers?: Record<string, unknown>
   pending: boolean
   dragging: boolean
   style?: CSSProperties
 }
 
 /**
- * One section's lines. Admins reorder them by long-pressing a line's name
- * (the same gesture and hook as the Buckets list); a tap still opens the line.
+ * One section's lines. Admins reorder them by pressing a line's grip, or by
+ * long-pressing its name (the same gestures and hook as the Buckets list); a
+ * tap on the name still opens the line.
  */
 function SectionLines({
   section,
@@ -445,6 +451,8 @@ function SectionLines({
           const shift = shifting ? blockShiftY(index, activeIndex, manualDragOverIndex, measured.heights) : 0
           const drag: RowDrag = {
             handlers: dragEnabled ? getRowHandlers(line.id) : undefined,
+            grip: !table.canEdit ? 'none' : rows.length >= 2 ? 'shown' : 'blank',
+            gripHandlers: dragEnabled ? getRowHandlers(line.id, true) : undefined,
             pending: pendingBucketId === line.id,
             dragging: manualDragBucketId === line.id,
             style: shifting
@@ -468,7 +476,7 @@ function SectionLines({
         ? createPortal(
             <div
               aria-hidden="true"
-              className="pointer-events-none fixed z-[999] flex items-center rounded-lg bg-zinc-900 px-3 text-[13px] leading-tight text-zinc-200 shadow-lg ring-2 ring-emerald-400"
+              className="pointer-events-none fixed z-[999] flex items-center rounded-lg bg-zinc-900 pr-3 text-[13px] leading-tight text-zinc-200 shadow-lg ring-2 ring-emerald-400"
               style={{
                 left: measured.box.left,
                 width: measured.box.width,
@@ -476,6 +484,10 @@ function SectionLines({
                 top: manualDragOverlay.top,
               }}
             >
+              {/* Same grip column and name inset as the row, so it lifts in place. */}
+              <span className="flex w-5 shrink-0 justify-center text-zinc-500">
+                <GripDots className="h-3.5 w-2" />
+              </span>
               <LineLabel name={table.lineName(dragged)} hasNote={table.lineHasNote(dragged)} paidBy={dragged.paidBy} />
             </div>,
             document.body,
@@ -531,6 +543,18 @@ function LineRow({
         <span aria-hidden="true" className="plan-row-flash pointer-events-none absolute inset-0 z-20 bg-emerald-500/20" />
       ) : null}
       <div role="rowheader" className={`${nameCell} flex bg-zinc-950`}>
+        {drag.grip === 'none' ? null : (
+          // Pointer-only, like long-press: keyboard users move a line from its
+          // sheet (Move up / Move down).
+          <div
+            aria-hidden="true"
+            data-reorder-grip=""
+            {...drag.gripHandlers}
+            className={`flex w-5 shrink-0 touch-none select-none items-center justify-center text-zinc-600 [-webkit-touch-callout:none] ${drag.gripHandlers ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          >
+            {drag.grip === 'shown' ? <GripDots className="h-3.5 w-2" /> : null}
+          </div>
+        )}
         {lineHasDetails(line) ? (
           <button
             type="button"
@@ -547,7 +571,7 @@ function LineRow({
             }}
             aria-label={planLineDetailsAriaLabel(name)}
             className={
-              'flex w-full min-w-0 select-none flex-col items-start justify-center gap-0.5 px-3 py-1.5 text-left text-[13px] leading-tight text-zinc-300 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400 [-webkit-touch-callout:none] ' +
+              `flex w-full min-w-0 select-none flex-col items-start justify-center gap-0.5 ${drag.grip === 'none' ? 'px-3' : 'pr-3'} py-1.5 text-left text-[13px] leading-tight text-zinc-300 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400 [-webkit-touch-callout:none] ` +
               (drag.pending ? 'bg-zinc-800/70 ring-2 ring-inset ring-emerald-400/45' : '')
             }
           >
@@ -556,7 +580,7 @@ function LineRow({
         ) : (
           <span
             onClick={locked ? onLockedTap : undefined}
-            className="flex w-full min-w-0 flex-col items-start justify-center gap-0.5 px-3 py-1.5 text-[13px] leading-tight text-zinc-300"
+            className={`flex w-full min-w-0 flex-col items-start justify-center gap-0.5 ${drag.grip === 'none' ? 'px-3' : 'pr-3'} py-1.5 text-[13px] leading-tight text-zinc-300`}
           >
             <LineLabel name={name} hasNote={false} paidBy={line.paidBy} />
           </span>

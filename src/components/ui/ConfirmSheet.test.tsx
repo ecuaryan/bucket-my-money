@@ -2,6 +2,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
+import { SHEET_UNMOUNT_AFTER_CLOSE_MS } from '@/components/ui/Sheet'
 
 let root: Root
 let host: HTMLDivElement
@@ -71,5 +72,30 @@ describe('ConfirmSheet', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     })
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('leaves nothing over the page once closed, even when no transitionend fires', async () => {
+    vi.useFakeTimers()
+    try {
+      const sheet = (open: boolean) => (
+        <ConfirmSheet
+          open={open}
+          title="Link Payday?"
+          body="Its buckets and amounts will come from your plan."
+          confirmLabel="Link"
+          onConfirm={() => {}}
+          onClose={() => {}}
+        />
+      )
+      await act(async () => root.render(sheet(true)))
+      expect(document.body.querySelector('[role="dialog"]')).not.toBeNull()
+
+      // jsdom runs no CSS transitions, like reduced motion or an interrupted close.
+      await act(async () => root.render(sheet(false)))
+      await act(async () => vi.advanceTimersByTime(SHEET_UNMOUNT_AFTER_CLOSE_MS))
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

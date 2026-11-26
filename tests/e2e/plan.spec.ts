@@ -178,7 +178,7 @@ test('linking a rule to a plan with only income keeps the rule: its buckets are 
   ])
 })
 
-test('an admin reorders lines: long-press drag, and Move up from the line sheet', async ({ page }) => {
+test('an admin reorders lines: long-press drag, grip drag, and Move up from the line sheet', async ({ page }) => {
   const family = await createAdminFamily('e2e-plan-reorder')
   await signIn(page, family.adminEmail, family.adminPassword)
   const admin = await userClient(family.adminEmail, family.adminPassword)
@@ -227,7 +227,22 @@ test('an admin reorders lines: long-press drag, and Move up from the line sheet'
   await sheet.getByRole('button', { name: 'Close' }).click()
   await page.getByRole('button', { name: 'Mortgage, details' }).focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog', { name: 'Edit line' })).toBeVisible()
+  const opened = page.getByRole('dialog', { name: 'Edit line' })
+  await expect(opened).toBeVisible()
+  await opened.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // The grip drags at once, no hold. Only sections with 2+ lines have grips.
+  const grip = (name: string) => page.getByRole('row').filter({ hasText: name }).locator('[data-reorder-grip]')
+  await expect(grip('Salary').locator('svg')).toHaveCount(0)
+  const gripFrom = (await grip('Mortgage').boundingBox())!
+  const gripTo = (await page.getByRole('button', { name: 'Electric, details' }).boundingBox())!
+  await page.mouse.move(gripFrom.x + gripFrom.width / 2, gripFrom.y + gripFrom.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(gripFrom.x + gripFrom.width / 2, gripTo.y + 4, { steps: 12 })
+  await page.mouse.up()
+  await expect.poll(billOrder).toEqual(['Mortgage', 'Electric', 'Phone'])
+  await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
 test('a note can be written while adding a line; a Buckets line’s note is its bucket’s', async ({ page }) => {
@@ -309,6 +324,7 @@ test('an admin can lock editing on this device, and unlock it', async ({ page })
   await expect(page.getByRole('button', { name: /^Add line to/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Salary, Monthly/ })).toHaveCount(0)
   await expect(page.getByRole('row').filter({ hasText: 'Salary' })).toContainText('$10,000.00')
+  await expect(page.getByRole('table').locator('[data-reorder-grip]')).toHaveCount(0)
 
   // It stays locked after a reload (a per-device preference).
   await page.reload()

@@ -4,6 +4,20 @@ type Props = HTMLAttributes<HTMLButtonElement> & {
   label?: string
 }
 
+/** The 2×3 dots alone, for a grip that isn't a button (Plan rows). */
+export function GripDots({ className = 'h-4 w-2.5' }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true" className={className}>
+      <circle cx="2.5" cy="2.5" r="1.25" />
+      <circle cx="7.5" cy="2.5" r="1.25" />
+      <circle cx="2.5" cy="8" r="1.25" />
+      <circle cx="7.5" cy="8" r="1.25" />
+      <circle cx="2.5" cy="13.5" r="1.25" />
+      <circle cx="7.5" cy="13.5" r="1.25" />
+    </svg>
+  )
+}
+
 /**
  * 2×3 dot grip — standard reorder affordance. Spread dnd-kit
  * attributes/listeners onto this button via ref + props.
@@ -24,20 +38,7 @@ const DragHandle = forwardRef<HTMLButtonElement, Props>(function DragHandle(
       }
       {...props}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 10 16"
-        fill="currentColor"
-        aria-hidden="true"
-        className="h-4 w-2.5"
-      >
-        <circle cx="2.5" cy="2.5" r="1.25" />
-        <circle cx="7.5" cy="2.5" r="1.25" />
-        <circle cx="2.5" cy="8" r="1.25" />
-        <circle cx="7.5" cy="8" r="1.25" />
-        <circle cx="2.5" cy="13.5" r="1.25" />
-        <circle cx="7.5" cy="13.5" r="1.25" />
-      </svg>
+      <GripDots />
     </button>
   )
 })

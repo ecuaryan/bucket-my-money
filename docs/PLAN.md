@@ -187,10 +187,11 @@ Each total appears once, and there's no Allocated row (it's Gross − Unplanned)
 
 - **Fields:** section, amount + unit, sort order. New lines go to the end of
   their section.
-- **Reorder (admins):** long-press a line's name and drag it within its
-  section: the same gesture and hook as the Buckets list
-  (`useRowLongPressReorder`; the page auto-scrolls near its edges). A tap still
-  opens the line. The line sheet's **Move up** / **Move down** do the same from
+- **Reorder (admins):** press a line's grip (the dots left of its name) and
+  drag, or long-press the name and drag, within its section: the same gestures
+  and hook as the Buckets list (`useRowLongPressReorder`; the page auto-scrolls
+  near its edges). Grips show only while editing is unlocked, in sections with
+  two or more lines. A tap on the name still opens the line. The line sheet's **Move up** / **Move down** do the same from
   the keyboard or a screen reader. Both save through `reorder_plan_lines`; a
   linked rule's lines follow the new order.
 - **Names are the user's own**, income included, 1–40 characters.
