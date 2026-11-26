@@ -269,6 +269,13 @@ re-typing amounts into a rule after every plan change.
 
 - The plan links to **one** rule, picked by an admin, or none. Other rules are
   untouched. Unlinking keeps the rule and its current lines as they are.
+- **Linking never silently empties a rule** (migration `117`). When the plan
+  has no Buckets lines yet, linking copies the rule's lines into the plan as
+  Buckets lines in the column that matches its schedule, at their per-run
+  amounts. That conversion is exact, so the rule moves the same money as
+  before. When the plan already has Buckets lines, they replace the rule's,
+  and the confirm says so with counts: "Its 10 buckets will be replaced by
+  your plan's 4."
 - **Linkable rules:** household (`owner_member_id is null`; never a kid's rule,
   and the SECURITY DEFINER link RPC checks this itself), `auto_organize_kind =
   'organize'`, and a cadence that matches a Plan column:

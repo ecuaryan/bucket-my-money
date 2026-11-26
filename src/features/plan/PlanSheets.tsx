@@ -24,7 +24,7 @@ import {
   PLAN_INVALID_PERCENT,
   PLAN_LINK_ACTION,
   PLAN_LINK_BUCKETS_LABEL,
-  PLAN_LINK_CONFIRM_BODY,
+  planLinkConfirmBody,
   PLAN_LINK_EACH_RUN_LABEL,
   PLAN_LINK_EMPTY,
   PLAN_LINK_NONE_LABEL,
@@ -495,6 +495,8 @@ export interface PlanLinkRule {
   id: string
   name: string
   cadenceSummary: string
+  /** Distinct buckets in the rule's lines right now. */
+  bucketCount: number
 }
 
 /**
@@ -507,6 +509,7 @@ export function PlanLinkSheet({
   linkableRules,
   eachRunText,
   bucketCount,
+  planBucketCount,
   onOpenAutoBucket,
   onLink,
   onClose,
@@ -517,6 +520,8 @@ export function PlanLinkSheet({
   /** The linked rule's total per run, already formatted (respects Hide amounts). */
   eachRunText: string
   bucketCount: number
+  /** Buckets lines in the plan: none means linking copies the rule's in. */
+  planBucketCount: number
   onOpenAutoBucket: () => void
   /** Link a rule, or unlink with null; throws to show the error. */
   onLink: (ruleId: string | null) => Promise<void>
@@ -524,7 +529,7 @@ export function PlanLinkSheet({
 }) {
   // The choice being confirmed. It stays set while the confirm sheet animates
   // closed, so its title and text don't change mid-close.
-  const [pending, setPending] = useState<{ ruleId: string | null; name: string } | null>(null)
+  const [pending, setPending] = useState<{ ruleId: string | null; name: string; body: string } | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -532,8 +537,10 @@ export function PlanLinkSheet({
 
   function choose(ruleId: string | null) {
     if (ruleId === (linked?.id ?? null)) return
-    const name = ruleId ? linkableRules.find((r) => r.id === ruleId)?.name ?? '' : linked?.name ?? ''
-    setPending({ ruleId, name })
+    const rule = ruleId ? linkableRules.find((r) => r.id === ruleId) : undefined
+    const name = ruleId ? rule?.name ?? '' : linked?.name ?? ''
+    const body = ruleId ? planLinkConfirmBody(rule?.bucketCount ?? 0, planBucketCount) : PLAN_UNLINK_CONFIRM_BODY
+    setPending({ ruleId, name, body })
     setError(null)
     setConfirmOpen(true)
   }
@@ -609,7 +616,7 @@ export function PlanLinkSheet({
         open={confirmOpen}
         tone="caution"
         title={pending?.ruleId ? planLinkConfirmTitle(pending.name) : planUnlinkConfirmTitle(pending?.name ?? '')}
-        body={pending?.ruleId ? PLAN_LINK_CONFIRM_BODY : PLAN_UNLINK_CONFIRM_BODY}
+        body={pending?.body ?? ''}
         confirmLabel={pending?.ruleId ? PLAN_LINK_ACTION : PLAN_UNLINK_ACTION}
         busyLabel={PLAN_LINKING_LABEL}
         busy={busy}

@@ -126,7 +126,19 @@ export const PLAN_LINK_EMPTY =
 export function planLinkConfirmTitle(ruleName: string): string {
   return `Link ${ruleName}?`
 }
-export const PLAN_LINK_CONFIRM_BODY = 'Its buckets and amounts will come from your plan.'
+function bucketCountText(count: number): string {
+  return count === 1 ? '1 bucket' : `${count} buckets`
+}
+/**
+ * What linking does to the rule's buckets: a plan with no Buckets lines starts
+ * from the rule's (copied in); otherwise the plan's replace them.
+ */
+export function planLinkConfirmBody(ruleBuckets: number, planBuckets: number): string {
+  if (ruleBuckets === 0) return 'Its buckets and amounts will come from your plan.'
+  const amounts = ruleBuckets === 1 ? 'its amount' : 'their amounts'
+  if (planBuckets === 0) return `Its ${bucketCountText(ruleBuckets)} and ${amounts} will be copied into your plan.`
+  return `Its ${bucketCountText(ruleBuckets)} will be replaced by your plan’s ${planBuckets}.`
+}
 export function planUnlinkConfirmTitle(ruleName: string): string {
   return `Unlink ${ruleName}?`
 }

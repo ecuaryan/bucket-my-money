@@ -139,6 +139,97 @@ describe('link_plan_rule', () => {
   })
 })
 
+// Migration 117: linking never silently empties a rule.
+describe('linking a rule to a plan with no Buckets lines', () => {
+  async function ruleWithLines(familyId: string, createdBy: string, cadence: Record<string, unknown>, lines: [string, number][]) {
+    const rule = await insertRule(familyId, createdBy, cadence)
+    const { error } = await serviceClient()
+      .from('auto_organize_lines')
+      .insert(lines.map(([bucket_id, amount], i) => ({ auto_organize_id: rule, bucket_id, amount, sort_order: i })) as never)
+    expect(error).toBeNull()
+    return rule
+  }
+
+  async function planBucketLines(familyId: string) {
+    const { data, error } = await serviceClient()
+      .from('plan_lines')
+      .select('bucket_id, unit, amount_cents, sort_order')
+      .eq('family_id', familyId)
+      .eq('section', 'buckets')
+      .order('sort_order')
+    if (error) throw error
+    return (data ?? []).map((l) => ({ bucket_id: l.bucket_id, unit: l.unit, amount_cents: Number(l.amount_cents) }))
+  }
+
+  /** An admin whose plan has income but no Buckets lines yet. */
+  async function incomeOnly(slug: string) {
+    const family = await createAdminFamily(slug)
+    const svc = serviceClient()
+    const admin = await userClient(family.adminEmail, family.adminPassword)
+    const { error } = await admin.rpc('add_plan_line', {
+      p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 9_000_000,
+    } as never)
+    expect(error).toBeNull()
+    const buckets = await Promise.all(['Groceries', 'Gas', 'Fun'].map((n) => insertBucket(svc, family.familyId, n, null)))
+    return { family, admin, buckets }
+  }
+
+  it('copies the rule’s lines into the plan, and the rule keeps every cent', async () => {
+    const { family, admin, buckets: [groceries, gas, fun] } = await incomeOnly('link-copy')
+    const rule = await ruleWithLines(family.familyId, family.adminMemberId, TWICE_A_MONTH, [
+      [groceries, 433.33], [gas, 12.07], [fun, 0.01],
+    ])
+    const before = await ruleLines(rule)
+
+    expect((await link(admin, rule)).error).toBeNull()
+    expect(await planBucketLines(family.familyId)).toEqual([
+      { bucket_id: groceries, unit: 'twice_month', amount_cents: 43333 },
+      { bucket_id: gas, unit: 'twice_month', amount_cents: 1207 },
+      { bucket_id: fun, unit: 'twice_month', amount_cents: 1 },
+    ])
+    expect(await ruleLines(rule)).toEqual(before)
+  })
+
+  it('copies into the column that matches the schedule, merging a bucket listed twice', async () => {
+    const { family, admin, buckets: [groceries, gas] } = await incomeOnly('link-copy-weekly')
+    const rule = await ruleWithLines(
+      family.familyId,
+      family.adminMemberId,
+      { auto_organize_type: 'interval', start_date: '2026-01-02', interval_count: 1, interval_unit: 'week' },
+      [[gas, 40], [groceries, 100], [gas, 5.01]],
+    )
+    expect((await link(admin, rule)).error).toBeNull()
+    expect(await planBucketLines(family.familyId)).toEqual([
+      { bucket_id: gas, unit: 'week', amount_cents: 4501 },
+      { bucket_id: groceries, unit: 'week', amount_cents: 10000 },
+    ])
+    expect(await ruleLines(rule)).toEqual([
+      { bucket_id: gas, amount: 45.01 },
+      { bucket_id: groceries, amount: 100 },
+    ])
+  })
+
+  it('a plan that has Buckets lines still replaces the rule’s, and is not changed', async () => {
+    const { family, admin, car, giving } = await linkedHousehold('link-replace')
+    const svc = serviceClient()
+    const other = await insertBucket(svc, family.familyId, 'Other', null)
+    const full = await ruleWithLines(family.familyId, family.adminMemberId, TWICE_A_MONTH, [[other, 99]])
+    expect((await link(admin, full)).error).toBeNull()
+    expect((await ruleLines(full)).map((l) => l.bucket_id)).toEqual([car, giving])
+    expect((await planBucketLines(family.familyId)).some((l) => l.bucket_id === other)).toBe(false)
+  })
+
+  it('switching the link copies into the plan without touching the rule it was linked to', async () => {
+    const { family, admin, buckets: [groceries] } = await incomeOnly('link-switch')
+    const first = await insertRule(family.familyId, family.adminMemberId)
+    expect((await link(admin, first)).error).toBeNull()
+    const second = await ruleWithLines(family.familyId, family.adminMemberId, TWICE_A_MONTH, [[groceries, 250]])
+    expect((await link(admin, second)).error).toBeNull()
+    expect(await ruleLines(first)).toEqual([])
+    expect(await ruleLines(second)).toEqual([{ bucket_id: groceries, amount: 250 }])
+  })
+})
+
 describe('the linked rule follows the plan', () => {
   it('re-syncs on every plan change, including income behind % lines', async () => {
     const { admin, rule, car, giving, carLine } = await linkedHousehold('link-follow')
