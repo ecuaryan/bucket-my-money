@@ -23,6 +23,7 @@ import {
   autoOrganizeTopUpAddsNowLabel,
   autoOrganizeViewLinesLabel,
   type AutoOrganizeKind,
+  AUTO_ORGANIZE_PLAN_CHIP_LABEL,
 } from '@/lib/brand'
 import {
   autoOrganizeLineMoveAtRun,
@@ -50,6 +51,9 @@ type AutoOrganizeCardProps = {
   /** Owner scope for line ordering: null = household pool, member id = a kid's own. */
   scopeOwnerId: string | null
   busyId: string | null
+  /** The Plan sets this rule's lines; the chip opens the Plan tab. */
+  linkedToPlan?: boolean
+  onOpenPlan?: () => void
   onEdit: () => void
   onRunNow: () => void
   onPause: () => void
@@ -111,6 +115,8 @@ export function AutoOrganizeCard({
   canAuthor,
   scopeOwnerId,
   busyId,
+  linkedToPlan = false,
+  onOpenPlan,
   onEdit,
   onRunNow,
   onPause,
@@ -170,6 +176,21 @@ export function AutoOrganizeCard({
             <span className="shrink-0 rounded-full bg-zinc-800 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 ring-1 ring-zinc-700">
               {autoOrganizeKindLabel(kind)}
             </span>
+            {linkedToPlan ? (
+              onOpenPlan ? (
+                <button
+                  type="button"
+                  onClick={onOpenPlan}
+                  className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-500/40 transition hover:bg-emerald-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                >
+                  {AUTO_ORGANIZE_PLAN_CHIP_LABEL}
+                </button>
+              ) : (
+                <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-500/40">
+                  {AUTO_ORGANIZE_PLAN_CHIP_LABEL}
+                </span>
+              )
+            ) : null}
           </div>
           {kind === 'save_off' ? (
             <p className="mt-0.5 text-xs text-zinc-500">

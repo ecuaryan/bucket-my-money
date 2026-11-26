@@ -270,6 +270,16 @@ Manual one-off Unbucketed → bucket stays **`Set aside`** in the move dialog on
 
 ---
 
+## Linked to the Plan
+
+A household **Auto-bucket** rule on a weekly, every-2-weeks, monthly or
+twice-a-month schedule can be linked to the household's **Plan**
+([PLAN.md](./PLAN.md)). While linked, the plan owns the rule's lines: the
+database re-syncs them on every plan change and schedule change and refuses any
+other write (migration `116`). The card shows a **PLAN** chip, and the editor
+shows the buckets read-only with **Set in Plan** and offers only those four
+schedules. `delete_bucket` keeps a linked rule even when it ends up with no lines.
+
 ## Data model
 
 Migrations `00000000000048_auto_organize.sql`, `00000000000049_auto_organize_cron.sql`,
@@ -390,7 +400,7 @@ says it runs only when chosen — not when the bank moves.
 
 **Empty state (admin):** `AUTO_ORGANIZE_EMPTY_BODY` + **Add** CTA.
 
-### Plan total (required)
+### Rule total (required)
 
 Every Auto-bucket rule shows the **sum of all line amounts** prominently — that’s how people
 verify they entered the right numbers (they often know the payday total before the
@@ -431,7 +441,7 @@ lines. Adults never see a kid's rules (RLS).
 ### Auto-bucket editor (Sheet)
 
 1. Name (optional)
-2. Lines: bucket + amount; **running total** in sticky footer ([Plan total](#plan-total-required))
+2. Lines: bucket + amount; **running total** in sticky footer ([Rule total](#rule-total-required))
 3. Frequency: flat list (**Manual only**, **Every 2 weeks**, **Every week**, **Once a month**,
    **Twice a month**, **Every 2 / 3 / 4 / 6 months**) plus branching fields per
    [Auto-bucket model](#auto-bucket-model). **Manual only** hides schedule sub-fields and the editor next-run preview.

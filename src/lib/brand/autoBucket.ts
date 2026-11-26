@@ -272,3 +272,9 @@ export function autoOrganizeSetAsideFloatConfirmBody(amountLabel: string): strin
 export function autoOrganizeRunNowConfirmTitle(name: string): string {
   return `Run ${name} now?`
 }
+
+/** A rule linked to the Plan: its chip, and where its buckets are edited. */
+export const AUTO_ORGANIZE_PLAN_CHIP_LABEL = 'Plan'
+export const AUTO_ORGANIZE_SET_IN_PLAN_LABEL = 'Set in Plan'
+export const AUTO_ORGANIZE_NOW_SET_IN_PLAN =
+  'This rule is now set in Plan. Close and reopen it to edit its schedule.'

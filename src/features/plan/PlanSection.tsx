@@ -23,11 +23,16 @@ import {
   PLAN_RELOAD_ERROR,
   PLAN_TAB_LABEL,
 } from '@/lib/brand'
-import { planTotals, type PlanSection as Section } from '@/lib/planMath'
+import { cellCents, lineYearlyUnits, planTotals, type PlanSection as Section } from '@/lib/planMath'
+import { autoOrganizeDisplayName, fetchAutoOrganizes, type AutoOrganizeWithDetails } from '@/lib/autoOrganize'
 import {
   addPlanLine,
   deletePlanLine,
   fetchPlanLines,
+  fetchPlanRuleId,
+  isPlanLinkableRule,
+  linkPlanRule,
+  planColumnForRule,
   PLAN_COLUMNS,
   readPlanView,
   setPlanLineAmount,
@@ -39,8 +44,16 @@ import {
 } from '@/lib/plan'
 import type { Database } from '@/types/database'
 import PlanTable from './PlanTable'
-import { PlanAddLineSheet, PlanLineSheet, PlanViewSheet, type AddLineValues, type LineDetailsValues } from './PlanSheets'
-import { cellInputText, parseCellInput, type PlanCellEdit } from './planCells'
+import {
+  PlanAddLineSheet,
+  PlanLineSheet,
+  PlanLinkSheet,
+  PlanViewSheet,
+  type AddLineValues,
+  type LineDetailsValues,
+  type PlanLinkRule,
+} from './PlanSheets'
+import { cellInputText, formatCellCents, parseCellInput, type PlanCellEdit } from './planCells'
 
 type Bucket = Database['public']['Tables']['buckets']['Row']
 
@@ -57,10 +70,23 @@ interface Props {
   buckets: readonly Bucket[]
   /** A bucket was created, renamed or annotated from Plan. */
   onBucketsChanged: () => void
+  /** Switch to the Auto-bucket tab. */
+  onOpenAutoBucket: () => void
+  /** The linked rule changed (the Auto-bucket tab should reload). */
+  onLinkChanged: () => void
 }
 
 /** The Plan tab (docs/PLAN.md). Admins edit; shared members view. */
-export default function PlanSection({ familyId, memberId, accessToken, isAdmin, buckets, onBucketsChanged }: Props) {
+export default function PlanSection({
+  familyId,
+  memberId,
+  accessToken,
+  isAdmin,
+  buckets,
+  onBucketsChanged,
+  onOpenAutoBucket,
+  onLinkChanged,
+}: Props) {
   const { formatMoney } = useHideAmounts()
   const masked = formatMoney(0) === HIDDEN_MONEY_LABEL
 
@@ -79,6 +105,9 @@ export default function PlanSection({ familyId, memberId, accessToken, isAdmin, 
   const [openLineId, setOpenLineId] = useState<string | null>(null)
   const [viewOpen, setViewOpen] = useState(false)
   const [flashIds, setFlashIds] = useState<ReadonlySet<string>>(new Set())
+  const [rules, setRules] = useState<AutoOrganizeWithDetails[]>([])
+  const [planRuleId, setPlanRuleId] = useState<string | null>(null)
+  const [linkOpen, setLinkOpen] = useState(false)
 
   const ownChanges = useRef(new Map<string, number>())
   const lastOwnAdd = useRef(0)
@@ -110,6 +139,22 @@ export default function PlanSection({ familyId, memberId, accessToken, isAdmin, 
   function invalidateLoads() {
     loadSeq.current += 1
   }
+
+  // The linked rule and the household's rules (for the link picker). A failed
+  // read just shows no link; it never blocks the plan.
+  const loadLink = useCallback(async () => {
+    try {
+      const [ruleId, allRules] = await Promise.all([fetchPlanRuleId(), fetchAutoOrganizes()])
+      setPlanRuleId(ruleId)
+      setRules(allRules)
+    } catch {
+      // keep what we had
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadLink()
+  }, [loadLink])
 
   useEffect(() => {
     void load()
@@ -146,6 +191,7 @@ export default function PlanSection({ familyId, memberId, accessToken, isAdmin, 
 
   const onRealtime = useCallback(
     (payload: PostgresChangePayload) => {
+      if (payload.table === 'plans' || payload.table === 'auto_organizes') void loadLink()
       if (payload.table === 'plan_lines' && payload.eventType !== 'DELETE') {
         const id = (payload.new as { id?: string }).id
         const ownAdd = payload.eventType === 'INSERT' && Date.now() - lastOwnAdd.current < OWN_CHANGE_WINDOW_MS
@@ -161,13 +207,14 @@ export default function PlanSection({ familyId, memberId, accessToken, isAdmin, 
         })
       }, 150)
     },
-    [load],
+    [load, loadLink],
   )
 
   const realtimeSpecs = useMemo(
     () => [
       { event: '*' as const, table: 'plan_lines', filter: `family_id=eq.${familyId}` },
       { event: '*' as const, table: 'plans', filter: `family_id=eq.${familyId}` },
+      { event: '*' as const, table: 'auto_organizes', filter: `family_id=eq.${familyId}` },
     ],
     [familyId],
   )
@@ -185,6 +232,30 @@ export default function PlanSection({ familyId, memberId, accessToken, isAdmin, 
   )
 
   const totals = useMemo(() => planTotals(lines ?? []), [lines])
+
+  const linkedRule = rules.find((r) => r.id === planRuleId) ?? null
+  const linkedColumn = linkedRule ? planColumnForRule(linkedRule) : null
+  const linkableRules: PlanLinkRule[] = rules
+    .filter(isPlanLinkableRule)
+    .map((r) => ({ id: r.id, name: autoOrganizeDisplayName(r), cadenceSummary: r.cadenceSummary }))
+  // What the linked rule moves each run: the same floors the sync writes.
+  const linkedRun = { cents: 0n, count: 0 }
+  if (linkedColumn) {
+    for (const line of lines ?? []) {
+      if (line.section !== 'buckets' || !line.bucketId) continue
+      const perRun = cellCents(lineYearlyUnits(line, totals.grossCents), linkedColumn)
+      if (perRun >= 1n) {
+        linkedRun.cents += perRun
+        linkedRun.count += 1
+      }
+    }
+  }
+
+  async function changeLink(ruleId: string | null) {
+    await linkPlanRule(ruleId)
+    await Promise.all([load(), loadLink()])
+    onLinkChanged()
+  }
   const columns = PLAN_COLUMNS.filter((c) => !view.hiddenColumns.includes(c))
 
   function changeView(next: PlanViewPrefs) {
@@ -356,6 +427,9 @@ export default function PlanSection({ familyId, memberId, accessToken, isAdmin, 
           onOpenLine={(line) => setOpenLineId(line.id)}
           onAdd={setAddSection}
           onOpenView={() => setViewOpen(true)}
+          linkedColumn={linkedColumn}
+          linkedRuleName={linkedRule ? autoOrganizeDisplayName(linkedRule) : null}
+          onOpenLink={() => setLinkOpen(true)}
         />
       )}
 
@@ -383,6 +457,26 @@ export default function PlanSection({ familyId, memberId, accessToken, isAdmin, 
       ) : null}
 
       {viewOpen ? <PlanViewSheet prefs={view} onChange={changeView} onClose={() => setViewOpen(false)} /> : null}
+
+      {linkOpen ? (
+        <PlanLinkSheet
+          canEdit={isAdmin}
+          linked={
+            linkedRule
+              ? { id: linkedRule.id, name: autoOrganizeDisplayName(linkedRule), cadenceSummary: linkedRule.cadenceSummary }
+              : null
+          }
+          linkableRules={linkableRules}
+          eachRunText={formatCellCents(linkedRun.cents, masked)}
+          bucketCount={linkedRun.count}
+          onOpenAutoBucket={() => {
+            setLinkOpen(false)
+            onOpenAutoBucket()
+          }}
+          onLink={changeLink}
+          onClose={() => setLinkOpen(false)}
+        />
+      ) : null}
     </section>
   )
 }

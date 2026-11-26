@@ -108,3 +108,29 @@ export const PLAN_RELOAD_ERROR = 'Could not refresh your plan.'
 
 export const PLAN_INVALID_AMOUNT = 'Enter an amount like 125 or 125.50.'
 export const PLAN_INVALID_PERCENT = 'Enter a percent from 0 to 100.'
+
+// Link to Auto-bucket (docs/PLAN.md § Link to Auto-bucket)
+export const PLAN_LINK_TITLE = 'Auto-bucket'
+export const PLAN_LINK_BUTTON_ARIA = 'Link to Auto-bucket'
+export function planLinkedColumnAria(ruleName: string, column: string): string {
+  return `${column}, linked to ${ruleName}`
+}
+export const PLAN_LINK_SCHEDULE_LABEL = 'Schedule'
+export const PLAN_LINK_EACH_RUN_LABEL = 'Each run'
+export const PLAN_LINK_BUCKETS_LABEL = 'Buckets'
+export const PLAN_LINK_OPEN_LABEL = 'Open in Auto-bucket'
+export const PLAN_LINK_RULE_LABEL = 'Rule'
+export const PLAN_LINK_NONE_LABEL = 'Not linked'
+export const PLAN_LINK_EMPTY =
+  'No Auto-bucket rule runs weekly, every 2 weeks, monthly or twice a month.'
+export function planLinkConfirmTitle(ruleName: string): string {
+  return `Link ${ruleName}?`
+}
+export const PLAN_LINK_CONFIRM_BODY = 'Its buckets and amounts will come from your plan.'
+export function planUnlinkConfirmTitle(ruleName: string): string {
+  return `Unlink ${ruleName}?`
+}
+export const PLAN_UNLINK_CONFIRM_BODY = 'It keeps its current buckets and amounts.'
+export const PLAN_LINK_ACTION = 'Link'
+export const PLAN_UNLINK_ACTION = 'Unlink'
+export const PLAN_LINKING_LABEL = 'Saving…'

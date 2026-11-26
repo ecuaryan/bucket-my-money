@@ -22,6 +22,21 @@ import {
   PLAN_GROSS_AMOUNT_LABEL,
   PLAN_INVALID_AMOUNT,
   PLAN_INVALID_PERCENT,
+  PLAN_LINK_ACTION,
+  PLAN_LINK_BUCKETS_LABEL,
+  PLAN_LINK_CONFIRM_BODY,
+  PLAN_LINK_EACH_RUN_LABEL,
+  PLAN_LINK_EMPTY,
+  PLAN_LINK_NONE_LABEL,
+  PLAN_LINK_OPEN_LABEL,
+  PLAN_LINK_RULE_LABEL,
+  PLAN_LINK_SCHEDULE_LABEL,
+  PLAN_LINK_TITLE,
+  PLAN_LINKING_LABEL,
+  PLAN_UNLINK_ACTION,
+  PLAN_UNLINK_CONFIRM_BODY,
+  planLinkConfirmTitle,
+  planUnlinkConfirmTitle,
   PLAN_NAME_LABEL,
   PLAN_NEW_BUCKET_NAME_LABEL,
   PLAN_NEW_BUCKET_OPTION,
@@ -473,5 +488,135 @@ export function PlanViewSheet({
         )
       })}
     </Sheet>
+  )
+}
+
+export interface PlanLinkRule {
+  id: string
+  name: string
+  cadenceSummary: string
+}
+
+/**
+ * The Plan's Auto-bucket link: what the linked rule does each run, and (for
+ * admins) which household rule the plan sets. Changing it confirms first.
+ */
+export function PlanLinkSheet({
+  canEdit,
+  linked,
+  linkableRules,
+  eachRunText,
+  bucketCount,
+  onOpenAutoBucket,
+  onLink,
+  onClose,
+}: {
+  canEdit: boolean
+  linked: PlanLinkRule | null
+  linkableRules: readonly PlanLinkRule[]
+  /** The linked rule's total per run, already formatted (respects Hide amounts). */
+  eachRunText: string
+  bucketCount: number
+  onOpenAutoBucket: () => void
+  /** Link a rule, or unlink with null; throws to show the error. */
+  onLink: (ruleId: string | null) => Promise<void>
+  onClose: () => void
+}) {
+  // The choice being confirmed. It stays set while the confirm sheet animates
+  // closed, so its title and text don't change mid-close.
+  const [pending, setPending] = useState<{ ruleId: string | null; name: string } | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+
+  function choose(ruleId: string | null) {
+    if (ruleId === (linked?.id ?? null)) return
+    const name = ruleId ? linkableRules.find((r) => r.id === ruleId)?.name ?? '' : linked?.name ?? ''
+    setPending({ ruleId, name })
+    setError(null)
+    setConfirmOpen(true)
+  }
+
+  async function confirm() {
+    if (!pending) return
+    setBusy(true)
+    setError(null)
+    try {
+      await onLink(pending.ruleId)
+      setConfirmOpen(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <Sheet open onClose={onClose} aria-label={PLAN_LINK_TITLE}>
+        <SheetHeader title={linked ? linked.name : PLAN_LINK_TITLE} onClose={onClose} />
+        <div className="space-y-4 text-sm">
+          {linked ? (
+            <dl className="divide-y divide-zinc-800 border-y border-zinc-800">
+              <div className="flex justify-between gap-3 py-3">
+                <dt className="text-zinc-400">{PLAN_LINK_SCHEDULE_LABEL}</dt>
+                <dd className="text-right text-zinc-200">{linked.cadenceSummary}</dd>
+              </div>
+              <div className="flex justify-between gap-3 py-3">
+                <dt className="text-zinc-400">{PLAN_LINK_EACH_RUN_LABEL}</dt>
+                <dd className="font-semibold tabular-nums text-emerald-300">{eachRunText}</dd>
+              </div>
+              <div className="flex justify-between gap-3 py-3">
+                <dt className="text-zinc-400">{PLAN_LINK_BUCKETS_LABEL}</dt>
+                <dd className="tabular-nums text-zinc-200">{bucketCount}</dd>
+              </div>
+            </dl>
+          ) : null}
+
+          {canEdit ? (
+            linkableRules.length > 0 ? (
+              <label className="block">
+                <FieldLabel>{PLAN_LINK_RULE_LABEL}</FieldLabel>
+                <select
+                  value={linked?.id ?? ''}
+                  onChange={(e) => choose(e.target.value || null)}
+                  className={INPUT_CLASS}
+                >
+                  <option value="">{PLAN_LINK_NONE_LABEL}</option>
+                  {linkableRules.map((rule) => (
+                    <option key={rule.id} value={rule.id}>
+                      {rule.name} · {rule.cadenceSummary}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="text-zinc-400">{PLAN_LINK_EMPTY}</p>
+            )
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onOpenAutoBucket}
+            className="w-full rounded-lg py-2.5 text-sm font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 transition hover:bg-zinc-800"
+          >
+            {PLAN_LINK_OPEN_LABEL}
+          </button>
+        </div>
+      </Sheet>
+      <ConfirmSheet
+        open={confirmOpen}
+        tone="caution"
+        title={pending?.ruleId ? planLinkConfirmTitle(pending.name) : planUnlinkConfirmTitle(pending?.name ?? '')}
+        body={pending?.ruleId ? PLAN_LINK_CONFIRM_BODY : PLAN_UNLINK_CONFIRM_BODY}
+        confirmLabel={pending?.ruleId ? PLAN_LINK_ACTION : PLAN_UNLINK_ACTION}
+        busyLabel={PLAN_LINKING_LABEL}
+        busy={busy}
+        error={error}
+        onConfirm={() => void confirm()}
+        onClose={() => setConfirmOpen(false)}
+      />
+    </>
   )
 }

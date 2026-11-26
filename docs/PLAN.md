@@ -1,8 +1,9 @@
 # Plan — product & implementation spec
 
-**Status:** PR 1 (foundation) and PR 2 (Plan tab) built. Still to come: PR 3
-(link to Auto-bucket) and drag-to-reorder lines (the `reorder_plan_lines` RPC
-exists; new lines append to the end of their section until the UI lands).
+**Status:** Built: foundation (migration `115`), the Plan tab, and the link to
+Auto-bucket (migration `116`). Still to come: drag-to-reorder lines (the
+`reorder_plan_lines` RPC exists; new lines append to the end of their section
+until the UI lands).
 **One vocabulary:** customers see **Plan**; Postgres, RPCs, TypeScript and tests
 use **`plan_*`**.
 **Related:** [AUTO_ORGANIZE.md](./AUTO_ORGANIZE.md), [CONTEXT.md](../CONTEXT.md),
@@ -287,17 +288,20 @@ re-typing amounts into a rule after every plan change.
 - **Amount per run** = `floor_cent(yearly ÷ runs per year)`, from that column.
   Only Buckets lines with a per-run amount of $0.01 or more are sent. A linked
   rule with no qualifying lines keeps zero lines, and its runs move nothing.
-- **All writes are server-side and atomic.** Today the Auto-bucket editor saves
-  with three separate client writes (`saveAutoOrganize` in
-  `src/lib/autoOrganize.ts`: update the rule, delete its lines, insert lines),
-  and `auto_organize_lines` is admin-writable through RLS. Linking needs:
-  1. A `save_auto_organize` SECURITY DEFINER RPC that replaces those writes.
-     For a linked rule it ignores incoming lines and re-syncs from the plan,
-     so a schedule change recomputes amounts in the same transaction.
-  2. Plan-edit RPCs that rewrite the linked rule's lines in the same
-     transaction as the plan change.
-  3. A guard (trigger or RLS policy) that rejects direct line writes on a
-     linked rule, so a stale editor or another admin can't overwrite them.
+- **All writes are server-side and atomic** (migration `116`). Built with
+  triggers instead of the originally planned `save_auto_organize` RPC, so the
+  existing Auto-bucket editor path stays untouched for every unlinked rule:
+  1. Statement triggers on `plan_lines` re-sync the linked rule's lines in the
+     same transaction as any plan change, including line deletes that cascade
+     from a deleted bucket.
+  2. A trigger on `auto_organizes` re-syncs when the linked rule's schedule
+     changes (the editor still updates the rule row directly), and rejects a
+     schedule, kind or owner with no Plan column while linked.
+  3. A guard trigger on `auto_organize_lines` rejects every write to a linked
+     rule's lines except the sync's own (marked with a transaction-local
+     setting clients can't reach), so a stale editor or another admin gets an
+     error instead of overwriting them. `saveAutoOrganize` skips line writes
+     for a linked rule.
 - **Bucket deletes:** `delete_bucket` currently deletes any rule left with no
   lines. It must skip a rule that's linked to a plan, so deleting the last
   bucket line doesn't silently delete the linked rule.

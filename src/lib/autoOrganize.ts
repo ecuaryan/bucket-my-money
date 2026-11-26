@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import {
   type AutoOrganizeKind,
+  AUTO_ORGANIZE_NOW_SET_IN_PLAN,
   AUTO_ORGANIZE_SWEEP_THEN_FILL_SAVEOFF_NOTE,
   AUTO_ORGANIZE_SWEEP_THEN_FILL_TOPUP_NOTE,
 } from '@/lib/brand'
@@ -37,6 +38,12 @@ export type AutoOrganizeInput = {
   /** null = household pool rule; a member id = that kid's own rule. Set on create only. */
   ownerMemberId: string | null
   familyTimezone: string
+  /**
+   * The Plan sets this rule's lines (docs/PLAN.md): save leaves them alone.
+   * The database re-syncs them when the schedule changes and refuses any
+   * other write, so a stale editor can't overwrite them.
+   */
+  linkedToPlan?: boolean
 }
 
 export type AutoOrganizeLineWithDetails = AutoOrganizeLineRow & {
@@ -355,17 +362,31 @@ export async function saveAutoOrganize(
 
   let autoOrganizeId = input.id
 
+  // The Plan may have linked this rule since the editor opened: its lines are
+  // the plan's now. Stop before saving anything rather than half-save.
+  if (autoOrganizeId && !input.linkedToPlan) {
+    const { data: plan } = await supabase
+      .from('plans')
+      .select('auto_organize_id')
+      .maybeSingle()
+    if (plan?.auto_organize_id === autoOrganizeId) {
+      throw new Error(AUTO_ORGANIZE_NOW_SET_IN_PLAN)
+    }
+  }
+
   if (autoOrganizeId) {
     const { error } = await supabase
       .from('auto_organizes')
       .update(payload)
       .eq('id', autoOrganizeId)
     if (error) throw error
-    const { error: deleteLinesError } = await supabase
-      .from('auto_organize_lines')
-      .delete()
-      .eq('auto_organize_id', autoOrganizeId)
-    if (deleteLinesError) throw deleteLinesError
+    if (!input.linkedToPlan) {
+      const { error: deleteLinesError } = await supabase
+        .from('auto_organize_lines')
+        .delete()
+        .eq('auto_organize_id', autoOrganizeId)
+      if (deleteLinesError) throw deleteLinesError
+    }
   } else {
     const { data: family, error: familyReadError } = await supabase
       .from('families')
@@ -389,15 +410,17 @@ export async function saveAutoOrganize(
     autoOrganizeId = data.id
   }
 
-  const { error: linesError } = await supabase.from('auto_organize_lines').insert(
-    input.lines.map((line, index) => ({
-      auto_organize_id: autoOrganizeId!,
-      bucket_id: line.bucketId,
-      amount: line.amount,
-      sort_order: index,
-    })),
-  )
-  if (linesError) throw linesError
+  if (!input.linkedToPlan) {
+    const { error: linesError } = await supabase.from('auto_organize_lines').insert(
+      input.lines.map((line, index) => ({
+        auto_organize_id: autoOrganizeId!,
+        bucket_id: line.bucketId,
+        amount: line.amount,
+        sort_order: index,
+      })),
+    )
+    if (linesError) throw linesError
+  }
 
   if (!isValidIanaTimezone(input.familyTimezone)) {
     throw new Error('Invalid timezone.')

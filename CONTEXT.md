@@ -498,7 +498,7 @@ scheduled **Give to a kid** (`give_money` via a future Auto-bucket `give` kind),
 
 ---
 
-### Plan (shipping)
+### Plan (shipped)
 
 **Plan** — a household's zero-based plan for its pay: Income → Withheld →
 Take-home → Bills → Buckets, until **Unplanned** reaches $0. A spreadsheet-like
@@ -506,8 +506,10 @@ table (every line in Weekly · Every 2 weeks · Twice a month · Monthly · Year
 one typed amount per line, exact integer math (BigInt cents + basis points). Admins
 edit; shared members view (tab appears once a plan exists) and see the other
 person's changes flash live; children never see it. Schema `plans` / `plan_lines`
-(migration `115`), admin-only definer RPCs, no client table writes. Linking one
-Auto-bucket rule so the plan sets its amounts is the next step. Full spec:
+(migration `115`), admin-only definer RPCs, no client table writes. A plan can
+link one household Auto-bucket rule (migration `116`): the database keeps that
+rule's lines equal to the plan's per-run amounts and refuses any other writer.
+Full spec:
 [docs/PLAN.md](./docs/PLAN.md).
 
 ---
