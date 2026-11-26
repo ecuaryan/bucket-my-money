@@ -1,0 +1,57 @@
+name: Error report
+
+# Daily digest of the app's anonymous crash reports (table client_errors,
+# migration 121). Posts yesterday's errors (UTC) as a comment on the open
+# "Error report" issue, or opens one; GitHub emails the owner. Quiet days post
+# nothing. Close the issue once its errors are handled: the next report opens a
+# fresh one. Details: docs/MAINTENANCE.md § Error reports.
+on:
+  schedule:
+    - cron: '7 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: error-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Read-only query; the backup's connection secret, passed through the
+      # environment (never the command line), client from the postgres:17 image.
+      - name: Read yesterday's errors
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          docker run --rm -i -e BACKUP_DATABASE_URL postgres:17 \
+            sh -c 'psql "$BACKUP_DATABASE_URL" -X -At -v ON_ERROR_STOP=1 -f -' \
+            < scripts/error-report/query.sql > "$RUNNER_TEMP/errors.json"
+
+      - name: Post to the Error report issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          day=$(date -u -d yesterday +%F)
+          node scripts/error-report/format.mjs "$day" < "$RUNNER_TEMP/errors.json" > "$RUNNER_TEMP/report.md"
+          if [ ! -s "$RUNNER_TEMP/report.md" ]; then
+            echo "No errors reported on $day."
+            exit 0
+          fi
+          title="Error report"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title \"$title\"" --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/report.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/report.md"
+          fi

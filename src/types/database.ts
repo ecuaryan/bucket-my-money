@@ -406,6 +406,51 @@ export type Database = {
           },
         ]
       }
+      client_errors: {
+        Row: {
+          app_version: string | null
+          browser: string | null
+          count: number
+          day: string
+          fingerprint: string
+          first_seen: string
+          id: number
+          kind: string
+          last_seen: string
+          message: string
+          route: string | null
+          stack: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          browser?: string | null
+          count?: number
+          day?: string
+          fingerprint: string
+          first_seen?: string
+          id?: never
+          kind: string
+          last_seen?: string
+          message: string
+          route?: string | null
+          stack?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          browser?: string | null
+          count?: number
+          day?: string
+          fingerprint?: string
+          first_seen?: string
+          id?: never
+          kind?: string
+          last_seen?: string
+          message?: string
+          route?: string | null
+          stack?: string | null
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           auto_organize_run_hour: number
@@ -1587,6 +1632,17 @@ export type Database = {
       }
       reorder_plan_lines: {
         Args: { p_line_ids: string[]; p_section: string }
+        Returns: undefined
+      }
+      report_client_error: {
+        Args: {
+          p_app_version?: string
+          p_browser?: string
+          p_kind: string
+          p_message: string
+          p_route?: string
+          p_stack?: string
+        }
         Returns: undefined
       }
       reserve_pin_attempt: {

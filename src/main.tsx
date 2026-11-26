@@ -13,8 +13,10 @@ import { markAutoSignOut } from '@/lib/autoSignOut'
 import { runExpiredBackgroundCleanup } from '@/lib/backgroundSessionCleanup'
 import { supabase } from '@/lib/supabase'
 import { setupPwaUpdates } from '@/lib/pwaUpdate'
+import { installErrorReports } from '@/lib/errorReports'
 import './index.css'
 
+installErrorReports()
 migrateLegacyStorageKeys()
 registerBackgroundPrivacyShield()
 registerActivityClock(() => {

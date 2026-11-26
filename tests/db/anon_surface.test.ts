@@ -4,11 +4,18 @@ import type { Database } from '@/types/database'
 import { addMember, createAdminFamily, insertBucket, serviceClient, userClient } from './fixtures'
 import { requireDbEnv } from './env'
 
-// Migration 108. The signed-out role may run ONLY the login-screen RPCs and
-// touch NO table. A future migration that widens this fails here on purpose:
-// add the function to ALLOWED_ANON_FUNCTIONS only after reviewing that it checks
-// its own caller and cannot be driven by caller-supplied tenant ids.
-const ALLOWED_ANON_FUNCTIONS = ['login_roster', 'login_webauthn_options', 'member_login_methods']
+// Migration 108. The signed-out role may run ONLY the login-screen RPCs (and
+// report_client_error, migration 121: takes no tenant ids, stores only
+// scrubbed text, bounded per day) and touch NO table. A future migration that
+// widens this fails here on purpose: add the function to
+// ALLOWED_ANON_FUNCTIONS only after reviewing that it checks its own caller
+// and cannot be driven by caller-supplied tenant ids.
+const ALLOWED_ANON_FUNCTIONS = [
+  'login_roster',
+  'login_webauthn_options',
+  'member_login_methods',
+  'report_client_error',
+]
 
 function anonClient() {
   const { url, anonKey } = requireDbEnv()

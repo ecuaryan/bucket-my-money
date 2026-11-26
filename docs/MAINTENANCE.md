@@ -352,6 +352,35 @@ pg_restore --no-owner --clean --if-exists -d "<target connection string>" backup
 `scripts/backup/verify-restore.sh <file>` does the same into a Docker scratch
 database; run it by hand to test a downloaded backup.
 
+### Error reports
+
+The app reports its own crashes so they can be fixed. `src/lib/errorReports.ts`
+catches uncaught errors, unhandled promise rejections and render errors (from
+`ErrorBoundary`) in **production builds only**, skips noise (dropped
+connections, aborts, stale chunks, browser extensions), sends at most 10 a
+session, and posts them off the main path to the `report_client_error` RPC
+(migration 121) as **anon with no session**, so nothing ties a report to a
+person or household.
+
+The RPC scrubs before storing, whatever the client sends: digits (except in
+stacks, whose line and column numbers locate the code), emails, ids and quoted
+text. One row per error per day with a count; at most 200 rows a day; kept 30
+days (`client-errors-cleanup` cron). Only the service role can read
+`client_errors`.
+
+`error-report.yml` runs daily (14:07 UTC, or **Actions → Error report → Run
+workflow**): it reads yesterday's (UTC) errors with `BACKUP_DATABASE_URL`
+(read-only query, `scripts/error-report/query.sql`) and posts them as a comment
+on the open `Error report` issue, or opens one, so GitHub emails the owner.
+Quiet days post nothing. Every reported value sits inside code fences
+(`scripts/error-report/format.mjs`), so a crafted report can't mention anyone
+or render links in the public issue. Close the issue once its errors are
+handled; the next report opens a fresh one.
+
+Stacks are minified. To read one, check out that version's merge commit
+(`git log --oneline --grep '^v<version>:'`), run `npx vite build --sourcemap`,
+and look up the line and column in the matching chunk's map.
+
 ## Security and production checklist
 
 ### Production deploy automation

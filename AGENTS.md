@@ -137,6 +137,11 @@ Entry point for AI coding agents (and humans) working in this repo.
   never print them or paste them into chat. Keep the size caps and failure issue
   intact (they are the cost guard), and update the privacy page if what is stored
   changes. Details and restore steps: [MAINTENANCE § Database backups](./docs/MAINTENANCE.md#database-backups).
+- **Error reports.** Production crashes are reported anonymously
+  (`src/lib/errorReports.ts` → `report_client_error`, scrubbed in SQL) and
+  posted daily to the `Error report` issue. Never send a session, ids or
+  user-entered text with a report; keep the privacy page in step. See
+  [MAINTENANCE § Error reports](./docs/MAINTENANCE.md#error-reports).
 - **Auth sign-in routing.** Post-sign-out paths and email vs PIN preference
   live in [`src/lib/authNavigation.ts`](./src/lib/authNavigation.ts) and
   [`src/lib/signInPreference.ts`](./src/lib/signInPreference.ts). Use router
