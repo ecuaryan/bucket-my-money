@@ -237,3 +237,13 @@ jobs:
         env:
           CI: true
           SKIP_DB_RESET: '1'
+
+      # Traces of failed e2e tests (Playwright records one on the first retry).
+      - name: Upload e2e traces
+        if: failure() && needs.changes.outputs.run_e2e != 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-traces
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
