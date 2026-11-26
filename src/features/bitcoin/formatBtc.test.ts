@@ -4,6 +4,7 @@ import {
   formatSats,
   HIDDEN_BTC_LABEL,
   HIDDEN_SATS_LABEL,
+  btcInputValue,
   sanitizeBtcInput,
 } from './formatBtc'
 
@@ -35,6 +36,16 @@ describe('formatSats', () => {
   it('handles hidden and non-finite values', () => {
     expect(formatSats(0.5, true)).toBe(HIDDEN_SATS_LABEL)
     expect(formatSats(Number.NaN)).toBe(HIDDEN_SATS_LABEL)
+  })
+})
+
+describe('btcInputValue', () => {
+  it('prefills plain decimals, never exponent notation', () => {
+    expect(btcInputValue(0.0000001)).toBe('0.0000001')
+    expect(btcInputValue(0.00000001)).toBe('0.00000001')
+    expect(btcInputValue(0.5)).toBe('0.5')
+    expect(btcInputValue(10)).toBe('10')
+    expect(btcInputValue(0)).toBe('0')
   })
 })
 

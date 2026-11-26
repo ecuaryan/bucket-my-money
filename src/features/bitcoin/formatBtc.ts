@@ -30,6 +30,14 @@ export function formatSats(amount: number, hidden = false): string {
   return satsFormat.format(Math.round(amount * 1e8))
 }
 
+/**
+ * Plain-decimal string for prefilling a BTC input. `String(1e-7)` is "1e-7",
+ * which `sanitizeBtcInput` would mangle into "17" on the next keystroke.
+ */
+export function btcInputValue(amount: number): string {
+  return amount.toFixed(8).replace(/\.?0+$/, '')
+}
+
 /** Strip invalid characters while typing a BTC amount (digits + one decimal, max 8 decimals). */
 export function sanitizeBtcInput(value: string): string {
   const noMinus = value.replace(/-/g, '')
