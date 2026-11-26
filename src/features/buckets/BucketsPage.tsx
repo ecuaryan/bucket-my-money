@@ -1427,6 +1427,8 @@ export default function BucketsPage() {
             isAdmin={isAdmin}
             buckets={buckets ?? []}
             onBucketsChanged={() => void loadData()}
+            onOpenAutoBucket={() => onBucketsPageTabChange('auto-bucket')}
+            onLinkChanged={() => setAutoOrganizeRefreshToken((n) => n + 1)}
           />
         </div>
       ) : null}
@@ -1459,6 +1461,7 @@ export default function BucketsPage() {
               }
             }}
             refreshToken={autoOrganizeRefreshToken}
+            onOpenPlan={showPlanTab ? () => onBucketsPageTabChange('plan') : undefined}
           />
         </div>
       ) : null}

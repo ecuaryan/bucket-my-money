@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { addMember, createAdminFamily } from '../db/fixtures'
+import { addMember, createAdminFamily, insertBucket, serviceClient, userClient } from '../db/fixtures'
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/login')
@@ -87,4 +87,42 @@ test('a child never gets the Plan tab', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Plan' })).toHaveCount(0)
   await page.goto('/?tab=plan')
   await expect(page.getByRole('table', { name: 'Plan' })).toHaveCount(0)
+})
+
+test('linking an Auto-bucket rule: the plan sets its amounts and the editor locks them', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-link')
+  const svc = serviceClient()
+  const groceries = await insertBucket(svc, family.familyId, 'Groceries', null)
+  const { error: ruleError } = await svc.from('auto_organizes').insert({
+    family_id: family.familyId,
+    name: 'Payday',
+    created_by_member_id: family.adminMemberId,
+    auto_organize_type: 'monthly',
+    days_of_month: [5, 20],
+  } as never)
+  expect(ruleError).toBeNull()
+
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  await admin.rpc('add_plan_line', { p_section: 'buckets', p_unit: 'two_weeks', p_amount_cents: 40_000, p_bucket_id: groceries })
+
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  await page.getByRole('button', { name: 'Link to Auto-bucket' }).click()
+  await page.getByRole('dialog', { name: 'Auto-bucket' }).getByRole('combobox').selectOption({ index: 1 }) // the only linkable rule
+  const confirm = page.getByRole('dialog', { name: 'Link Payday?' })
+  await expect(confirm).toContainText('Its buckets and amounts will come from your plan.')
+  await confirm.getByRole('button', { name: 'Link', exact: true }).click()
+
+  // $400 every 2 weeks → $433.33 per twice-a-month run, shown in the ⚡ column.
+  const linkSheet = page.getByRole('dialog', { name: 'Auto-bucket' })
+  await expect(linkSheet).toContainText('$433.33')
+  await linkSheet.getByRole('button', { name: 'Open in Auto-bucket' }).click()
+
+  await expect(page.getByRole('button', { name: 'Plan', exact: true })).toBeVisible() // the PLAN chip
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  const editor = page.getByRole('dialog').last()
+  await expect(editor.getByRole('button', { name: 'Set in Plan' })).toBeVisible()
+  await expect(editor).toContainText('$433.33')
+  await expect(editor.locator('input[inputmode="decimal"]')).toHaveCount(0)
 })

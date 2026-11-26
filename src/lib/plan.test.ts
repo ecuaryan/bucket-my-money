@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   DEFAULT_PLAN_VIEW,
+  isPlanLinkableRule,
+  planColumnForRule,
   planLineFromRow,
   planViewStorageKey,
   PLAN_COLUMNS,
@@ -70,5 +72,50 @@ describe('plan view preferences', () => {
   it('survives corrupt storage', () => {
     localStorage.setItem(planViewStorageKey('m1'), '{not json')
     expect(readPlanView('m1')).toEqual(DEFAULT_PLAN_VIEW)
+  })
+})
+
+describe('planColumnForRule / isPlanLinkableRule', () => {
+  const rule = (over: Record<string, unknown>) => ({
+    auto_organize_type: 'monthly',
+    interval_count: null,
+    interval_unit: null,
+    days_of_month: [5, 20],
+    auto_organize_kind: 'organize',
+    owner_member_id: null,
+    ...over,
+  })
+
+  it('maps the four Plan schedules to their columns (mirrors SQL plan_rule_runs_per_year)', () => {
+    expect(planColumnForRule(rule({}) as never)).toBe('twice_month')
+    expect(planColumnForRule(rule({ days_of_month: [0] }) as never)).toBe('month') // last day
+    expect(planColumnForRule(rule({ days_of_month: [15, 0] }) as never)).toBe('twice_month')
+    expect(
+      planColumnForRule(rule({ auto_organize_type: 'interval', interval_count: 1, interval_unit: 'week', days_of_month: null }) as never),
+    ).toBe('week')
+    expect(
+      planColumnForRule(rule({ auto_organize_type: 'interval', interval_count: 2, interval_unit: 'week', days_of_month: null }) as never),
+    ).toBe('two_weeks')
+  })
+
+  it('has no column for other schedules', () => {
+    expect(planColumnForRule(rule({ days_of_month: [1, 10, 20] }) as never)).toBeNull()
+    expect(planColumnForRule(rule({ days_of_month: [5, 5] }) as never)).toBeNull()
+    expect(planColumnForRule(rule({ days_of_month: [31] }) as never)).toBeNull() // only 7 months
+    expect(planColumnForRule(rule({ days_of_month: [0, 28] }) as never)).toBeNull() // once in February
+    expect(
+      planColumnForRule(rule({ auto_organize_type: 'interval', interval_count: 3, interval_unit: 'week', days_of_month: null }) as never),
+    ).toBeNull()
+    expect(
+      planColumnForRule(rule({ auto_organize_type: 'interval', interval_count: 1, interval_unit: 'month', days_of_month: null }) as never),
+    ).toBeNull()
+    expect(planColumnForRule(rule({ auto_organize_type: 'manual', days_of_month: null }) as never)).toBeNull()
+  })
+
+  it('links only household Auto-bucket rules on a Plan schedule', () => {
+    expect(isPlanLinkableRule(rule({}) as never)).toBe(true)
+    expect(isPlanLinkableRule(rule({ auto_organize_kind: 'top_up' }) as never)).toBe(false)
+    expect(isPlanLinkableRule(rule({ owner_member_id: 'kid' }) as never)).toBe(false)
+    expect(isPlanLinkableRule(rule({ days_of_month: [1, 2, 3] }) as never)).toBe(false)
   })
 })

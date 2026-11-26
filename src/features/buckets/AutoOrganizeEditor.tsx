@@ -17,6 +17,7 @@ import {
   AUTO_ORGANIZE_INTERVAL_START_LABEL,
   AUTO_ORGANIZE_INTERVAL_STARTED_LABEL,
   AUTO_ORGANIZE_KIND_ORGANIZE_LABEL,
+  AUTO_ORGANIZE_SET_IN_PLAN_LABEL,
   AUTO_ORGANIZE_KIND_SAVEOFF_TAB_LABEL,
   AUTO_ORGANIZE_KIND_TABS_LABEL,
   AUTO_ORGANIZE_KIND_TOPUP_TAB_LABEL,
@@ -100,9 +101,24 @@ type Props = {
   ownerMemberId?: string | null
   /** Household IANA timezone when known (from loaded auto-organize rows). */
   householdTimezone?: string | null
+  /**
+   * The Plan sets this rule's buckets and amounts (docs/PLAN.md): they show
+   * read-only, and only schedules with a Plan column are offered.
+   */
+  linkedToPlan?: boolean
+  /** Opens the Plan tab (where a linked rule's amounts are edited). */
+  onOpenPlan?: () => void
   onClose: () => void
   onSaved: () => void | Promise<void>
 }
+
+/** Schedules a Plan-linked rule may use (mirrors SQL `plan_rule_runs_per_year`). */
+const PLAN_LINKABLE_FREQUENCIES: readonly AutoOrganizeFrequencySelection[] = [
+  '1-week',
+  '2-week',
+  'monthly-once',
+  'monthly-twice',
+]
 
 const fieldInputClassName =
   'w-full rounded-lg border-0 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-500 focus:outline focus:outline-2 focus:outline-emerald-400'
@@ -130,6 +146,8 @@ export default function AutoOrganizeEditor({
   memberId,
   ownerMemberId = null,
   householdTimezone = null,
+  linkedToPlan = false,
+  onOpenPlan,
   onClose,
   onSaved,
 }: Props) {
@@ -511,7 +529,7 @@ export default function AutoOrganizeEditor({
   }
 
   async function onSubmit() {
-    if (parsedBuckets.length === 0) {
+    if (!linkedToPlan && parsedBuckets.length === 0) {
       setError(AUTO_ORGANIZE_NO_BUCKETS_ERROR)
       return
     }
@@ -549,11 +567,12 @@ export default function AutoOrganizeEditor({
       name: name.trim() || null,
       paused: initial?.paused ?? false,
       cadence: cadenceToSave,
-      lines: parsedBuckets.map(({ bucketId, amount }) => ({ bucketId, amount })),
+      lines: linkedToPlan ? [] : parsedBuckets.map(({ bucketId, amount }) => ({ bucketId, amount })),
       destinationBucketId:
         effectiveKind === 'save_off' ? destinationBucketId : null,
       ownerMemberId: initial?.owner_member_id ?? ownerMemberId,
       familyTimezone,
+      linkedToPlan,
     }
 
     setSubmitting(true)
@@ -580,7 +599,9 @@ export default function AutoOrganizeEditor({
         }
         className={fieldInputClassName}
       >
-        {AUTO_ORGANIZE_FREQUENCY_OPTIONS.map((option) => (
+        {AUTO_ORGANIZE_FREQUENCY_OPTIONS.filter(
+          (option) => !linkedToPlan || PLAN_LINKABLE_FREQUENCIES.includes(option.value),
+        ).map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -723,6 +744,32 @@ export default function AutoOrganizeEditor({
             </>
           )}
 
+          {linkedToPlan ? (
+            <div className="border-t border-zinc-800 pt-4 pb-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <FieldLabel>{bucketsSectionLabel}</FieldLabel>
+                {onOpenPlan ? (
+                  <button
+                    type="button"
+                    onClick={onOpenPlan}
+                    className="text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
+                  >
+                    {AUTO_ORGANIZE_SET_IN_PLAN_LABEL}
+                  </button>
+                ) : null}
+              </div>
+              <ul className="mt-2 space-y-1">
+                {(initial?.lines ?? []).map((line) => (
+                  <li key={line.id} className="flex justify-between gap-3 text-sm">
+                    <span className="truncate text-zinc-300">
+                      {buckets.find((b) => b.id === line.bucket_id)?.name ?? ''}
+                    </span>
+                    <span className="tabular-nums text-zinc-400">{formatMoney(Number(line.amount))}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
           <div className="border-t border-zinc-800 pt-4 pb-4">
             <FieldLabel>{bucketsSectionLabel}</FieldLabel>
             <div className="mt-2 space-y-2">
@@ -805,6 +852,7 @@ export default function AutoOrganizeEditor({
               })}
             </div>
           </div>
+          )}
 
           {effectiveKind === 'save_off' ? (
             <label className="block">

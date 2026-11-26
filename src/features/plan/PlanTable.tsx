@@ -1,6 +1,7 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import {
   PLAN_COLUMN_LABELS,
+  PLAN_LINK_BUTTON_ARIA,
   PLAN_NOTE_ICON_LABEL,
   PLAN_PAID_BY_LABELS,
   PLAN_SECTION_LABELS,
@@ -11,10 +12,22 @@ import {
   planAddLineAriaLabel,
   planCellAriaLabel,
   planLineDetailsAriaLabel,
+  planLinkedColumnAria,
 } from '@/lib/brand'
-import { lineYearlyUnits, type PlanSection, type PlanTotals } from '@/lib/planMath'
+import { cellCents, lineYearlyUnits, type PlanSection, type PlanTotals } from '@/lib/planMath'
 import { PLAN_SECTIONS, type PlanColumn, type PlanLine } from '@/lib/plan'
-import { canEditColumn, cellText, planCellButtonId, type PlanCellEdit } from './planCells'
+import { canEditColumn, cellText, formatCellCents, planCellButtonId, type PlanCellEdit } from './planCells'
+
+/** Sum of each bucket line's floored amount in one column: what a linked rule moves per run. */
+function sumPerRun(lines: readonly PlanLine[], gross: bigint, column: PlanColumn): bigint {
+  if (column === 'percent') return 0n
+  let total = 0n
+  for (const line of lines) {
+    if (line.section !== 'buckets' || !line.bucketId) continue
+    total += cellCents(lineYearlyUnits(line, gross), column)
+  }
+  return total
+}
 
 
 
@@ -40,6 +53,10 @@ interface Props {
   onOpenLine: (line: PlanLine) => void
   onAdd: (section: PlanSection) => void
   onOpenView: () => void
+  /** The column the linked Auto-bucket rule runs on (⚡), if linked. */
+  linkedColumn: PlanColumn | null
+  linkedRuleName: string | null
+  onOpenLink: () => void
 }
 
 /**
@@ -81,15 +98,29 @@ export default function PlanTable(props: Props) {
                 {PLAN_VIEW_LABEL}
               </button>
             </div>
-            {columns.map((column) => (
-              <div
-                key={column}
-                role="columnheader"
-                className={`${numCell} flex items-center justify-end text-[12px] font-semibold leading-tight text-zinc-400`}
-              >
-                <span className="whitespace-normal">{PLAN_COLUMN_LABELS[column]}</span>
-              </div>
-            ))}
+            {columns.map((column) =>
+              column === props.linkedColumn ? (
+                <div key={column} role="columnheader" className={`${cellW} flex shrink-0 items-stretch`}>
+                  <button
+                    type="button"
+                    onClick={props.onOpenLink}
+                    aria-label={planLinkedColumnAria(props.linkedRuleName ?? '', PLAN_COLUMN_LABELS[column])}
+                    className="flex w-full items-center justify-end gap-1 px-3 text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400"
+                  >
+                    <BoltIcon />
+                    <span className="whitespace-normal text-right">{PLAN_COLUMN_LABELS[column]}</span>
+                  </button>
+                </div>
+              ) : (
+                <div
+                  key={column}
+                  role="columnheader"
+                  className={`${numCell} flex items-center justify-end text-[12px] font-semibold leading-tight text-zinc-400`}
+                >
+                  <span className="whitespace-normal">{PLAN_COLUMN_LABELS[column]}</span>
+                </div>
+              ),
+            )}
           </div>
           <div role="row" className="flex min-h-11 items-stretch border-b border-zinc-700 bg-zinc-900">
             <div role="rowheader" className={`${nameCell} flex items-center bg-zinc-900 px-3 text-sm font-bold text-zinc-100`}>
@@ -114,6 +145,13 @@ export default function PlanTable(props: Props) {
               subtotal={totals.sections[section]}
               {...{ columns, gross, masked, canEdit, nameCell, numCell }}
               onAdd={props.onAdd}
+              linkedColumn={props.linkedColumn}
+              linkedRunCents={
+                section === 'buckets' && props.linkedColumn
+                  ? sumPerRun(lines, gross, props.linkedColumn)
+                  : null
+              }
+              onOpenLink={props.onOpenLink}
             />
             {lines
               .filter((line) => line.section === section)
@@ -145,9 +183,16 @@ function SectionHeader({
   nameCell,
   numCell,
   onAdd,
+  linkedColumn,
+  linkedRunCents,
+  onOpenLink,
 }: {
   section: PlanSection
   subtotal: bigint
+  linkedColumn: PlanColumn | null
+  /** In the linked column, the Buckets subtotal is the sum of per-run amounts: exactly what moves. */
+  linkedRunCents: bigint | null
+  onOpenLink: () => void
   columns: readonly PlanColumn[]
   gross: bigint
   masked: boolean
@@ -162,20 +207,39 @@ function SectionHeader({
         <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
           {PLAN_SECTION_LABELS[section]}
         </span>
-        {canEdit ? (
-          <button
-            type="button"
-            onClick={() => onAdd(section)}
-            aria-label={planAddLineAriaLabel(section)}
-            className="flex size-11 items-center justify-center rounded-lg text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
-          >
-            <PlusIcon />
-          </button>
+        {canEdit || (section === 'buckets' && linkedColumn) ? (
+          <span className="flex">
+            {section === 'buckets' ? (
+              <button
+                type="button"
+                onClick={onOpenLink}
+                aria-label={PLAN_LINK_BUTTON_ARIA}
+                className={
+                  'flex size-11 items-center justify-center rounded-lg hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ' +
+                  (linkedColumn ? 'text-emerald-300' : 'text-zinc-500')
+                }
+              >
+                <BoltIcon />
+              </button>
+            ) : null}
+            {canEdit ? (
+              <button
+                type="button"
+                onClick={() => onAdd(section)}
+                aria-label={planAddLineAriaLabel(section)}
+                className="flex size-11 items-center justify-center rounded-lg text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              >
+                <PlusIcon />
+              </button>
+            ) : null}
+          </span>
         ) : null}
       </div>
       {columns.map((column) => (
         <div key={column} role="cell" className={`${numCell} flex items-center justify-end font-bold text-zinc-200`}>
-          {cellText(subtotal, column, gross, masked)}
+          {column === linkedColumn && linkedRunCents !== null
+            ? formatCellCents(linkedRunCents, masked)
+            : cellText(subtotal, column, gross, masked)}
         </div>
       ))}
     </div>
@@ -417,6 +481,14 @@ function ColumnsIcon() {
     <svg {...iconProps} strokeWidth={1.75} className="size-4">
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M9 4v16M15 4v16" />
+    </svg>
+  )
+}
+
+function BoltIcon() {
+  return (
+    <svg {...iconProps} strokeWidth={2} className="size-3.5 shrink-0">
+      <path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
     </svg>
   )
 }

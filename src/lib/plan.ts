@@ -189,3 +189,58 @@ export function writePlanView(memberId: string, prefs: PlanViewPrefs): void {
     // private mode: the view simply isn't remembered
   }
 }
+
+// ---------------------------------------------------------------------------
+// Link to Auto-bucket (migration 116). The plan sets one household rule's
+// lines; the database keeps them in sync and refuses any other writer.
+// ---------------------------------------------------------------------------
+
+export type PlanLinkColumn = Exclude<PlanMoneyUnit, 'year'>
+
+/** The rule cadence fields that decide whether (and where) it can link. */
+export interface PlanRuleCadence {
+  auto_organize_type: string
+  interval_count: number | null
+  interval_unit: string | null
+  days_of_month: number[] | null
+}
+
+/**
+ * The Plan column a rule's schedule matches, or null when it has none
+ * (mirrors SQL `plan_rule_runs_per_year`): every week, every 2 weeks, once a
+ * month, twice a month.
+ */
+export function planColumnForRule(rule: PlanRuleCadence): PlanLinkColumn | null {
+  if (rule.auto_organize_type === 'interval' && rule.interval_unit === 'week') {
+    if (rule.interval_count === 1) return 'week'
+    if (rule.interval_count === 2) return 'two_weeks'
+  }
+  if (rule.auto_organize_type === 'monthly' && rule.days_of_month) {
+    // Days must run every month as counted: 1..28, or 0 (last day). 0 and 28
+    // land on the same date in February, so they don't make twice a month.
+    const days = rule.days_of_month
+    if (!days.every((d) => d >= 0 && d <= 28)) return null
+    if (days.length === 1) return 'month'
+    if (days.length === 2 && days[0] !== days[1] && !(days.includes(0) && days.includes(28))) return 'twice_month'
+  }
+  return null
+}
+
+/** Whether a rule can be linked: a household Auto-bucket (not top-up/save-off) on a Plan schedule. */
+export function isPlanLinkableRule(
+  rule: PlanRuleCadence & { auto_organize_kind: string; owner_member_id: string | null },
+): boolean {
+  return rule.auto_organize_kind === 'organize' && rule.owner_member_id === null && planColumnForRule(rule) !== null
+}
+
+/** The household's linked rule id, or null (also null for children, who can't read plans). */
+export async function fetchPlanRuleId(): Promise<string | null> {
+  const { data, error } = await supabase.from('plans').select('auto_organize_id').maybeSingle()
+  if (error) throw new Error(formatErrorMessage(error))
+  return data?.auto_organize_id ?? null
+}
+
+/** Link one rule (its lines then come from the plan), or unlink with null. */
+export async function linkPlanRule(ruleId: string | null): Promise<void> {
+  await rpc('link_plan_rule', { p_auto_organize_id: ruleId })
+}

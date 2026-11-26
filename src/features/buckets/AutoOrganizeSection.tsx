@@ -37,6 +37,7 @@ import {
   type AutoOrganizeWithDetails,
 } from '@/lib/autoOrganize'
 import { autoOrganizeRunNowLastRunContext } from '@/lib/autoOrganizeCadence'
+import { fetchPlanRuleId, linkPlanRule } from '@/lib/plan'
 import AutoOrganizeEditor from '@/features/buckets/AutoOrganizeEditor'
 import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import { usePostgresChanges } from '@/hooks/usePostgresChanges'
@@ -59,6 +60,8 @@ type Props = {
   refreshToken?: number
   /** When true, rendered inside Buckets page tab panel (no section divider / title). */
   embedded?: boolean
+  /** Opens the Plan tab (a Plan-linked rule's buckets are set there). */
+  onOpenPlan?: () => void
 }
 
 export default function AutoOrganizeSection({
@@ -72,6 +75,7 @@ export default function AutoOrganizeSection({
   onChanged,
   refreshToken = 0,
   embedded = false,
+  onOpenPlan,
 }: Props) {
   const { formatMoney } = useHideAmounts()
   // An admin authors the household pool; a kid authors their own scope. A
@@ -103,6 +107,8 @@ export default function AutoOrganizeSection({
   const [deleteConfirm, setDeleteConfirm] =
     useState<AutoOrganizeWithDetails | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  // The household rule the Plan links, if any (children can't read plans).
+  const [planRuleId, setPlanRuleId] = useState<string | null>(null)
 
   function rowDisplayName(row: AutoOrganizeWithDetails): string {
     return autoOrganizeDisplayName(row)
@@ -111,12 +117,16 @@ export default function AutoOrganizeSection({
   const loadRows = useCallback(async () => {
     try {
       setLoadError(null)
-      const data = await fetchAutoOrganizes()
+      const [data, linkedId] = await Promise.all([
+        fetchAutoOrganizes(),
+        isChild ? Promise.resolve(null) : fetchPlanRuleId().catch(() => null),
+      ])
       setRows(data)
+      setPlanRuleId(linkedId)
     } catch (e) {
       setLoadError(formatErrorMessage(e, 'Could not load Auto-bucket.'))
     }
-  }, [])
+  }, [isChild])
 
   useEffect(() => {
     void loadRows()
@@ -137,6 +147,10 @@ export default function AutoOrganizeSection({
             table: 'auto_organizes',
             filter: `family_id=eq.${familyId}`,
           },
+          // Linking or unlinking a rule to the Plan (PLAN chip, locked editor).
+          ...(isChild
+            ? []
+            : [{ event: '*' as const, table: 'plans', filter: `family_id=eq.${familyId}` }]),
           {
             event: '*' as const,
             table: 'auto_organize_lines',
@@ -169,6 +183,9 @@ export default function AutoOrganizeSection({
     if (!deleteConfirm) return
     setBusyId(deleteConfirm.id)
     try {
+      // Unlink first: that takes the plan's lock before the rule's (the plan
+      // sync's lock order), so this delete can't deadlock with a plan edit.
+      if (deleteConfirm.id === planRuleId) await linkPlanRule(null)
       await deleteAutoOrganize(deleteConfirm.id)
       setDeleteConfirm(null)
       await loadRows()
@@ -409,6 +426,8 @@ export default function AutoOrganizeSection({
           canAuthor={canAuthor}
           scopeOwnerId={scopeOwnerId}
           busyId={busyId}
+          linkedToPlan={row.id === planRuleId}
+          onOpenPlan={onOpenPlan}
           onEdit={() => {
             setEditing(row)
             setEditorOpen(true)
@@ -427,6 +446,15 @@ export default function AutoOrganizeSection({
         memberId={memberId}
         ownerMemberId={scopeOwnerId}
         householdTimezone={rows?.[0]?.familyTimezone ?? null}
+        linkedToPlan={editing !== null && editing.id === planRuleId}
+        onOpenPlan={
+          onOpenPlan
+            ? () => {
+                setEditorOpen(false)
+                onOpenPlan()
+              }
+            : undefined
+        }
         onClose={() => setEditorOpen(false)}
         onSaved={async () => {
           await loadRows()
