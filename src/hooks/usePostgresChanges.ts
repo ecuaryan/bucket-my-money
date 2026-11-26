@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import type {
+  RealtimeChannel,
+  RealtimePostgresChangesPayload,
+} from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
 export type PostgresChangeSpec = {
@@ -9,15 +12,19 @@ export type PostgresChangeSpec = {
   filter?: string
 }
 
+/** A change event; `new` / `old` hold the row (or just its key on DELETE). */
+export type PostgresChangePayload = RealtimePostgresChangesPayload<Record<string, unknown>>
+
 /**
  * Subscribe to Postgres changes after syncing the Realtime JWT.
- * Callers should pass a stable `channelName` and memoized `onChange`.
+ * Callers should pass a stable `channelName` and memoized `onChange`; it gets
+ * the event payload, which most callers ignore (they just reload).
  */
 export function usePostgresChanges(
   accessToken: string | null | undefined,
   channelName: string | null,
   specs: PostgresChangeSpec[],
-  onChange: () => void,
+  onChange: (payload: PostgresChangePayload) => void,
 ): void {
   const onChangeRef = useRef(onChange)
 
@@ -47,8 +54,8 @@ export function usePostgresChanges(
             table: spec.table,
             filter: spec.filter,
           },
-          () => {
-            onChangeRef.current()
+          (payload: PostgresChangePayload) => {
+            onChangeRef.current(payload)
           },
         )
       }

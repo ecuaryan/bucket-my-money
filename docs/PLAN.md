@@ -1,9 +1,8 @@
 # Plan — product & implementation spec
 
-**Status:** PR 1 (foundation) built: schema, RLS, plan RPCs and exact math
-(migration `00000000000115_plan.sql`, `src/lib/planMath.ts`,
-`tests/db/plan.test.ts`). The Plan tab (PR 2) and the Auto-bucket link (PR 3)
-are not built yet.
+**Status:** PR 1 (foundation) and PR 2 (Plan tab) built. Still to come: PR 3
+(link to Auto-bucket) and drag-to-reorder lines (the `reorder_plan_lines` RPC
+exists; new lines append to the end of their section until the UI lands).
 **One vocabulary:** customers see **Plan**; Postgres, RPCs, TypeScript and tests
 use **`plan_*`**.
 **Related:** [AUTO_ORGANIZE.md](./AUTO_ORGANIZE.md), [CONTEXT.md](../CONTEXT.md),

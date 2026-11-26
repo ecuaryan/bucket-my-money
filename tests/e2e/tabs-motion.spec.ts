@@ -78,7 +78,12 @@ test.describe('Tab motion', () => {
     await expect.poll(() => pillGap(page)).toBeLessThan(3)
 
     // Keyboard: arrows move selection and focus, and the pill follows.
+    // Admins have Plan between Buckets and Auto-bucket.
+    const plan = page.getByRole('tab', { name: 'Plan', exact: true })
     await auto.focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(plan).toHaveAttribute('aria-selected', 'true')
+    await expect(plan).toBeFocused()
     await page.keyboard.press('ArrowLeft')
     await expect(buckets).toHaveAttribute('aria-selected', 'true')
     await expect(buckets).toBeFocused()

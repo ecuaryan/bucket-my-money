@@ -498,6 +498,20 @@ scheduled **Give to a kid** (`give_money` via a future Auto-bucket `give` kind),
 
 ---
 
+### Plan (shipping)
+
+**Plan** — a household's zero-based plan for its pay: Income → Withheld →
+Take-home → Bills → Buckets, until **Unplanned** reaches $0. A spreadsheet-like
+table (every line in Weekly · Every 2 weeks · Twice a month · Monthly · Yearly · %),
+one typed amount per line, exact integer math (BigInt cents + basis points). Admins
+edit; shared members view (tab appears once a plan exists) and see the other
+person's changes flash live; children never see it. Schema `plans` / `plan_lines`
+(migration `115`), admin-only definer RPCs, no client table writes. Linking one
+Auto-bucket rule so the plan sets its amounts is the next step. Full spec:
+[docs/PLAN.md](./docs/PLAN.md).
+
+---
+
 ### Feature flags (shipped — plumbing only)
 
 **Owner-controlled, per-household feature flags** so the app owner can enable an

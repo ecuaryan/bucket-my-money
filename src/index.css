@@ -493,3 +493,24 @@ html {
 .pin-picker-poll-ring {
   animation: pin-picker-poll var(--poll-ms, 8s) linear forwards;
 }
+
+/*
+ * Plan: a row the other person just changed glows briefly, then fades
+ * (docs/PLAN.md § Lines). No animation when the user prefers reduced motion.
+ */
+@keyframes plan-row-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.plan-row-flash {
+  animation: plan-row-flash 1.6s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-row-flash {
+    animation-duration: 1ms;
+  }
+}

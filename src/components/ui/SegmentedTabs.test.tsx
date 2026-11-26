@@ -49,15 +49,19 @@ describe('SegmentedTabs icons', () => {
     }
   })
 
-  it('drops the icons with more than three tabs, so labels keep their room', () => {
+  it('stacks each icon above its label with more than three tabs, so all four fit', () => {
     renderTabs([
       opt('buckets', 'Buckets'),
+      opt('plan', 'Plan'),
       opt('auto-bucket', 'Auto-bucket'),
       opt('bank', 'Bank'),
-      opt('bitcoin', 'Bitcoin'),
     ])
     expect(tabs()).toHaveLength(4)
-    expect(host.querySelectorAll('[role="tab"] svg')).toHaveLength(0)
+    expect(tabs().map((t) => t.textContent)).toEqual(['Buckets', 'Plan', 'Auto-bucket', 'Bank'])
+    expect(host.querySelectorAll('[role="tab"] svg')).toHaveLength(4)
+    for (const tab of tabs()) {
+      expect(tab.querySelector('.flex-col')).not.toBeNull()
+    }
   })
 
   it('has an icon for every tab the app uses', () => {
