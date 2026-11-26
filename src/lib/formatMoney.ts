@@ -21,7 +21,9 @@ export function formatMoney(
 ): string {
   if (hidden) return HIDDEN_MONEY_LABEL
   if (!Number.isFinite(amount)) return HIDDEN_MONEY_LABEL
-  const cents = Math.round(amount * 100)
+  // `|| 0` turns -0 into 0, so a float sum just below zero (e.g. -1e-16)
+  // reads "$0", not "-$0".
+  const cents = Math.round(amount * 100) || 0
   const normalized = cents / 100
   if (cents % 100 === 0) return wholeDollars.format(normalized)
   return withCents.format(normalized)

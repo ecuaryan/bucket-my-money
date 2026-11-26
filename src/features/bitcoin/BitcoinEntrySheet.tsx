@@ -9,7 +9,7 @@ import {
   updateBitcoinEntry,
   type BitcoinEntryRow,
 } from '@/lib/bitcoinData'
-import { sanitizeBtcInput } from './formatBtc'
+import { btcInputValue, sanitizeBtcInput } from './formatBtc'
 
 type BitcoinEntrySheetProps = {
   kids: { id: string; name: string }[]
@@ -51,7 +51,7 @@ export default function BitcoinEntrySheet({
     entry ? String(Number(entry.usd_amount)) : '',
   )
   const [btcStr, setBtcStr] = useState(
-    entry ? String(Number(entry.btc_amount)) : '',
+    entry ? btcInputValue(Number(entry.btc_amount)) : '',
   )
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)

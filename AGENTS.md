@@ -81,7 +81,9 @@ Entry point for AI coding agents (and humans) working in this repo.
   → `auto_organize_*`); do not introduce parallel backend aliases. See
   [docs/AUTO_ORGANIZE.md § Naming](./docs/AUTO_ORGANIZE.md#naming).
 - **Money writes only via RPCs.** `move_money` and `give_money`; extend
-  `tests/db/` when changing balance logic.
+  `tests/db/` when changing balance logic. Amounts are **whole cents**: every
+  money RPC calls `assert_whole_cents(p_amount)` (a new one must too), and
+  amount inputs use `sanitizeAmountInput` (2 decimals max).
 - **No subtitles or helper text.** Cut taglines, intros, hints, and secondary
   labels; if a screen needs one to make sense, fix the layout (clear labels, live
   values or previews, disabled options, icons). Allowed: field labels, a one-line

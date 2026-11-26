@@ -20,4 +20,10 @@ describe('sanitizeAmountInput', () => {
   it('collapses extra decimal points', () => {
     expect(sanitizeAmountInput('1.2.3')).toBe('1.23')
   })
+
+  it('stops at whole cents', () => {
+    expect(sanitizeAmountInput('0.005')).toBe('0.00')
+    expect(sanitizeAmountInput('1.999')).toBe('1.99')
+    expect(sanitizeAmountInput('12.')).toBe('12.')
+  })
 })
