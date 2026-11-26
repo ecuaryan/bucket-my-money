@@ -813,6 +813,111 @@ export type Database = {
           },
         ]
       }
+      plan_lines: {
+        Row: {
+          amount_cents: number | null
+          bucket_id: string | null
+          created_at: string
+          family_id: string
+          id: string
+          name: string | null
+          notes: string | null
+          paid_by: string | null
+          percent_bp: number | null
+          plan_id: string
+          section: string
+          sort_order: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          bucket_id?: string | null
+          created_at?: string
+          family_id: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          paid_by?: string | null
+          percent_bp?: number | null
+          plan_id: string
+          section: string
+          sort_order?: number
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number | null
+          bucket_id?: string | null
+          created_at?: string
+          family_id?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          paid_by?: string | null
+          percent_bp?: number | null
+          plan_id?: string
+          section?: string
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_lines_bucket_same_family_fk"
+            columns: ["bucket_id", "family_id"]
+            isOneToOne: false
+            referencedRelation: "buckets"
+            referencedColumns: ["id", "family_id"]
+          },
+          {
+            foreignKeyName: "plan_lines_plan_family_fk"
+            columns: ["plan_id", "family_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id", "family_id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          auto_organize_id: string | null
+          created_at: string
+          family_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_organize_id?: string | null
+          created_at?: string
+          family_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_organize_id?: string | null
+          created_at?: string
+          family_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plans_rule_same_family_fk"
+            columns: ["auto_organize_id", "family_id"]
+            isOneToOne: true
+            referencedRelation: "auto_organizes"
+            referencedColumns: ["id", "family_id"]
+          },
+          {
+            foreignKeyName: "plans_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: true
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_limit_hits: {
         Row: {
           created_at: string
@@ -1277,6 +1382,19 @@ export type Database = {
       auth_family_id: { Args: never; Returns: string }
       auth_member_id: { Args: never; Returns: string }
       auth_role: { Args: never; Returns: string }
+      add_plan_line: {
+        Args: {
+          p_amount_cents?: number
+          p_bucket_id?: string
+          p_name?: string
+          p_notes?: string
+          p_paid_by?: string
+          p_percent_bp?: number
+          p_section: string
+          p_unit: string
+        }
+        Returns: string
+      }
       auto_organize_cadence_summary: {
         Args: {
           p_auto_organize_type: string
@@ -1386,6 +1504,7 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: undefined
       }
+      delete_plan_line: { Args: { p_line_id: string }; Returns: undefined }
       ensure_member_bucket_orders: { Args: never; Returns: undefined }
       family_linked_child_member_ids: { Args: never; Returns: string[] }
       format_auto_organize_day_of_month: {
@@ -1463,6 +1582,10 @@ export type Database = {
         Args: { p_ordered_bucket_ids: string[] }
         Returns: undefined
       }
+      reorder_plan_lines: {
+        Args: { p_line_ids: string[]; p_section: string }
+        Returns: undefined
+      }
       reserve_pin_attempt: {
         Args: { p_max_attempts?: number; p_member_id: string }
         Returns: {
@@ -1491,6 +1614,15 @@ export type Database = {
       run_due_auto_organizes: { Args: { p_as_of?: string }; Returns: number }
       save_bank_order: { Args: { p_keys: string[] }; Returns: undefined }
       save_bucket_layout: { Args: { p_layout: Json }; Returns: undefined }
+      set_plan_line_amount: {
+        Args: {
+          p_amount_cents?: number
+          p_line_id: string
+          p_percent_bp?: number
+          p_unit: string
+        }
+        Returns: undefined
+      }
       transaction_visible_to_caller: {
         Args: { p_transaction_id: string }
         Returns: boolean
@@ -1498,6 +1630,15 @@ export type Database = {
       trigger_scheduled_balance_refresh: { Args: never; Returns: undefined }
       update_manual_account: {
         Args: { p_account_id: string; p_amount: number; p_label: string }
+        Returns: undefined
+      }
+      update_plan_line_details: {
+        Args: {
+          p_line_id: string
+          p_name?: string
+          p_notes?: string
+          p_paid_by?: string
+        }
         Returns: undefined
       }
       update_transaction_note: {
