@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
 import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
@@ -177,16 +177,11 @@ export default function PlanTable(props: Props) {
                     type="button"
                     onClick={props.onOpenLink}
                     aria-label={planLinkedColumnAria(props.linkedRuleName ?? '', PLAN_COLUMN_LABELS[column])}
-                    className={`flex w-full items-center justify-end ${pad} text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400`}
+                    className={`flex w-full items-center justify-end gap-1 ${pad} text-[12px] font-semibold leading-tight text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-400`}
                   >
-                    {/* Inline, so the bolt sits right against the label's first line;
-                        sized to the text (1em) and centered on its capitals. */}
-                    <span className="whitespace-normal text-right">
-                      <span className="mr-1 inline-block align-[-0.15em]">
-                        <BoltIcon className="size-[1em]" />
-                      </span>
-                      {PLAN_COLUMN_LABELS[column]}
-                    </span>
+                    {/* Centered on the whole label, one line or two. */}
+                    <BoltIcon className="size-[1em]" />
+                    <FitLabel text={PLAN_COLUMN_LABELS[column]} />
                   </button>
                 </div>
               ) : (
@@ -757,6 +752,39 @@ function LockIcon() {
       <rect x="5" y="11" width="14" height="10" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </svg>
+  )
+}
+
+/**
+ * Right-aligned text that, when it wraps, is only as wide as its longest line.
+ * A wrapped box otherwise fills the column, leaving a gap between the bolt and
+ * the shorter lines.
+ */
+function FitLabel({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    const box = el?.parentElement
+    if (!el || !box) return
+    const fit = () => {
+      el.style.width = ''
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const lines = Array.from(range.getClientRects())
+      if (lines.length < 2) return
+      const left = Math.min(...lines.map((r) => r.left))
+      const right = Math.max(...lines.map((r) => r.right))
+      el.style.width = `${Math.ceil(right - left)}px`
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [text])
+  return (
+    <span ref={ref} className="min-w-0 text-right">
+      {text}
+    </span>
   )
 }
 
