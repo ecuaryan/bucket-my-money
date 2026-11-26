@@ -285,6 +285,21 @@ export async function fetchPlanRuleId(): Promise<string | null> {
   return data?.auto_organize_id ?? null
 }
 
+/** The household's plan notes, or null (also null for children, who can't read plans). */
+export async function fetchPlanNotes(): Promise<string | null> {
+  const { data, error } = await supabase.from('plans').select('notes').maybeSingle()
+  if (error) throw new Error(formatErrorMessage(error))
+  return data?.notes ?? null
+}
+
+/** Longest plan note (plans_notes_length in migration 119). */
+export const PLAN_NOTES_MAX_LENGTH = 20_000
+
+/** Replace the plan notes (admins); blank clears them. */
+export async function setPlanNotes(notes: string | null): Promise<void> {
+  await rpc('set_plan_notes', { p_notes: notes })
+}
+
 /** Link one rule (its lines then come from the plan), or unlink with null. */
 export async function linkPlanRule(ruleId: string | null): Promise<void> {
   await rpc('link_plan_rule', { p_auto_organize_id: ruleId })

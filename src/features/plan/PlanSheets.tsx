@@ -56,9 +56,10 @@ import {
   PLAN_VIEW_LABEL,
   planDeleteLineTitle,
   type PlanPaidBy,
+  PLAN_NOTES_TITLE,
 } from '@/lib/brand'
 import type { PlanSection, PlanUnit } from '@/lib/planMath'
-import { PLAN_COLUMNS, type PlanColumn, type PlanLine, type PlanViewPrefs } from '@/lib/plan'
+import { PLAN_COLUMNS, PLAN_NOTES_MAX_LENGTH, type PlanColumn, type PlanLine, type PlanViewPrefs } from '@/lib/plan'
 import { parseCellInput } from './planCells'
 
 const INPUT_CLASS =
@@ -718,5 +719,63 @@ export function PlanLinkSheet({
         onClose={() => setConfirmOpen(false)}
       />
     </>
+  )
+}
+
+/** Edit the household's plan notes: one text, saved on Save. */
+export function PlanNotesSheet({
+  notes,
+  onClose,
+  onSave,
+}: {
+  notes: string | null
+  onClose: () => void
+  /** Saves; throws to show the error in the sheet. */
+  onSave: (notes: string | null) => Promise<void>
+}) {
+  const [draft, setDraft] = useState(notes ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save() {
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave(draft.trim() ? draft : null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet open onClose={saving ? () => {} : onClose} aria-label={PLAN_NOTES_TITLE} closeOnBackdropClick={false}>
+      <SheetHeader title={PLAN_NOTES_TITLE} onClose={onClose} disabled={saving} />
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void save()
+        }}
+      >
+        <textarea
+          aria-label={PLAN_NOTES_TITLE}
+          autoFocus
+          rows={12}
+          maxLength={PLAN_NOTES_MAX_LENGTH}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className={INPUT_CLASS + ' min-h-48 resize-y leading-relaxed'}
+        />
+        {error ? (
+          <p role="alert" className={ERROR_CLASS}>
+            {error}
+          </p>
+        ) : null}
+        <button type="submit" disabled={saving} className={PRIMARY_CLASS}>
+          {saving ? PLAN_SAVING_LABEL : PLAN_SAVE_LABEL}
+        </button>
+      </form>
+    </Sheet>
   )
 }

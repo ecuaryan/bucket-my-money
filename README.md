@@ -14,7 +14,8 @@ solo or with a shared household: connect read-only bank accounts and credit
 cards, set money aside from **Unbucketed**, and see where your money is at a
 glance. Credit cards count against the number — what you see is cash minus card
 debt, so a swipe can't hide from your budget. When the balance moves, pick
-which bucket covers it.
+which bucket covers it. A zero-based **Plan** lays out the household's pay down
+to the last dollar and can fill the buckets on payday.
 
 ## Engineering highlights
 
@@ -28,7 +29,7 @@ other people's data.
 - **Multi-tenant isolation at the row level.** Every table carries a `family_id` and
   RLS policies scope every query. A kid's login can't read family balances or other
   members' data — enforced in the policies, not the UI, and tested against a real
-  local Postgres (38 database test files).
+  local Postgres (42 database test files).
 - **Layered authentication.** Email and Google sign-in (Apple supported, off by default), 4-digit PIN with atomic
   attempt counting and lockout, and WebAuthn passkeys (Face ID / Touch ID) with a PIN
   step-up. Pre-auth rate limiting lives in Postgres so it holds across Edge Function
@@ -41,17 +42,23 @@ other people's data.
   the API); I reproduced it locally, fixed it, and added regression tests. Related
   hardening: deploy-pipeline gating, PIN-reset session revocation, unlock rate limits,
   and exact WebAuthn origins.
-- **Tested and shipped like a team project.** About 960 unit tests, 300+ database
+- **Exact money math in two languages.** The Plan converts every line between
+  weekly, every-two-weeks, twice-a-month, monthly and yearly with integers only
+  (BigInt cents, basis points, true floor division), in TypeScript and in identical
+  SQL, pinned by one set of shared test vectors. A linked Auto-bucket rule is kept
+  equal to the plan by statement triggers behind a guard only the sync can pass.
+- **Tested and shipped like a team project.** About 1,060 unit tests, 370+ database
   tests and Playwright end-to-end smoke tests run in CI. Merges to `main` deploy
   automatically after CI passes: Vercel for the app, Cloudflare for the marketing
-  site, and GitHub Actions applying Supabase migrations (110+) and Edge Functions.
+  site, and GitHub Actions applying Supabase migrations (115+) and Edge Functions.
 - **Backed up and cost-capped.** A nightly GitHub Action takes a client-side-encrypted
   database dump to a private Cloudflare R2 bucket (30-day retention), restores it into
   a scratch Postgres to prove it works, and opens an issue on any failure. Size caps
   and a billing alert keep it inside the free tier.
 - **Considered product detail.** Installable offline-capable PWA, a hide-amounts
-  mode with hold-to-peek, drag-to-reorder buckets and groups, and a written voice and
-  copy guide ([docs/BRAND.md](./docs/BRAND.md)).
+  mode with hold-to-peek, drag-to-reorder buckets, groups and plan lines, a plan two
+  people edit live on their own phones, and a written voice and copy guide
+  ([docs/BRAND.md](./docs/BRAND.md)).
 
 ## Demo
 
@@ -69,16 +76,20 @@ fits your life.
 
 ## Screenshots
 
-Installable progressive web app with phone-sized UI — Buckets, History, and Kids.
+Installable progressive web app with phone-sized UI — Buckets, Plan, History, and Kids.
 Regenerate after significant UI changes ([docs/MAINTENANCE.md § PWA assets](./docs/MAINTENANCE.md#regenerating-readme--pwa-assets)).
 
 <p align="center">
-  <img src="public/screenshots/buckets.png" alt="Buckets tab — Unbucketed, emoji buckets, and Auto-bucket tabs" width="49%" />
-  <img src="public/screenshots/buckets-rebalance.png" alt="Buckets tab — negative Unbucketed rebalance signal" width="49%" />
+  <img src="public/screenshots/buckets.png" alt="Buckets tab — Unbucketed and emoji buckets in Home and Fun groups" width="49%" />
+  <img src="public/screenshots/plan.png" alt="Plan tab — two paychecks planned down to $0.00 Unplanned, linked to the Payday rule" width="49%" />
 </p>
 <p align="center">
+  <img src="public/screenshots/buckets-rebalance.png" alt="Buckets tab — negative Unbucketed rebalance signal" width="49%" />
   <img src="public/screenshots/history.png" alt="History tab — bucket moves and gives" width="49%" />
-  <img src="public/screenshots/kids.png" alt="Kids tab — virtual kid balances with Give" width="49%" />
+</p>
+<p align="center">
+  <img src="public/screenshots/kids.png" alt="Kids tab — kid balances with Give" width="49%" />
+  <img src="public/screenshots/household-picker.png" alt="Who's signing in? — a tile for each household member" width="49%" />
 </p>
 
 ## What it does
@@ -96,6 +107,10 @@ Regenerate after significant UI changes ([docs/MAINTENANCE.md § PWA assets](./d
 - **Bucket groups and hidden amounts** — organize buckets into groups, and hide every
   amount on screen with a hold-to-peek button.
 - **Auto-bucket** — scheduled or on-demand rules to set aside into buckets (`pg_cron` on hosted).
+- **Plan** — a zero-based household pay plan (income → withheld → bills → buckets,
+  until Unplanned is $0.00) in every pay rhythm side by side, with exact integer math,
+  live two-phone editing, household notes, and an optional link that sets one
+  Auto-bucket rule's amounts ([docs/PLAN.md](./docs/PLAN.md)).
 - **PWA** — offline fallback, service worker, install screenshots; session-scoped auth.
 - **Marketing site** — a static Astro landing page in `site/` at
   [bucketmymoney.com](https://bucketmymoney.com), with privacy, terms and contact pages.
@@ -124,7 +139,7 @@ Product truth and balance model: [CONTEXT.md](./CONTEXT.md).
 ```
 src/
   components/{ui,layout}/   reusable primitives + app shell
-  features/                 auth, buckets, give, kids, history, admin
+  features/                 auth, buckets, plan, give, kids, history, admin
   lib/                      supabase, auth, buckets, accounts
   hooks/                    shared React hooks
   types/                    DB types (supabase gen types)
@@ -189,6 +204,8 @@ Full command list, seed scenarios, PWA asset regen, and security checklists:
 | [CONTEXT.md](./CONTEXT.md) | Product brief, balance model, schema, security |
 | [docs/BRAND.md](./docs/BRAND.md) | Voice, Unbucketed terminology, product narrative |
 | [docs/AUTO_ORGANIZE.md](./docs/AUTO_ORGANIZE.md) | Auto-bucket feature and cron |
+| [docs/PLAN.md](./docs/PLAN.md) | Plan tab: zero-based pay plan, exact math, the Auto-bucket link |
+| [docs/CREDIT_CARDS.md](./docs/CREDIT_CARDS.md) | How card balances count against Unbucketed |
 | [docs/BANK_PROVIDERS.md](./docs/BANK_PROVIDERS.md) | SimpleFIN, Plaid and Teller provider strategy |
 | [docs/OAUTH_SIGN_IN.md](./docs/OAUTH_SIGN_IN.md) | Google / Apple sign-in setup |
 | [docs/FEATURE_FLAGS.md](./docs/FEATURE_FLAGS.md) | Owner-controlled per-household feature flags |

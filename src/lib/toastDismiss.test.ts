@@ -13,6 +13,7 @@ describe('toastDismissMode', () => {
 
   it('short success auto-dismisses', () => {
     expect(toastDismissMode('success', 'PIN saved for Alex.')).toBe('auto')
+    expect(toastDismissMode('info', 'Editing is locked. Turn it off in View.')).toBe('auto')
   })
 
   it('long success needs manual dismiss', () => {

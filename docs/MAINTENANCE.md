@@ -72,8 +72,8 @@ CI does **not** run seeds — database tests create their own fixtures.
 
 ## Regenerating README / PWA assets
 
-**When to refresh:** After any **significant UI/UX change** to Buckets, History,
-Kids, Admin, or the app shell — update **both** the install screenshots and the
+**When to refresh:** After any **significant UI/UX change** to Buckets, Plan,
+History, Kids, Admin, or the app shell — update **both** the install screenshots and the
 README demo GIF in the same PR (or immediately after) so GitHub, the PWA install
 sheet, and README readers stay in sync with the product.
 
@@ -92,7 +92,8 @@ visual hierarchy do.
 npm run pwa:gifs
 ```
 
-Resets the `pwa-gifs` seed, captures with Playwright + ffmpeg. Constants in
+Resets the `pwa-gifs` seed, captures with Playwright + ffmpeg (`brew install ffmpeg`
+first on a Mac that doesn't have it). Constants in
 [`scripts/seed/pwaDemoGifs.ts`](../scripts/seed/pwaDemoGifs.ts).
 
 **Install screenshots** (`public/screenshots/*.png`, manifest `screenshots`):
@@ -111,7 +112,11 @@ rectangles are hard-coded CSS pixels on the demo layout; adjust them if Buckets,
 Auto-bucket, or History layout shifts. Regenerating also re-saves `history.png`, so
 only commit PNGs that changed on purpose.
 
-The run also saves `public/screenshots/household-picker.png` (the `/login/family`
+The run also saves `public/screenshots/plan.png` (the Plan tab, in the manifest and
+on the marketing site): it seeds a zero-based demo plan that balances to $0.00 and
+links the Payday rule ([`scripts/seed/pwaPlan.ts`](../scripts/seed/pwaPlan.ts)), and
+sets that member's View to Compact with Every 2 weeks, Twice a month and Monthly.
+And `public/screenshots/household-picker.png` (the `/login/family`
 picker on a fresh device; marketing site only, not in the manifest). Captured at **412×915**. Bucket names and manifest entries in
 [`scripts/seed/pwaScreenshots.ts`](../scripts/seed/pwaScreenshots.ts).
 

@@ -105,7 +105,9 @@ than the window. The rest of the page stays narrow.
     shared member sees it (no **+**, no editable cells, read-only line sheets),
     so numbers can't be changed by accident. The View button shows a lock while
     it's on. It's per device, like the other View settings, and it doesn't apply
-    to the empty plan's first **Add income**.
+    to the empty plan's first **Add income**. Tapping a number while locked
+    shows one neutral toast ("Editing is locked. Turn it off in View."), at
+    most once every few seconds, so a few taps never stack toasts.
   - **Column switches** (`SwitchToggle`, like Compact), all on by default. At least one column must stay
     visible. Hiding the input's column or the ⚡ column only hides it: the line
     stays editable from any visible column.
@@ -291,6 +293,24 @@ Each total appears once, and there's no Allocated row (it's Gross − Unplanned)
 
 ---
 
+## Notes
+
+One free-text **Notes** section sits under the table, for what the table can't
+hold: what's on autopay and from which account, where the policies and papers
+are, the accounts a partner would need to know about. It's the estate-reminder
+role a spreadsheet's margin notes play, kept with the plan so the partner who
+needs it can read it.
+
+- Same access as the plan (migration `119`): admins write it
+  (`set_plan_notes`), shared members read it (RLS on `plans`), kids never see
+  it. Stored on `plans.notes`, at most 20,000 characters; blank clears it.
+- Shared members see the section only when there's a note. Admins see **Add
+  notes** until there is one, then the note with **Edit** (hidden while editing
+  is locked).
+- Plain text with line breaks, no formatting. Like line notes, it's visible to
+  shared members, so **no passwords**.
+- It updates live on both phones (realtime on `plans`).
+
 ## Link to Auto-bucket
 
 Auto-bucket stays a **standalone feature**. The link is a convenience: it ends
@@ -442,7 +462,5 @@ changes for households that never open it.
   as a monthly number.
 - Linking to more than one rule, or to cadences without a Plan column.
 - Comparing actual spending against the plan.
-- An "accounts to remember" (estate) list: the brokerages, retirement accounts
-  and wallets a partner would need to know about. It's a separate future
-  feature, and it must be visible to shared members (the partner is who it's
-  for), so it can't live in Admin.
+- A structured "accounts to remember" (estate) list. For now the plan's
+  **Notes** cover it as free text (see § Notes).

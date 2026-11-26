@@ -22,6 +22,10 @@ import {
   PLAN_LOAD_ERROR_TITLE,
   PLAN_RELOAD_ERROR,
   PLAN_TAB_LABEL,
+  PLAN_LOCKED_NOTICE,
+  PLAN_NOTES_ADD_LABEL,
+  PLAN_NOTES_EDIT_LABEL,
+  PLAN_NOTES_TITLE,
 } from '@/lib/brand'
 import { cellCents, lineYearlyUnits, planTotals, type PlanSection as Section } from '@/lib/planMath'
 import { autoOrganizeDisplayName, fetchAutoOrganizes, type AutoOrganizeWithDetails } from '@/lib/autoOrganize'
@@ -29,6 +33,7 @@ import {
   addPlanLine,
   deletePlanLine,
   fetchPlanLines,
+  fetchPlanNotes,
   fetchPlanRuleId,
   isPlanLinkableRule,
   linkPlanRule,
@@ -39,6 +44,7 @@ import {
   readPlanView,
   reorderPlanLines,
   setPlanLineAmount,
+  setPlanNotes,
   updatePlanLineDetails,
   withSectionOrder,
   writePlanView,
@@ -52,6 +58,7 @@ import {
   PlanAddLineSheet,
   PlanLineSheet,
   PlanLinkSheet,
+  PlanNotesSheet,
   PlanViewSheet,
   type AddLineValues,
   type LineDetailsValues,
@@ -79,6 +86,9 @@ interface Props {
   /** The linked rule changed (the Auto-bucket tab should reload). */
   onLinkChanged: () => void
 }
+
+/** Taps within this long of the last locked notice don't show another. */
+const LOCKED_NOTICE_GAP_MS = 4000
 
 /** The Plan tab (docs/PLAN.md). Admins edit; shared members view. */
 export default function PlanSection({
@@ -112,6 +122,8 @@ export default function PlanSection({
   const [rules, setRules] = useState<AutoOrganizeWithDetails[]>([])
   const [planRuleId, setPlanRuleId] = useState<string | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
+  const [notes, setNotes] = useState<string | null>(null)
+  const [notesOpen, setNotesOpen] = useState(false)
 
   const ownChanges = useRef(new Map<string, number>())
   const lastOwnAdd = useRef(0)
@@ -168,9 +180,14 @@ export default function PlanSection({
   // read just shows no link; it never blocks the plan.
   const loadLink = useCallback(async () => {
     try {
-      const [ruleId, allRules] = await Promise.all([fetchPlanRuleId(), fetchAutoOrganizes()])
+      const [ruleId, allRules, planNotes] = await Promise.all([
+        fetchPlanRuleId(),
+        fetchAutoOrganizes(),
+        fetchPlanNotes(),
+      ])
       setPlanRuleId(ruleId)
       setRules(allRules)
+      setNotes(planNotes)
     } catch {
       // keep what we had
     }
@@ -278,6 +295,16 @@ export default function PlanSection({
   // otherwise it would keep drag-to-reorder off everywhere.
   const liveEditing =
     editing && canEdit && (lines ?? []).some((l) => l.id === editing.lineId) ? editing : null
+
+  // Tapping a number while editing is locked says why nothing opens: once per
+  // burst of taps, not a toast per tap.
+  const lockedNoticeAt = useRef(0)
+  function showLockedNotice() {
+    const now = Date.now()
+    if (now - lockedNoticeAt.current < LOCKED_NOTICE_GAP_MS) return
+    lockedNoticeAt.current = now
+    toast.info(PLAN_LOCKED_NOTICE)
+  }
 
   function changeView(next: PlanViewPrefs) {
     setView(next)
@@ -476,6 +503,7 @@ export default function PlanSection({
           columns={columns}
           compact={view.compact}
           locked={isAdmin && view.locked}
+          onLockedTap={showLockedNotice}
           canEdit={canEdit}
           flashIds={flashIds}
           editing={liveEditing}
@@ -500,6 +528,39 @@ export default function PlanSection({
         />
       )}
 
+      {/* One household note under the plan: what the table can't hold. Shared
+          members see it when there is one; admins can always add one. */}
+      {lines.length > 0 && (notes || canEdit) ? (
+        <section
+          aria-label={PLAN_NOTES_TITLE}
+          className="mt-4 rounded-2xl bg-zinc-950 px-4 py-3 ring-1 ring-zinc-800"
+        >
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-zinc-200">{PLAN_NOTES_TITLE}</h3>
+            {canEdit && notes ? (
+              <button
+                type="button"
+                onClick={() => setNotesOpen(true)}
+                className="-mr-2 rounded-lg px-2 py-2 text-sm font-medium text-emerald-400 transition hover:text-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              >
+                {PLAN_NOTES_EDIT_LABEL}
+              </button>
+            ) : null}
+          </div>
+          {notes ? (
+            <p className="whitespace-pre-wrap break-words pb-1 text-sm leading-relaxed text-zinc-300">{notes}</p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNotesOpen(true)}
+              className="mb-1 w-full rounded-lg py-2.5 text-sm font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 transition hover:bg-zinc-800"
+            >
+              {PLAN_NOTES_ADD_LABEL}
+            </button>
+          )}
+        </section>
+      ) : null}
+
       {addSection ? (
         <PlanAddLineSheet
           key={addSection}
@@ -523,6 +584,18 @@ export default function PlanSection({
           onSave={(values) => saveDetails(openLine, values)}
           onMove={(direction) => moveLine(openLine, direction)}
           onDelete={() => removeLine(openLine)}
+        />
+      ) : null}
+
+      {notesOpen && canEdit ? (
+        <PlanNotesSheet
+          notes={notes}
+          onClose={() => setNotesOpen(false)}
+          onSave={async (next) => {
+            await setPlanNotes(next)
+            setNotes(next)
+            setNotesOpen(false)
+          }}
         />
       ) : null}
 
