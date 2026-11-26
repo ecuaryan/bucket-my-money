@@ -277,6 +277,25 @@ in `tests/db/`. Scaffolding for a family-wide checker exists but is not wired.
 - Admin role is scoped to a family, not the platform
 - Designed to support future SaaS monetization — add a `plan` field to the family record and gate features accordingly
 
+### Household limits
+Anyone can sign up, so no household can grow without bound. Each limit is far
+above real use; it exists to stop a script or runaway loop from bloating the
+database, slowing the hourly Auto-bucket run, or eating the free tier.
+
+| Per | Limit |
+| --- | --- |
+| Household | 25 members, 500 buckets (kids' included), 100 accounts, 100 Auto-bucket rules, 2,000 Bitcoin entries, 300 Plan lines |
+| Auto-bucket rule | 300 lines |
+| Member | 50 bucket groups, 20 passkeys |
+
+Enforced in the database (migration 120, `_enforce_row_limit()`): one
+statement-level trigger per table checks the count after each insert, so client
+inserts, RPCs and Edge Functions are all covered, and an insert that crosses a
+limit rolls back whole with a user-facing message (SQLSTATE `54000`). Two
+inserts racing at the limit can both pass; that's fine for a runaway guard.
+The Plan's 300-line cap lives in its own RPCs ([docs/PLAN.md](./docs/PLAN.md)).
+Tests: `tests/db/household_limits.test.ts`.
+
 ---
 
 ### Security

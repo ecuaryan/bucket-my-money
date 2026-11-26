@@ -71,6 +71,10 @@ Entry point for AI coding agents (and humans) working in this repo.
   If you touch RLS or `auth_family_id()`, re-read the SECURITY WARNING
   at the top of
   [supabase/migrations/00000000000000_initial_schema.sql](./supabase/migrations/00000000000000_initial_schema.sql).
+- **Household limits.** A new table that households add rows to gets a
+  generous per-household limit: an `_enforce_row_limit` trigger (migration 120)
+  plus a case in `tests/db/household_limits.test.ts`. See
+  [CONTEXT.md § Household limits](./CONTEXT.md#household-limits).
 - **The ledger identity is the contract.** Cash (linked banks + manual money
   sources) − credit card balances (linked or manual; see
   [docs/CREDIT_CARDS.md](./docs/CREDIT_CARDS.md)) = allocations +

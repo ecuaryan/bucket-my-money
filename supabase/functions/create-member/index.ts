@@ -72,6 +72,11 @@ Deno.serve(async (req: Request) => {
     if (insertError?.code === '23505') {
       return jsonResponse({ error: MEMBER_NAME_DUPLICATE }, 409)
     }
+    // Household limit (migration 120); the message is user-facing. The row
+    // was rolled back before any login was created.
+    if (insertError?.code === '54000') {
+      return jsonResponse({ error: insertError.message }, 409)
+    }
     return jsonResponse({ error: 'Could not create member' }, 500)
   }
 
