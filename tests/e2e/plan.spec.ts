@@ -126,3 +126,54 @@ test('linking an Auto-bucket rule: the plan sets its amounts and the editor lock
   await expect(editor).toContainText('$433.33')
   await expect(editor.locator('input[inputmode="decimal"]')).toHaveCount(0)
 })
+
+test('linking a rule to a plan with only income keeps the rule: its buckets are copied into the plan', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-link-copy')
+  const svc = serviceClient()
+  const groceries = await insertBucket(svc, family.familyId, 'Groceries', null)
+  const gas = await insertBucket(svc, family.familyId, 'Gas', null)
+  const { data: rule, error: ruleError } = await svc
+    .from('auto_organizes')
+    .insert({
+      family_id: family.familyId,
+      name: 'Payday',
+      created_by_member_id: family.adminMemberId,
+      auto_organize_type: 'monthly',
+      days_of_month: [7, 22],
+    } as never)
+    .select('id')
+    .single()
+  expect(ruleError).toBeNull()
+  const { error: linesError } = await svc.from('auto_organize_lines').insert([
+    { auto_organize_id: rule!.id, bucket_id: groceries, amount: 433.33, sort_order: 0 },
+    { auto_organize_id: rule!.id, bucket_id: gas, amount: 60, sort_order: 1 },
+  ] as never)
+  expect(linesError).toBeNull()
+
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  await page.getByRole('button', { name: 'Link to Auto-bucket' }).click()
+  await page.getByRole('dialog', { name: 'Auto-bucket' }).getByRole('combobox').selectOption({ index: 1 })
+  const confirm = page.getByRole('dialog', { name: 'Link Payday?' })
+  await expect(confirm).toContainText('Its 2 buckets and their amounts will be copied into your plan.')
+  await confirm.getByRole('button', { name: 'Link', exact: true }).click()
+
+  // The rule moves exactly what it did before, now set from the plan.
+  const linkSheet = page.getByRole('dialog', { name: 'Auto-bucket' })
+  await expect(linkSheet).toContainText('$493.33')
+  await linkSheet.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('button', { name: 'Groceries, Twice a month, $433.33' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Gas, Monthly, $120.00' })).toBeVisible()
+  const { data: lines } = await svc
+    .from('auto_organize_lines')
+    .select('bucket_id, amount')
+    .eq('auto_organize_id', rule!.id)
+    .order('sort_order')
+  expect((lines ?? []).map((l) => [l.bucket_id, Number(l.amount)])).toEqual([
+    [groceries, 433.33],
+    [gas, 60],
+  ])
+})

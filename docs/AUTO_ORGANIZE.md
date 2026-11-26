@@ -276,7 +276,9 @@ A household **Auto-bucket** rule on a weekly, every-2-weeks, monthly or
 twice-a-month schedule can be linked to the household's **Plan**
 ([PLAN.md](./PLAN.md)). While linked, the plan owns the rule's lines: the
 database re-syncs them on every plan change and schedule change and refuses any
-other write (migration `116`). The card shows a **PLAN** chip, and the editor
+other write (migration `116`). Linking a rule to a plan with no Buckets lines
+copies the rule's lines into the plan first, so the rule keeps them (migration
+`117`). The card shows a **PLAN** chip, and the editor
 shows the buckets read-only with **Set in Plan** and offers only those four
 schedules. `delete_bucket` keeps a linked rule even when it ends up with no lines.
 

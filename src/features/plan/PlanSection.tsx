@@ -237,7 +237,13 @@ export default function PlanSection({
   const linkedColumn = linkedRule ? planColumnForRule(linkedRule) : null
   const linkableRules: PlanLinkRule[] = rules
     .filter(isPlanLinkableRule)
-    .map((r) => ({ id: r.id, name: autoOrganizeDisplayName(r), cadenceSummary: r.cadenceSummary }))
+    .map((r) => ({
+      id: r.id,
+      name: autoOrganizeDisplayName(r),
+      cadenceSummary: r.cadenceSummary,
+      bucketCount: new Set(r.lines.map((l) => l.bucket_id)).size,
+    }))
+  const planBucketCount = (lines ?? []).filter((l) => l.section === 'buckets').length
   // What the linked rule moves each run: the same floors the sync writes.
   const linkedRun = { cents: 0n, count: 0 }
   if (linkedColumn) {
@@ -463,12 +469,18 @@ export default function PlanSection({
           canEdit={isAdmin}
           linked={
             linkedRule
-              ? { id: linkedRule.id, name: autoOrganizeDisplayName(linkedRule), cadenceSummary: linkedRule.cadenceSummary }
+              ? {
+                  id: linkedRule.id,
+                  name: autoOrganizeDisplayName(linkedRule),
+                  cadenceSummary: linkedRule.cadenceSummary,
+                  bucketCount: linkedRun.count,
+                }
               : null
           }
           linkableRules={linkableRules}
           eachRunText={formatCellCents(linkedRun.cents, masked)}
           bucketCount={linkedRun.count}
+          planBucketCount={planBucketCount}
           onOpenAutoBucket={() => {
             setLinkOpen(false)
             onOpenAutoBucket()
