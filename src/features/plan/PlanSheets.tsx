@@ -11,9 +11,11 @@ import {
   PLAN_BUCKET_LABEL,
   PLAN_BUCKET_NAME_LABEL,
   PLAN_BUCKET_NOTE_LABEL,
+  PLAN_CHOOSE_BUCKET_OPTION,
   PLAN_COLUMN_LABELS,
   PLAN_COLUMNS_LABEL,
   PLAN_COMPACT_LABEL,
+  PLAN_LOCK_LABEL,
   PLAN_DELETE_BUCKET_LINE_BODY,
   PLAN_DELETE_LINE_BODY,
   PLAN_DELETE_LINE_LABEL,
@@ -155,9 +157,10 @@ export function PlanAddLineSheet({
   const ids = useId()
   const isBuckets = section === 'buckets'
   const [name, setName] = useState('')
-  const [bucketChoice, setBucketChoice] = useState<string>(bucketOptions[0]?.id ?? 'new')
+  // No bucket is picked for you: Add stays off until one (or New bucket) is chosen.
+  const [bucketChoice, setBucketChoice] = useState<string>('')
   // A Buckets line's note is its bucket's: picking a bucket shows the note it has.
-  const [notes, setNotes] = useState(isBuckets ? (bucketOptions[0]?.notes ?? '') : '')
+  const [notes, setNotes] = useState('')
   const [newBucketName, setNewBucketName] = useState('')
   const [amountText, setAmountText] = useState('')
   const [unit, setUnit] = useState<PlanUnit>(DEFAULT_UNIT[section])
@@ -222,6 +225,9 @@ export function PlanAddLineSheet({
                 }}
                 className={INPUT_CLASS}
               >
+                <option value="" disabled>
+                  {PLAN_CHOOSE_BUCKET_OPTION}
+                </option>
                 {bucketOptions.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -495,10 +501,13 @@ export function PlanLineSheet({
 /** Per-person view settings: Compact and which columns show. */
 export function PlanViewSheet({
   prefs,
+  canLock,
   onChange,
   onClose,
 }: {
   prefs: PlanViewPrefs
+  /** Admins can lock their own editing on this device; shared members can't edit anyway. */
+  canLock: boolean
   onChange: (prefs: PlanViewPrefs) => void
   onClose: () => void
 }) {
@@ -514,6 +523,16 @@ export function PlanViewSheet({
   return (
     <Sheet open onClose={onClose} aria-label={PLAN_VIEW_LABEL}>
       <SheetHeader title={PLAN_VIEW_LABEL} onClose={onClose} />
+      {canLock ? (
+        <div className="flex min-h-12 items-center justify-between border-b border-zinc-800">
+          <span className="text-sm text-zinc-200">{PLAN_LOCK_LABEL}</span>
+          <SwitchToggle
+            checked={prefs.locked}
+            label={PLAN_LOCK_LABEL}
+            onChange={(locked) => onChange({ ...prefs, locked })}
+          />
+        </div>
+      ) : null}
       <div className="flex min-h-12 items-center justify-between border-b border-zinc-800">
         <span className="text-sm text-zinc-200">{PLAN_COMPACT_LABEL}</span>
         <SwitchToggle

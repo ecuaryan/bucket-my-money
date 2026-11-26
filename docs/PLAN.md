@@ -80,8 +80,15 @@ layout.
 ## The table
 
 A spreadsheet-like table. **Line names are pinned on the left** and the numbers
-scroll horizontally. **The column header and Unplanned are pinned at the top**,
-and everything else scrolls.
+scroll horizontally. **The page does all vertical scrolling**: the table has no
+vertical scroll of its own (a scroll box inside a scrolling page eats the first
+swipe on a phone). **The column header and Unplanned pin under the app bar**
+(`.sticky-below-header`, like History's dates). They sit in their own sideways
+scroller, kept in step with the body's, and the table rounds its corners with
+`overflow: clip`, which doesn't create a scroll box that would stop the pinning.
+On screens 640px and wider, the table breaks out of the app's narrow column:
+it sizes to its columns (all six fit at about 810px), centered, never wider
+than the window. The rest of the page stays narrow.
 
 ### Columns
 
@@ -94,6 +101,11 @@ and everything else scrolls.
   - **Compact** (off by default): smaller type and narrower columns, so about
     four columns fit on a phone instead of two. It stands in for pinch-zoom,
     which the app disables app-wide. Rows keep their 44px touch height.
+  - **Lock editing** (admins, off by default): the plan reads exactly as a
+    shared member sees it (no **+**, no editable cells, read-only line sheets),
+    so numbers can't be changed by accident. The View button shows a lock while
+    it's on. It's per device, like the other View settings, and it doesn't apply
+    to the empty plan's first **Add income**.
   - **Column switches** (`SwitchToggle`, like Compact), all on by default. At least one column must stay
     visible. Hiding the input's column or the ⚡ column only hides it: the line
     stays editable from any visible column.
@@ -107,9 +119,10 @@ Each line stores **one typed amount in one unit**, which can be any column. The
 admin types into whichever column fits: a bill under Monthly, a paycheck
 deduction under Twice a month, charitable giving as 10 under %.
 
-- The input cell uses the app's standard input style (`bg-zinc-950`, zinc-700
-  ring, emerald outline on focus). Calculated cells are muted text. Shared
-  members see the input value as brighter text, with no box.
+- The input value is brighter text than the calculated ones, with no box or
+  underline: every cell is editable for admins, so marking cells adds clutter,
+  but which value was typed still matters (a % line follows income; a dollar
+  line doesn't). An open cell uses the app's standard input style.
 - Tapping a calculated cell turns it into a focused input with its value
   selected, but nothing is stored until a new value is typed. Typing makes that
   column the line's input (see Math). Enter or tapping away commits.
@@ -171,7 +184,7 @@ Each total appears once, and there's no Allocated row (it's Gross − Unplanned)
   their section.
 - **Reorder (admins):** long-press a line's name and drag it within its
   section: the same gesture and hook as the Buckets list
-  (`useRowLongPressReorder`, with the table as its scroll box). A tap still
+  (`useRowLongPressReorder`; the page auto-scrolls near its edges). A tap still
   opens the line. The line sheet's **Move up** / **Move down** do the same from
   the keyboard or a screen reader. Both save through `reorder_plan_lines`; a
   linked rule's lines follow the new order.
@@ -187,7 +200,9 @@ Each total appears once, and there's no Allocated row (it's Gross − Unplanned)
 - **% lines** are a share of **total gross**. A deduction that's a percentage of
   one earner's pay should be typed as the dollar amount from that earner's stub.
 - **Buckets lines** pick a family-pool bucket with one picker whose last option
-  is **New bucket** (reuses the create-bucket sheet). One plan line per bucket.
+  is **New bucket** (reuses the create-bucket sheet). Nothing is picked at
+  first ("Choose a bucket…"), so Add stays off until a choice is made. One plan
+  line per bucket.
   **Deleting a bucket deletes its plan line** (`on delete cascade`). A bucket
   line without a bucket would be meaningless.
 - **Paid by** (Bills and Buckets lines, optional): **Autopay**, **Bill pay** or

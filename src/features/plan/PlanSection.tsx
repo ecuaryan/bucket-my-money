@@ -270,6 +270,8 @@ export default function PlanSection({
     onLinkChanged()
   }
   const columns = PLAN_COLUMNS.filter((c) => !view.hiddenColumns.includes(c))
+  // An admin who locked editing sees the plan as a shared member does.
+  const canEdit = isAdmin && !view.locked
 
   function changeView(next: PlanViewPrefs) {
     setView(next)
@@ -455,12 +457,13 @@ export default function PlanSection({
           totals={totals}
           columns={columns}
           compact={view.compact}
-          canEdit={isAdmin}
+          locked={isAdmin && view.locked}
+          canEdit={canEdit}
           flashIds={flashIds}
           editing={editing}
           lineName={lineName}
           lineHasNote={(line) => Boolean(lineNotes(line)?.trim())}
-          lineHasDetails={(line) => isAdmin || Boolean(line.paidBy) || Boolean(lineNotes(line)?.trim())}
+          lineHasDetails={(line) => canEdit || Boolean(line.paidBy) || Boolean(lineNotes(line)?.trim())}
           masked={masked}
           onStartEdit={startEdit}
           onEditText={(text) => {
@@ -495,7 +498,7 @@ export default function PlanSection({
           line={openLine}
           displayName={lineName(openLine)}
           displayNotes={lineNotes(openLine)}
-          canEdit={isAdmin}
+          canEdit={canEdit}
           canMoveUp={movedSectionIds(lines, openLine.id, 'up') !== null}
           canMoveDown={movedSectionIds(lines, openLine.id, 'down') !== null}
           onClose={() => setOpenLineId(null)}
@@ -505,11 +508,13 @@ export default function PlanSection({
         />
       ) : null}
 
-      {viewOpen ? <PlanViewSheet prefs={view} onChange={changeView} onClose={() => setViewOpen(false)} /> : null}
+      {viewOpen ? (
+        <PlanViewSheet prefs={view} canLock={isAdmin} onChange={changeView} onClose={() => setViewOpen(false)} />
+      ) : null}
 
       {linkOpen ? (
         <PlanLinkSheet
-          canEdit={isAdmin}
+          canEdit={canEdit}
           linked={
             linkedRule
               ? {
