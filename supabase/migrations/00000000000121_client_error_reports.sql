@@ -7,18 +7,20 @@
 -- client_errors); a daily workflow posts only the counts to GitHub.
 --
 -- Private by design:
---   * Anonymous: no user, member or household id, and only the day (no time)
---     is stored. The client calls as anon with no session.
---   * Scrubbed here, whatever the client sends: numbers (stack frames keep
---     their line:col), emails, ids, long tokens, URL user names, quoted text
---     and `=(...)` values are replaced before storage.
---   * Bounded: 30 reports an hour per address (the pre-auth limiter), one row
---     per error per day with a count, at most 200 rows a day, kept 30 days.
+--   * Anonymous: no user, member or household id, no time of day, no row id
+--     to line up with anything else. The client calls as anon, no session.
+--   * Scrubbed here, whatever the client sends, failing safe (when in doubt,
+--     text goes): numbers, emails, ids, long tokens and codes, URL user names,
+--     `=(...)` values, and everything from a quote to the end of its line.
+--     Kept: a stack frame's file name and line:col, React's "error #418"
+--     codes, and single-word code identifiers in single quotes ('id').
+--   * Bounded: 30 reports an hour and 40 a day per address (the pre-auth
+--     limiter), one row per error per day with a count, at most 200 rows a
+--     day, kept 30 days.
 --   * Nothing a reporter sends is ever published.
 -- =====================================================================
 
 create table public.client_errors (
-  id          bigint generated always as identity primary key,
   day         date    not null default (now() at time zone 'utc')::date,
   fingerprint text    not null,
   kind        text    not null check (kind in ('error', 'rejection', 'render')),
@@ -28,7 +30,7 @@ create table public.client_errors (
   app_version text,
   browser     text,
   stack       text,
-  unique (day, fingerprint)
+  primary key (day, fingerprint)
 );
 
 -- No client reads or writes it directly; only the definer RPC below and the
@@ -37,12 +39,16 @@ alter table public.client_errors enable row level security;
 revoke all on table public.client_errors from public, anon, authenticated;
 grant all on table public.client_errors to service_role;
 
--- 30 reports an hour per address; one session sends at most 10.
-insert into public.rate_limit_rules (endpoint, max_hits, window_seconds)
-values ('client_error', 30, 3600);
+-- Per address: 30 an hour, 40 a day (one session sends at most 10).
+insert into public.rate_limit_rules (endpoint, max_hits, window_seconds) values
+  ('client_error',     30,  3600),
+  ('client_error_day', 40, 86400);
 
--- _scrub_client_error_text(text, scrub_digits): what may be stored.
-create or replace function public._scrub_client_error_text(p_text text, p_scrub_digits boolean)
+-- _scrub_client_error_text(text, mode): what may be stored.
+--   'text'  messages and non-frame stack lines: everything below.
+--   'frame' stack frames: digits stay in the file name and the final line:col.
+--   'label' the browser label ("Safari 18 · iOS"): digits stay.
+create or replace function public._scrub_client_error_text(p_text text, p_mode text)
 returns text
 language plpgsql
 immutable
@@ -57,25 +63,30 @@ begin
   -- Control characters 1-8 mark work in progress below; none may come in.
   v := regexp_replace(v, '[\x01-\x08]', '', 'g');
   v := regexp_replace(v, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', ':id', 'g');
-  v := regexp_replace(v, '://[^/@[:space:]]+@', '://', 'g');
-  v := regexp_replace(v, '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}', '<email>', 'g');
-  -- Keys, tokens, JWTs and other long codes.
+  v := regexp_replace(v, '://[^/[:space:]]*@', '://', 'g');
+  if p_mode = 'frame' then
+    -- Safari frames are "fn@https://…", so only a real address goes here.
+    v := regexp_replace(v, '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}', '<email>', 'g');
+  else
+    v := regexp_replace(v, '[^[:space:]@＠"''“”‘’()<>]+[@＠][^[:space:]@＠"''“”‘’()<>]+', '<email>', 'g');
+  end if;
+  -- Keys, tokens, JWTs; all-capital codes.
   v := regexp_replace(v, '[A-Za-z0-9_-]{32,}(\.[A-Za-z0-9_-]+)*', '<token>', 'g');
-  -- Quoted text goes, replaced by a marker (\x05) so its own quotes can't pair
-  -- with anything later. Single quotes: a lone code identifier stays
-  -- ("reading 'id'"). So that no quote pairs with the wrong partner,
-  -- apostrophes inside words ("it's", \x04) and identifiers' quotes
-  -- (\x02, \x03) are parked first and put back last.
-  v := regexp_replace(v, '"[^"]*"|“[^”]*”|‘[^’]*’', E'\x05', 'g');
-  v := regexp_replace(v, '([[:alnum:]])''([[:alpha:]])', E'\\1\x04\\2', 'g');
-  v := regexp_replace(v, '''([A-Za-z_$][A-Za-z0-9_$.]{0,23})''', E'\x02\\1\x03', 'g');
-  v := regexp_replace(v, '''[^'']*''', E'\x05', 'g');
-  -- A quote left open (text cut short) loses everything after it.
-  v := regexp_replace(v, '[''"“‘][^''"“‘]*$', E'\x05');
-  v := regexp_replace(v, '=\([^)]*\)', '=(…)', 'g');
-  if p_scrub_digits then
-    -- Except React's production error codes ("error #418", "/errors/418").
-    v := regexp_replace(v, '(?<![0-9])(?<!error #)(?<!/errors/)[0-9]+([.,][0-9]+)*', '#', 'g');
+  v := regexp_replace(v, '\m[A-Z0-9]{6,}\M', '<code>', 'g');
+  -- Quotes, failing safe: contractions and possessives ("it's", "Sam’s") and
+  -- single-word code identifiers in single quotes ("reading 'id'") are parked
+  -- behind control characters; then everything from any other quote to the
+  -- end of its line goes, so a stray quote can never leave quoted text behind.
+  v := regexp_replace(v, '([[:alnum:]])[''’](s|t|d|m|re|ve|ll)(?![[:alpha:]])', E'\\1\x04\\2', 'g');
+  v := regexp_replace(v, '''([A-Za-z_$][A-Za-z0-9_$]{0,23})''', E'\x02\\1\x03', 'g');
+  v := regexp_replace(v, '[''"“”‘’].*$', E'\x05', 'gn');
+  v := regexp_replace(v, '=\(.*$', '=(…)', 'gn');
+  if p_mode = 'text' then
+    -- Every number, except React's production error codes.
+    v := regexp_replace(v, '(?<![0-9０-９٠-٩])(?<!error #)(?<!/errors/)[0-9０-９٠-٩]+([.,][0-9０-９٠-٩]+)*', '#', 'g');
+  elsif p_mode = 'frame' then
+    -- Every number not in the file name or the final line:col.
+    v := regexp_replace(v, '(?<![0-9])[0-9]+([.,][0-9]+)*(?![0-9])(?![A-Za-z0-9_-]*\.m?js)(?!(:[0-9]+)?\)?[[:space:]]*$)', '#', 'g');
   end if;
   v := translate(v, E'\x02\x03\x04', '''''''');
   v := replace(v, E'\x05', '"…"');
@@ -83,11 +94,11 @@ begin
 end;
 $$;
 
-revoke all on function public._scrub_client_error_text(text, boolean) from public, anon, authenticated;
+revoke all on function public._scrub_client_error_text(text, text) from public, anon, authenticated;
 
--- _scrub_client_error_stack(stack, message): stack frames ("at f (url:1:2)",
--- "f@url:1:2") keep their line and column, which locate the code; every other
--- line is scrubbed like a message. Chrome repeats the message as line one.
+-- _scrub_client_error_stack(stack, message): frame lines ("at f (url:1:2)",
+-- "f@url:1:2") in 'frame' mode, every other line in 'text' mode. Chrome
+-- repeats the message as line one.
 create or replace function public._scrub_client_error_stack(p_stack text, p_message text)
 returns text
 language sql
@@ -95,11 +106,11 @@ immutable
 set search_path = ''
 as $$
   select string_agg(
-           case when line ~ '^[[:space:]]*at [^[:space:]].*:[0-9]+:[0-9]+\)?[[:space:]]*$'
-                  or line ~ '^[^[:space:]]*@[^[:space:]]+:[0-9]+:[0-9]+[[:space:]]*$'
-                then public._scrub_client_error_text(line, false)
-                else public._scrub_client_error_text(line, true)
-           end,
+           public._scrub_client_error_text(
+             line,
+             case when line ~ '^[[:space:]]*at [^[:space:]].*:[0-9]+:[0-9]+\)?[[:space:]]*$'
+                    or line ~ '^[^[:space:]]*@[^[:space:]]+:[0-9]+:[0-9]+[[:space:]]*$'
+                  then 'frame' else 'text' end),
            E'\n' order by n)
     from regexp_split_to_table(
            -- Only a message long enough to be that copy (a short one like "x"
@@ -132,10 +143,10 @@ set search_path = ''
 as $$
 declare
   v_day         date := (now() at time zone 'utc')::date;
+  v_ip          text;
   v_message     text;
   v_stack       text;
-  v_frame       text;
-  v_route       text;
+  v_where       text;
   v_fingerprint text;
 begin
   if p_kind is null or p_kind not in ('error', 'rejection', 'render')
@@ -144,28 +155,28 @@ begin
   end if;
 
   begin
-    if not public.check_pre_auth_rate_limit(
-      'client_error',
-      public.pre_auth_client_ip(coalesce(nullif(current_setting('request.headers', true), '')::jsonb, '{}'::jsonb))
-    ) then
+    v_ip := public.pre_auth_client_ip(coalesce(nullif(current_setting('request.headers', true), '')::jsonb, '{}'::jsonb));
+    if not public.check_pre_auth_rate_limit('client_error', v_ip)
+       or not public.check_pre_auth_rate_limit('client_error_day', v_ip) then
       return;
     end if;
   exception when others then
+    raise warning 'report_client_error rate limit failed: %', sqlerrm;
     return;
   end;
 
   -- Cut every input first, so an oversized request costs no regex work.
-  v_message := left(public._scrub_client_error_text(btrim(left(p_message, 1000)), true), 300);
+  v_message := left(public._scrub_client_error_text(btrim(left(p_message, 1000)), 'text'), 300);
   v_stack := left(public._scrub_client_error_stack(left(p_stack, 8000), left(p_message, 1000)), 4000);
-  -- Routes are fixed paths (no ids or codes in them); anything else is "other".
-  v_route := case when left(p_route, 200) ~ '^/[a-z/-]*$' then left(p_route, 120) else 'other' end;
 
-  -- Same error, same place: the message plus the first frame, without the
-  -- build's chunk hash or line:col, so an error keeps its identity across deploys.
-  v_frame := substring(v_stack from '[^\n]*:[0-9]+:[0-9]+[^\n]*');
-  v_frame := regexp_replace(regexp_replace(coalesce(v_frame, ''), ':[0-9]+:[0-9]+', '', 'g'),
-                            '-[A-Za-z0-9_]{6,}(\.m?js)', '\1', 'g');
-  v_fingerprint := md5(p_kind || '|' || v_message || '|' || btrim(v_frame));
+  -- Same error, same place: the message plus the code chunk of the first frame
+  -- (its base name: no build hash, function name or line:col, which change
+  -- every deploy), else the first frame without its line:col.
+  v_where := substring(v_stack from '/([A-Za-z0-9_]+)-[A-Za-z0-9_-]{8}\.m?js');
+  if v_where is null then
+    v_where := regexp_replace(coalesce(substring(v_stack from '[^\n]*:[0-9]+:[0-9]+[^\n]*'), ''), ':[0-9]+:[0-9]+', '', 'g');
+  end if;
+  v_fingerprint := md5(p_kind || '|' || v_message || '|' || btrim(v_where));
 
   update public.client_errors
      set count = least(count + 1, 1000000)
@@ -180,9 +191,13 @@ begin
 
   insert into public.client_errors (day, fingerprint, kind, message, route, app_version, browser, stack)
   values (
-    v_day, v_fingerprint, p_kind, v_message, v_route,
-    left(regexp_replace(left(coalesce(p_app_version, ''), 100), '[^0-9A-Za-z.+-]', '', 'g'), 40),
-    left(public._scrub_client_error_text(left(p_browser, 200), false), 60),
+    v_day, v_fingerprint, p_kind, v_message,
+    -- The app's own routes only (none holds an id or code); anything else is "other".
+    case when p_route in ('/', '/login', '/login/family', '/login/forgot', '/login/reset', '/join',
+                          '/kids', '/give', '/history', '/settings', '/admin')
+         then p_route else 'other' end,
+    case when p_app_version ~ '^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$' then p_app_version end,
+    left(public._scrub_client_error_text(left(p_browser, 200), 'label'), 60),
     v_stack
   )
   on conflict (day, fingerprint) do update

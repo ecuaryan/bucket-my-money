@@ -362,19 +362,24 @@ session, and posts them off the main path to the `report_client_error` RPC
 (migration 121) as **anon with no session**, so nothing ties a report to a
 person or household.
 
-The RPC scrubs before storing, whatever the client sends: numbers (stack frames
-keep their `line:col`, React keeps its `error #418` codes), emails, ids, long
-tokens, URL user names, `=(…)` values and quoted text (a single-word code
-identifier in single quotes, like `reading 'id'`, stays). It stores the day,
-not the time; one row per error per day with a count; at most 200 rows a day;
-30 reports an hour per address (the pre-auth limiter, endpoint `client_error`);
+The RPC scrubs before storing, whatever the client sends, and fails safe (when
+in doubt, text goes): numbers, emails, ids, long tokens, all-capital codes, URL
+user names, `=(…)` values, and everything from a quote to the end of its line
+(contractions like `it's` and single-word code identifiers like `'id'` are
+kept, so a stray quote can never leave quoted text behind). Stack frames keep
+their file name and final `line:col`; React keeps its `error #418` codes.
+Routes are stored only if they are one of the app's routes (else `other`;
+**add a new route to the list in `report_client_error`**), versions only if
+they look like `1.2.3`. It stores the day, not the time, and no row id; one row
+per error per day with a count; at most 200 rows a day; 30 an hour and 40 a day
+per address (pre-auth limiter endpoints `client_error`, `client_error_day`);
 kept 30 days (`client-errors-cleanup` cron). Only the service role can read
 `client_errors`; nothing a reporter sends is ever published.
 
 **Reading them:** Supabase dashboard → Table Editor → `client_errors` (sort by
 `day`, then `count`). An error's identity (`fingerprint`) is its message and
-first stack frame without the build hash or position, so it holds across
-deploys.
+the code chunk of its first stack frame (base name, no build hash), so it holds
+across deploys.
 
 **Daily nudge:** `error-report.yml` (14:07 UTC, or **Actions → Error report →
 Run workflow**) counts yesterday's (UTC) reports with `BACKUP_DATABASE_URL` in

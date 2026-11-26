@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { coarseBrowser, isReportable } from '@/lib/errorReports'
+import { coarseBrowser, describeError, isReportable } from '@/lib/errorReports'
 
 describe('isReportable', () => {
   const ok = (error: unknown, stack = 'at f (https://app.test/assets/index.js:1:2)') =>
@@ -17,6 +17,17 @@ describe('isReportable', () => {
     expect(ok(new Error('Failed to fetch dynamically imported module: /assets/x.js'))).toBe(false)
     expect(ok(Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' }))).toBe(false)
     expect(ok(new Error('boom'), 'at x (chrome-extension://abc/content.js:1:1)')).toBe(false)
+  })
+})
+
+describe('describeError', () => {
+  it('uses an error’s message, and only the type of anything else thrown', () => {
+    expect(describeError(new TypeError('boom'))).toBe('boom')
+    expect(describeError({ message: 'from the server' })).toBe('from the server')
+    expect(describeError(['Sam Rivera', 1234])).toBe('Non-Error array thrown')
+    expect(describeError('Sam Rivera')).toBe('Non-Error string thrown')
+    expect(describeError(undefined)).toBe('Non-Error undefined thrown')
+    expect(describeError(null)).toBe('Non-Error null thrown')
   })
 })
 

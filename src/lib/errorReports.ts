@@ -1,5 +1,5 @@
 import { APP_VERSION } from '@/lib/appVersion'
-import { isNetworkError, rawErrorMessage } from '@/lib/errorMessage'
+import { isNetworkError } from '@/lib/errorMessage'
 import { resolveSupabasePublishableKey } from '@/lib/supabaseKeys'
 
 /**
@@ -70,11 +70,21 @@ export function coarseBrowser(userAgent: string): string {
   return b === 'Safari' ? `Safari ${a} · ${os}` : `${label(a)} ${b} · ${os}`
 }
 
+/**
+ * An error's own message. Anything else thrown (a string, an array, a plain
+ * object) is described by its type only: its contents could be anything.
+ */
+export function describeError(error: unknown): string {
+  const message = (error as { message?: unknown } | null)?.message
+  if (typeof message === 'string') return message
+  return `Non-Error ${error === null ? 'null' : Array.isArray(error) ? 'array' : typeof error} thrown`
+}
+
 /** Report one error. Safe to call from anywhere; never throws. */
 export function reportError(kind: ErrorReportKind, error: unknown, extraStack?: string): void {
   try {
     if (!import.meta.env.PROD) return
-    const message = rawErrorMessage(error) || String(error ?? '')
+    const message = describeError(error)
     const stack = [(error as { stack?: string } | null)?.stack ?? '', extraStack ?? '']
       .filter(Boolean)
       .join('\n')
@@ -95,13 +105,12 @@ export function reportError(kind: ErrorReportKind, error: unknown, extraStack?: 
     const apikey = resolveSupabasePublishableKey(import.meta.env)
     const send = (keepalive: boolean) =>
       fetch(url, { method: 'POST', keepalive, headers: { apikey, 'content-type': 'application/json' }, body })
-    // After the current frame. keepalive lets a report outlive a reload; a
-    // browser that refuses keepalive with a CORS preflight gets a plain send.
-    setTimeout(() => {
-      send(true)
-        .catch(() => send(false))
-        .catch(() => {})
-    }, 0)
+    // Sent now (fetch is asynchronous), so keepalive can carry a report raised
+    // just before a reload; a browser that refuses keepalive with a CORS
+    // preflight gets a plain send.
+    send(true)
+      .catch(() => send(false))
+      .catch(() => {})
   } catch {
     // Reporting must never become the error.
   }

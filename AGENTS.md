@@ -142,7 +142,8 @@ Entry point for AI coding agents (and humans) working in this repo.
   in SQL) and read in the Supabase dashboard; a daily workflow posts only the
   counts to the `Error report` issue. Never send a session, ids or user-entered
   text with a report, and never publish report text (the repo is public);
-  keep the privacy page in step. See
+  a new app route goes in `report_client_error`'s route list; keep the
+  privacy page in step. See
   [MAINTENANCE § Error reports](./docs/MAINTENANCE.md#error-reports).
 - **Auth sign-in routing.** Post-sign-out paths and email vs PIN preference
   live in [`src/lib/authNavigation.ts`](./src/lib/authNavigation.ts) and
