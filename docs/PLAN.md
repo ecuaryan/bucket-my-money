@@ -91,12 +91,15 @@ scroller, kept in step with the body's, and the table rounds its corners with
 `overflow: clip`, which doesn't create a scroll box that would stop the pinning.
 **The section being read pins its header under them** (Income, Withheld,
 Bills or Buckets, with its subtotal, **+** and ⚡). The body's sideways scroller
-can't pin to the page, so it's a copy in the header (`pinnedSectionAt`,
-`data-pinned-section`), hidden from screen readers and Tab; it covers the rows
-under it instead of pushing them (a negative bottom margin). The next section's
-header (after Buckets, the table's end) pushes it up under Unplanned px for px
-and takes its place, so one never jumps to the other. The push is set on the
-element each frame; scrolling never re-renders the table.
+can't pin to the page, so each section header has a copy laid over the body
+(`data-pinned-section`, hidden from screen readers and Tab), natively sticky
+(`.sticky-below-plan-head`, under `--plan-head-h`) inside a box that runs from
+its header to the next one's (after Buckets, the section's end). The browser
+pins it and lets the next header push it up under Unplanned px for px, with
+the scroll itself: script driving it a frame behind the scroll showed as jank
+on phones. Script only places the boxes when sizes change (a ResizeObserver,
+before paint), lets touches through a copy that isn't pinned (it sits exactly
+over its real header), and keeps every sideways scroller in step.
 On screens 640px and wider, the table breaks out of the app's narrow column:
 it sizes to its columns (all six fit at about 810px), centered, never wider
 than the window. The rest of the page stays narrow.

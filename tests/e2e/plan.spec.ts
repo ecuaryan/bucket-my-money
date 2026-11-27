@@ -428,7 +428,6 @@ test('tapping a number while editing is locked says why, in place', async ({ pag
         parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-header-h')),
     ),
   )
-  await expect(page.locator('[data-pinned-section]')).toHaveCount(0)
   const salaryMonthly = page.getByRole('row').filter({ hasText: 'Salary' }).getByRole('cell').filter({ hasText: '$10,000.00' }).first()
   const scrollY = await page.evaluate(() => window.scrollY)
   const cellTop = (await salaryMonthly.boundingBox())!.y
@@ -460,15 +459,25 @@ test('the section being read pins its header under the table header', async ({ p
   await page.getByRole('tab', { name: 'Plan' }).click()
   await expect(page.getByRole('button', { name: 'Streaming, details' })).toBeVisible()
 
-  const pinned = page.locator('[data-pinned-section]')
   const sectionRow = (section: string) =>
     page.getByRole('row').filter({ has: page.getByRole('button', { name: `Add line to ${section}` }) })
   const tableHeaderBottom = async () => {
     const box = await page.getByRole('row').filter({ hasText: 'Unplanned' }).boundingBox()
     return box!.y + box!.height
   }
-  // Scroll until a section's header sits `gap` px below the table header (the
-  // header moves with the page until it pins, so in a few steps).
+  // Every section's header has a copy over it; the one pinned is the one in
+  // the slot under the table header (`offset` < 0: pushed up by the next).
+  const pinned = () =>
+    page.evaluate(() => {
+      const base = document.querySelector('[role="table"] [role="rowgroup"]')!.getBoundingClientRect().bottom
+      for (const copy of document.querySelectorAll<HTMLElement>('[data-pinned-section]')) {
+        const box = copy.getBoundingClientRect()
+        if (box.top <= base + 0.5 && box.bottom > base + 0.5)
+          return { section: copy.dataset.pinnedSection!, offset: Math.round(box.top - base), height: box.height }
+      }
+      return null
+    })
+  const pinnedSection = async () => (await pinned())?.section ?? null
   // Wait until nothing on the page is still moving (data loading, a toast).
   const settle = () =>
     expect
@@ -479,6 +488,8 @@ test('the section being read pins its header under the table header', async ({ p
         return a.join() === b.join()
       })
       .toBe(true)
+  // Scroll until a section's header sits `gap` px below the table header (the
+  // header moves with the page until it pins, so in a few steps).
   const scrollHeaderTo = async (section: string, gap: number) => {
     await settle()
     for (let i = 0; i < 8; i += 1) {
@@ -489,69 +500,61 @@ test('the section being read pins its header under the table header', async ({ p
     throw new Error(`could not scroll ${section} into place`)
   }
   const medicareTop = async () => (await page.getByRole('button', { name: 'Medicare, details' }).boundingBox())!.y
-  await expect(pinned).toHaveCount(0)
-
-  const pushedBy = () =>
-    page.evaluate(() => {
-      const copy = document.querySelector('[data-pinned-section]')?.parentElement
-      return copy ? new DOMMatrix(getComputedStyle(copy).transform).m42 : null
-    })
+  await expect.poll(pinnedSection).toBeNull()
 
   // Withheld's header 5px short of the table header: it has pushed Income's
   // pinned header all but 5px out of the way.
   await scrollHeaderTo('Withheld', 5)
-  await expect(pinned).toHaveAttribute('data-pinned-section', 'income')
-  const incomeHeight = (await page.locator('[data-plan-body] [role=rowgroup]').first().locator('[role=row]').first().boundingBox())!.height
-  await expect.poll(pushedBy).toBeCloseTo(5 - incomeHeight, 0)
+  const income = (await pinned())!
+  expect(income.section).toBe('income')
+  expect(income.offset).toBe(Math.round(5 - income.height))
   const before = await medicareTop()
 
   // 10px on, Withheld pins, covering the rows instead of pushing them.
   await settle()
   await page.evaluate(() => window.scrollBy(0, 10))
-  await expect(pinned).toHaveAttribute('data-pinned-section', 'withheld')
+  await expect.poll(pinnedSection).toBe('withheld')
   expect(await medicareTop()).toBeCloseTo(before - 10, 0)
 
   // The copy works by touch but isn't announced twice.
   await expect(page.getByRole('button', { name: 'Add line to Withheld' })).toHaveCount(1)
-  await pinned.getByRole('button', { name: 'Add line to Withheld', includeHidden: true }).click()
+  await page.locator('[data-pinned-section="withheld"]').getByRole('button', { name: 'Add line to Withheld', includeHidden: true }).click()
   await expect(page.getByRole('dialog', { name: 'Add withholding' })).toBeVisible()
   await page.getByRole('dialog', { name: 'Add withholding' }).getByRole('button', { name: 'Close' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0) // its scroll lock is released
 
   // Bills' header arriving pushes Withheld up px for px, then takes over.
-  const pinnedHeight = (await pinned.boundingBox())!.height
+  const pinnedHeight = (await pinned())!.height
   await scrollHeaderTo('Bills', pinnedHeight - 20)
-  await expect(pinned).toHaveAttribute('data-pinned-section', 'withheld')
-  await expect.poll(pushedBy).toBeCloseTo(-20, 0)
+  expect(await pinned()).toMatchObject({ section: 'withheld', offset: -20 })
   await scrollHeaderTo('Bills', -60)
-  await expect(pinned).toHaveAttribute('data-pinned-section', 'bills')
+  expect(await pinnedSection()).toBe('bills')
 
   // The handoff, checked in the very frame each scroll paints (a check that
-  // waits sees the next frame, where a one-frame flash is already gone): the
-  // pinned header is the section the real headers say, never pushed back down
-  // over the next one, and never missing.
+  // waits sees a later frame, where a one-frame glitch is already gone): the
+  // pinned header is the section the real headers say, never over the next
+  // one, and never missing.
   const base = await tableHeaderBottom()
   const frameAfterScroll = (by: number) =>
     page.evaluate(
       ({ by, base }) =>
         new Promise<string | null>((resolve) => {
-          // After the table's own scroll listener, so in the same frame, after its measure.
           addEventListener(
             'scroll',
             () =>
               requestAnimationFrame(() => {
                 const realTop = (label: string) =>
-                  [...document.querySelectorAll(`[data-plan-body] button[aria-label="Add line to ${label}"]`)]
-                    .find((b) => !b.closest('[data-pinned-section]'))!
+                  [...document.querySelectorAll(`[data-plan-body] button[aria-label="Add line to ${label}"]`)][0]
                     .closest('[role=row]')!
                     .getBoundingClientRect().top
-                const copy = document.querySelector<HTMLElement>('[data-pinned-section]')
-                const shown = copy?.dataset.pinnedSection ?? null
+                const copy = (section: string) =>
+                  document.querySelector(`[data-pinned-section="${section}"]`)!.getBoundingClientRect()
                 const billsTop = realTop('Bills')
-                const want = billsTop < base - 0.5 ? 'bills' : 'withheld'
-                if (want === 'bills' && shown !== 'bills') return resolve(`bills at ${billsTop}, showing ${shown}`)
-                if (shown === 'withheld' && copy!.getBoundingClientRect().bottom > billsTop + 1)
-                  return resolve(`withheld over bills: ${copy!.getBoundingClientRect().bottom} > ${billsTop}`)
+                const withheld = copy('withheld')
+                const bills = copy('bills')
+                if (billsTop < base - 0.5 && Math.abs(bills.top - base) > 0.5)
+                  return resolve(`bills at ${billsTop}, its copy at ${bills.top}`)
+                if (withheld.bottom > billsTop + 0.5) return resolve(`withheld over bills: ${withheld.bottom} > ${billsTop}`)
                 resolve(null)
               }),
             { once: true },
@@ -563,7 +566,13 @@ test('the section being read pins its header under the table header', async ({ p
   await scrollHeaderTo('Bills', 4)
   for (const by of [2, 2, 2, 2, 2, 2, -2, -2, -2, -2, -2, -2, 7, -7, 7]) expect(await frameAfterScroll(by)).toBeNull()
 
+  // Sideways, the pinned copy keeps in step with the table.
+  await page.locator('[data-plan-body]').evaluate((body) => (body.scrollLeft = 120))
+  await expect
+    .poll(() => page.locator('[data-pinned-section="bills"]').evaluate((row) => row.parentElement!.parentElement!.scrollLeft))
+    .toBeCloseTo(120, 0)
+
   // Back at the top, nothing.
   await page.evaluate(() => window.scrollTo(0, 0))
-  await expect(pinned).toHaveCount(0)
+  await expect.poll(pinnedSection).toBeNull()
 })

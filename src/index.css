@@ -212,6 +212,12 @@ html {
     top: calc(var(--app-header-h, 3.5rem) + var(--toast-inset, 0px));
   }
 
+  /* A Plan section's header, pinned under the table's own (`--plan-head-h`). */
+  .sticky-below-plan-head {
+    position: sticky;
+    top: calc(var(--app-header-h, 3.5rem) + var(--toast-inset, 0px) + var(--plan-head-h, 0px));
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     /* A tab's content eases in when it is switched to. Applied only after the
        first tab switch, so opening a page never animates. The panels toggle
@@ -277,7 +283,8 @@ html {
     /* Page content eases down as the toast arrives and back up as it leaves,
        in step with the panel's own motion. */
     .toast-push-target,
-    .sticky-below-header {
+    .sticky-below-header,
+    .sticky-below-plan-head {
       transition: top 220ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
