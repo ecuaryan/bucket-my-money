@@ -1,10 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
-import { createPortal, flushSync } from 'react-dom'
+import { createPortal } from 'react-dom'
 import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
 import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
 import { GripDots } from '@/components/ui/DragHandle'
 import { prefersReducedMotion } from '@/lib/motion'
-import { pinnedSectionAt } from './pinnedSection'
 import {
   PLAN_COLUMN_LABELS,
   PLAN_LINK_BUTTON_ARIA,
@@ -105,43 +104,114 @@ export default function PlanTable(props: Props) {
     `${cellW(column)} shrink-0 ${compact ? 'px-0.5' : 'px-1'} text-right tabular-nums whitespace-nowrap`
 
   // The page scrolls vertically; the table scrolls only sideways. The header
-  // (column names + Unplanned) pins under the app bar and keeps its own
-  // sideways scroll in step with the body's.
+  // (column names + Unplanned) pins under the app bar, and the section being
+  // read pins under it until the next section's header pushes it out.
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  // The body's sideways scroll box can't pin to the page, so each section's
+  // header has a copy over the body, natively sticky inside a box that runs
+  // from its header to the next one's (the last: to the section's end). The
+  // browser pins and pushes it with the scroll itself; script only places the
+  // boxes when the layout changes, never while scrolling.
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const groupRefs = useRef(new Map<PlanSection, HTMLDivElement>())
+  const copyBoxes = useRef(new Map<PlanSection, HTMLDivElement>())
+  const copies = useRef(new Map<PlanSection, HTMLDivElement>())
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current
+    const head = headRef.current
+    if (!wrap || !head) return
+    // Before paint, and again in the same frame as any change in size.
+    const place = () => {
+      const top = wrap.getBoundingClientRect().top
+      const headers = PLAN_SECTIONS.map((section) => groupRefs.current.get(section)?.firstElementChild?.getBoundingClientRect())
+      PLAN_SECTIONS.forEach((section, i) => {
+        const box = copyBoxes.current.get(section)
+        const header = headers[i]
+        const group = groupRefs.current.get(section)
+        if (!box || !header || !group) return
+        const end = headers[i + 1]?.top ?? group.getBoundingClientRect().bottom
+        box.style.top = `${header.top - top}px`
+        box.style.height = `${end - header.top}px`
+      })
+      wrap.style.setProperty('--plan-head-h', `${head.getBoundingClientRect().height}px`)
+      settle()
+    }
+    // A copy that isn't pinned sits exactly over its real header: touches go
+    // through to the real one. (Only where taps land, never what's drawn.)
+    let frame = 0
+    const settle = () => {
+      frame = 0
+      PLAN_SECTIONS.forEach((section) => {
+        const copy = copies.current.get(section)
+        const header = groupRefs.current.get(section)?.firstElementChild
+        if (!copy || !header) return
+        const pinned = Math.abs(copy.getBoundingClientRect().top - header.getBoundingClientRect().top) > 0.5
+        copy.style.pointerEvents = pinned ? 'auto' : 'none'
+      })
+    }
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(settle)
+    }
+    place()
+    const resized = new ResizeObserver(place)
+    resized.observe(head)
+    groupRefs.current.forEach((group) => resized.observe(group))
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      resized.disconnect()
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
+
+  // Every sideways scroller (body, header, copies) keeps in step with the one
+  // being scrolled.
   useEffect(() => {
     const head = headRef.current
     const body = bodyRef.current
     if (!head || !body) return
-    // A value we set on one side fires its scroll event a frame later; skip
-    // that echo so it never drags the other side back mid-fling.
+    const scrollers = [body, head, ...copies.current.values()]
+    // A value we set on one fires its scroll event a frame later; skip that
+    // echo so it never drags the others back mid-fling.
     const echo = new WeakMap<HTMLElement, number>()
     // Sub-pixel tolerance: high-DPI screens can round scrollLeft when it's set.
     const same = (a: number | undefined, b: number) => a !== undefined && Math.abs(a - b) < 1
-    const follow = (from: HTMLElement, to: HTMLElement) => () => {
+    const follow = (from: HTMLElement) => () => {
       if (same(echo.get(from), from.scrollLeft)) {
         echo.delete(from)
         return
       }
-      if (!same(to.scrollLeft, from.scrollLeft)) {
-        echo.set(to, from.scrollLeft)
-        to.scrollLeft = from.scrollLeft
+      for (const to of scrollers) {
+        if (to !== from && !same(to.scrollLeft, from.scrollLeft)) {
+          echo.set(to, from.scrollLeft)
+          to.scrollLeft = from.scrollLeft
+        }
       }
     }
-    const onBody = follow(body, head)
-    const onHead = follow(head, body)
-    body.addEventListener('scroll', onBody, { passive: true })
-    head.addEventListener('scroll', onHead, { passive: true })
+    const listeners = scrollers.map((el) => [el, follow(el)] as const)
+    for (const [el, on] of listeners) el.addEventListener('scroll', on, { passive: true })
     return () => {
-      body.removeEventListener('scroll', onBody)
-      head.removeEventListener('scroll', onHead)
+      for (const [el, on] of listeners) el.removeEventListener('scroll', on)
     }
   }, [])
 
-  // The section being read pins its header under the table's header (as a copy
-  // in the header, since the body's sideways scroll box can't pin to the page).
-  const baseRowRef = useRef<HTMLDivElement>(null)
-  const groupRefs = useRef(new Map<PlanSection, HTMLDivElement>())
+  /** Where the pinned headers end: the table's, or the section copy pinned under it. */
+  const pinnedBottom = () => {
+    let bottom = headRef.current?.getBoundingClientRect().bottom ?? 0
+    copies.current.forEach((copy) => {
+      const box = copy.getBoundingClientRect()
+      if (box.top <= bottom + 0.5) bottom = Math.max(bottom, box.bottom)
+    })
+    return bottom
+  }
+
+  // Keyboard focus in a real section header shows it, not the copy over it.
+  const copyOver = (target: EventTarget) =>
+    PLAN_SECTIONS.map((section) =>
+      groupRefs.current.get(section)?.firstElementChild?.contains(target as Node) ? copies.current.get(section) : undefined,
+    ).find(Boolean)
 
   const sectionHeader = (section: PlanSection, pinnedCopy: boolean) => (
     <SectionHeader
@@ -180,7 +250,7 @@ export default function PlanTable(props: Props) {
         className="sticky-below-header z-20 overflow-x-auto overscroll-x-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="w-max min-w-full">
-          <div role="row" className={`relative z-[1] flex min-h-11 items-stretch border-b border-zinc-800 bg-zinc-900${rowEnd(compact)}`}>
+          <div role="row" className={`flex min-h-11 items-stretch border-b border-zinc-800 bg-zinc-900${rowEnd(compact)}`}>
             <div role="columnheader" className={`${nameCell} flex items-center bg-zinc-900 px-1.5`}>
               <button
                 type="button"
@@ -217,7 +287,7 @@ export default function PlanTable(props: Props) {
               ),
             )}
           </div>
-          <div ref={baseRowRef} role="row" className={`relative z-[1] flex min-h-11 items-stretch border-b border-zinc-700 bg-zinc-900${rowEnd(compact)}`}>
+          <div role="row" className={`flex min-h-11 items-stretch border-b border-zinc-700 bg-zinc-900${rowEnd(compact)}`}>
             <div role="rowheader" className={`${nameCell} flex items-center bg-zinc-900 px-3 text-sm font-bold text-zinc-100`}>
               {PLAN_UNPLANNED_LABEL}
             </div>
@@ -231,19 +301,17 @@ export default function PlanTable(props: Props) {
               </div>
             ))}
           </div>
-          <PinnedSectionCopy
-            headRef={headRef}
-            baseRowRef={baseRowRef}
-            groupRefs={groupRefs}
-            lines={lines}
-            columns={columns}
-            compact={compact}
-            render={(section) => sectionHeader(section, true)}
-          />
         </div>
       </div>
 
-      <div ref={bodyRef} data-plan-body="" className="overflow-x-auto overscroll-x-none">
+      <div ref={wrapRef} className="relative">
+      <div
+        ref={bodyRef}
+        data-plan-body=""
+        className="overflow-x-auto overscroll-x-none"
+        onFocus={(e) => copyOver(e.target)?.style.setProperty('visibility', 'hidden')}
+        onBlur={(e) => copyOver(e.target)?.style.removeProperty('visibility')}
+      >
         <div className="w-max min-w-full">
         {PLAN_SECTIONS.map((section) => (
           <div
@@ -261,7 +329,7 @@ export default function PlanTable(props: Props) {
               rows={lines.filter((line) => line.section === section)}
               table={props}
               boxRef={bodyRef}
-              pinnedRef={headRef}
+              pinnedBottom={pinnedBottom}
               nameCell={nameCell}
               numCell={lineCell}
             />
@@ -277,104 +345,31 @@ export default function PlanTable(props: Props) {
         <div className="h-4" />
         </div>
       </div>
+      {/* Over the body, under the table's header; only a pinned copy takes touches. */}
+      <div className="pointer-events-none absolute inset-0 z-[15]">
+        {PLAN_SECTIONS.map((section) => (
+          <div
+            key={section}
+            ref={(el) => {
+              if (el) copyBoxes.current.set(section, el)
+              else copyBoxes.current.delete(section)
+            }}
+            className="absolute inset-x-0"
+          >
+            <div
+              ref={(el) => {
+                if (el) copies.current.set(section, el)
+                else copies.current.delete(section)
+              }}
+              className="sticky-below-plan-head overflow-x-auto overscroll-x-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              <div className="w-max min-w-full">{sectionHeader(section, true)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      </div>
     </div>
-    </div>
-  )
-}
-
-/**
- * The pinned copy of the section being read (`pinnedSectionAt`). It keeps its
- * own state, so moving between sections re-renders only this row, never the
- * table, and sets the next header's push on the element each frame, so
- * scrolling re-renders nothing at all.
- */
-function PinnedSectionCopy({
-  headRef,
-  baseRowRef,
-  groupRefs,
-  lines,
-  columns,
-  compact,
-  render,
-}: {
-  headRef: RefObject<HTMLDivElement | null>
-  /** The last row of the table's header (Unplanned): the copy pins under it. */
-  baseRowRef: RefObject<HTMLDivElement | null>
-  groupRefs: RefObject<Map<PlanSection, HTMLDivElement>>
-  // What the table's layout depends on: measure again when they change.
-  lines: readonly PlanLine[]
-  columns: readonly PlanColumn[]
-  compact: boolean
-  render: (section: PlanSection) => ReactNode
-}) {
-  const rowRef = useRef<HTMLDivElement>(null)
-  const [pinned, setPinned] = useState<PlanSection | null>(null)
-  const pushedBy = useRef(0)
-  /** The section on screen (state can run ahead of what's rendered). */
-  const shown = useRef<PlanSection | null>(null)
-  const applyPush = () => {
-    const row = rowRef.current
-    if (row) row.style.transform = pushedBy.current ? `translateY(${pushedBy.current}px)` : ''
-  }
-
-  useEffect(() => {
-    let frame = 0
-    const measure = () => {
-      frame = 0
-      const pinnedBottom = baseRowRef.current?.getBoundingClientRect().bottom
-      if (pinnedBottom === undefined) return
-      const boxes = PLAN_SECTIONS.flatMap((section) => {
-        const group = groupRefs.current.get(section)
-        const header = group?.firstElementChild
-        if (!group || !header) return []
-        const head = header.getBoundingClientRect()
-        return [{ section, headerTop: head.top, headerHeight: head.height, bottom: group.getBoundingClientRect().bottom }]
-      })
-      const next = pinnedSectionAt(boxes, pinnedBottom)
-      pushedBy.current = next?.offset ?? 0
-      const section = next?.section ?? null
-      if (section === shown.current) applyPush()
-      // A new section renders now, not after this frame paints: its push and
-      // the head's margin land with it (the layout effect), so the old header
-      // never shows a frame at the new push.
-      else flushSync(() => setPinned(section))
-    }
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(measure)
-    }
-    // A toast slides the pinned header and the page (their `top`) with no scroll.
-    const onSlid = (e: TransitionEvent) => {
-      if (e.propertyName === 'top') schedule()
-    }
-    // And anything that changes the page's height (content loading above).
-    const resized = new ResizeObserver(schedule)
-    resized.observe(document.body)
-    schedule()
-    window.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule)
-    document.addEventListener('transitionend', onSlid, true)
-    return () => {
-      cancelAnimationFrame(frame)
-      resized.disconnect()
-      window.removeEventListener('scroll', schedule)
-      window.removeEventListener('resize', schedule)
-      document.removeEventListener('transitionend', onSlid, true)
-    }
-  }, [baseRowRef, groupRefs, lines, columns, compact])
-
-  // The copy covers the body instead of pushing it down.
-  useLayoutEffect(() => {
-    shown.current = pinned
-    const head = headRef.current
-    if (head) head.style.marginBottom = pinned ? `-${rowRef.current?.offsetHeight ?? 0}px` : ''
-    applyPush()
-  })
-
-  if (!pinned) return null
-  // Slides up under the rows above as the next header pushes it.
-  return (
-    <div ref={rowRef} className="relative z-0">
-      {render(pinned)}
     </div>
   )
 }
@@ -524,7 +519,7 @@ function SectionLines({
   rows,
   table,
   boxRef,
-  pinnedRef,
+  pinnedBottom,
   nameCell,
   numCell,
 }: {
@@ -533,8 +528,8 @@ function SectionLines({
   table: Props
   /** The table's sideways scroller: the drag ghost spans its visible width. */
   boxRef: RefObject<HTMLDivElement | null>
-  /** The pinned header: dragging up scrolls the page from its bottom edge. */
-  pinnedRef: RefObject<HTMLDivElement | null>
+  /** Where the pinned headers end: dragging up scrolls the page from there. */
+  pinnedBottom: () => number
   nameCell: string
   numCell: (column: PlanColumn) => string
 }) {
@@ -548,7 +543,7 @@ function SectionLines({
   const { pendingBucketId, manualDragBucketId, manualDragRowHeight, manualDragOverlay, manualDragOverIndex, getRowHandlers } =
     useRowLongPressReorder({
       listRef,
-      scrollTopInset: () => pinnedRef.current?.getBoundingClientRect().bottom ?? 0,
+      scrollTopInset: pinnedBottom,
       bucketIds: ids,
       onMoveMoney: (id) => {
         const line = rows.find((l) => l.id === id)
