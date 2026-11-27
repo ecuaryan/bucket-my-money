@@ -1,13 +1,17 @@
-import { PLAN_EDIT_BAR_FIXED_CLASS } from '@/components/layout/navLayout'
+import { PLAN_EDIT_BAR_STICKY_BOTTOM_CLASS } from '@/components/layout/navLayout'
 import { useSheetBackdropOpen } from '@/hooks/useSheetBackdropOpen'
 import { PLAN_EDIT_BAR_LABEL, PLAN_LOCK_LABEL, PLAN_REDO_LABEL, PLAN_UNDO_LABEL } from '@/lib/brand'
 
 /**
- * Floating pill over the bottom nav, centered (Peek keeps the right corner;
- * on the narrowest phones the pill moves to the left so the two never touch):
- * the lock, and while unlocked, undo and redo for typed numbers.
+ * The lock, and while unlocked, undo and redo for typed numbers. It sits in its
+ * own spot under the table and is natively sticky to the bottom of the screen,
+ * so it floats over the table while the table runs past the screen and rests
+ * in its spot at the table's end, never over what comes after. Centered (Peek
+ * keeps the right corner; on the narrowest phones it moves left so the two
+ * never touch).
  */
 export function PlanEditBar({
+  hidden,
   locked,
   canUndo,
   canRedo,
@@ -15,6 +19,8 @@ export function PlanEditBar({
   onUndo,
   onRedo,
 }: {
+  /** Out of sight but still holding its spot, so nothing below moves. */
+  hidden: boolean
   locked: boolean
   canUndo: boolean
   canRedo: boolean
@@ -24,48 +30,51 @@ export function PlanEditBar({
 }) {
   // Like Peek: out of the way while a sheet is up.
   const sheetOpen = useSheetBackdropOpen()
-  if (sheetOpen) return null
 
   return (
     <div
-      role="group"
-      aria-label={PLAN_EDIT_BAR_LABEL}
-      className={`fixed left-1/2 z-40 flex -translate-x-1/2 translate-z-0 items-center rounded-full bg-zinc-900/95 p-1 shadow-lg ring-1 ring-zinc-700 backdrop-blur max-[359px]:left-4 max-[359px]:translate-x-0 ${PLAN_EDIT_BAR_FIXED_CLASS}`}
+      className={`pointer-events-none sticky z-30 mt-3 flex justify-center max-[359px]:justify-start ${PLAN_EDIT_BAR_STICKY_BOTTOM_CLASS} ${hidden || sheetOpen ? 'invisible' : ''}`}
     >
-      <button
-        type="button"
-        aria-label={PLAN_LOCK_LABEL}
-        aria-pressed={locked}
-        onClick={onToggleLock}
-        className={`${buttonClass} ${locked ? 'bg-zinc-800 text-amber-300' : 'text-zinc-400 hover:text-zinc-200'}`}
+      <div
+        role="group"
+        aria-label={PLAN_EDIT_BAR_LABEL}
+        className="pointer-events-auto flex items-center rounded-full bg-zinc-900/95 p-1 shadow-lg ring-1 ring-zinc-700 backdrop-blur"
       >
-        {locked ? <LockIcon /> : <UnlockIcon />}
-      </button>
-      {locked ? null : (
-        <>
-          <span aria-hidden="true" className="mx-1 h-6 w-px bg-zinc-700" />
-          <button
-            type="button"
-            aria-label={PLAN_UNDO_LABEL}
-            // aria-disabled, not disabled: a tap that empties the history
-            // keeps focus on the button instead of dropping it to the page.
-            aria-disabled={!canUndo}
-            onClick={canUndo ? onUndo : undefined}
-            className={`${buttonClass} ${canUndo ? stepOn : stepOff}`}
-          >
-            <UndoIcon />
-          </button>
-          <button
-            type="button"
-            aria-label={PLAN_REDO_LABEL}
-            aria-disabled={!canRedo}
-            onClick={canRedo ? onRedo : undefined}
-            className={`${buttonClass} ${canRedo ? stepOn : stepOff}`}
-          >
-            <RedoIcon />
-          </button>
-        </>
-      )}
+        <button
+          type="button"
+          aria-label={PLAN_LOCK_LABEL}
+          aria-pressed={locked}
+          onClick={onToggleLock}
+          className={`${buttonClass} ${locked ? 'bg-zinc-800 text-amber-300' : 'text-zinc-400 hover:text-zinc-200'}`}
+        >
+          {locked ? <LockIcon /> : <UnlockIcon />}
+        </button>
+        {locked ? null : (
+          <>
+            <span aria-hidden="true" className="mx-1 h-6 w-px bg-zinc-700" />
+            <button
+              type="button"
+              aria-label={PLAN_UNDO_LABEL}
+              // aria-disabled, not disabled: a tap that empties the history
+              // keeps focus on the button instead of dropping it to the page.
+              aria-disabled={!canUndo}
+              onClick={canUndo ? onUndo : undefined}
+              className={`${buttonClass} ${canUndo ? stepOn : stepOff}`}
+            >
+              <UndoIcon />
+            </button>
+            <button
+              type="button"
+              aria-label={PLAN_REDO_LABEL}
+              aria-disabled={!canRedo}
+              onClick={canRedo ? onRedo : undefined}
+              className={`${buttonClass} ${canRedo ? stepOn : stepOff}`}
+            >
+              <RedoIcon />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }

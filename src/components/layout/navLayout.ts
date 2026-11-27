@@ -42,8 +42,8 @@ export const NAV_CENTER_MAIN_PB =
 export const PEEK_FAB_FIXED_CLASS =
   'bottom-[calc(4.75rem+max(0.5rem,env(safe-area-inset-bottom,0px)))]'
 
-/** Plan's edit pill, centered: a little higher than Peek, so it clears the nav's center bubble. */
-export const PLAN_EDIT_BAR_FIXED_CLASS =
+/** Where Plan's sticky edit pill rests: a little higher than Peek, so it clears the nav's center bubble. */
+export const PLAN_EDIT_BAR_STICKY_BOTTOM_CLASS =
   'bottom-[calc(5.25rem+max(0.5rem,env(safe-area-inset-bottom,0px)))]'
 
 export function navIconTransform(isActive: boolean, activeScale = NAV_ICON_ACTIVE_SCALE): string {

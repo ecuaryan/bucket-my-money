@@ -669,9 +669,11 @@ test('undo shows what it changed, and quick taps land in order', async ({ page }
   await expect(page.getByRole('button', { name: 'Last bill, Monthly, $130.00' })).toBeVisible()
 
   // Back at the top, undo brings the line into view and it glows.
-  await page.evaluate(() => window.scrollTo(0, 0))
   const row = page.getByRole('row').filter({ hasText: 'Last bill' })
-  await expect(row).not.toBeInViewport()
+  await expect(async () => {
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await expect(row).not.toBeInViewport({ timeout: 500 })
+  }).toPass()
   const undo = page.getByRole('group', { name: 'Plan editing' }).getByRole('button', { name: 'Undo' })
   await undo.click()
   await expect(row).toBeInViewport()

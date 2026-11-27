@@ -135,7 +135,8 @@ export default function PlanSection({
   const [addSection, setAddSection] = useState<Section | null>(null)
   const [openLineId, setOpenLineId] = useState<string | null>(null)
   const [viewOpen, setViewOpen] = useState(false)
-  const [flashIds, setFlashIds] = useState<ReadonlySet<string>>(new Set())
+  // Lines glowing now, each with a count that restarts its glow when it changes again.
+  const [flashIds, setFlashIds] = useState<ReadonlyMap<string, number>>(new Map())
   const [rules, setRules] = useState<AutoOrganizeWithDetails[]>([])
   const [planRuleId, setPlanRuleId] = useState<string | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
@@ -150,7 +151,8 @@ export default function PlanSection({
   const lastOwnAdd = useRef(0)
   const pendingFlash = useRef(new Set<string>())
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const flashTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  const flashTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const flashCount = useRef(0)
 
   // Each load (and each local write) takes a new number; a load that finishes
   // after a newer one started is dropped, so a slow read never puts an old
@@ -164,16 +166,22 @@ export default function PlanSection({
   const sectionRef = useRef<HTMLElement>(null)
 
   const flash = useCallback((id: string) => {
-    setFlashIds((prev) => new Set(prev).add(id))
-    const timer = setTimeout(() => {
-      flashTimers.current.delete(timer)
-      setFlashIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }, FLASH_MS)
-    flashTimers.current.add(timer)
+    // A line that changes again while still glowing glows afresh, for the full time.
+    flashCount.current += 1
+    const count = flashCount.current
+    setFlashIds((prev) => new Map(prev).set(id, count))
+    clearTimeout(flashTimers.current.get(id))
+    flashTimers.current.set(
+      id,
+      setTimeout(() => {
+        flashTimers.current.delete(id)
+        setFlashIds((prev) => {
+          const next = new Map(prev)
+          next.delete(id)
+          return next
+        })
+      }, FLASH_MS),
+    )
   }, [])
 
   const load = useCallback(async (): Promise<boolean> => {
@@ -229,7 +237,7 @@ export default function PlanSection({
     const timers = flashTimers.current
     return () => {
       if (reloadTimer.current) clearTimeout(reloadTimer.current)
-      for (const t of timers) clearTimeout(t)
+      for (const t of timers.values()) clearTimeout(t)
     }
   }, [])
 
@@ -583,35 +591,52 @@ export default function PlanSection({
           ) : null}
         </div>
       ) : (
-        <PlanTable
-          lines={lines}
-          totals={totals}
-          columns={columns}
-          compact={view.compact}
-          locked={isAdmin && view.locked}
-          onLockedTap={showLockedHint}
-          canEdit={canEdit}
-          flashIds={flashIds}
-          editing={liveEditing}
-          lineName={lineName}
-          lineHasNote={(line) => Boolean(lineNotes(line)?.trim())}
-          lineHasDetails={(line) => canEdit || Boolean(line.paidBy) || Boolean(lineNotes(line)?.trim())}
-          masked={masked}
-          onStartEdit={startEdit}
-          onEditText={(text) => {
-            const prev = editingRef.current
-            if (prev) setEditing({ ...prev, text, invalid: false })
-          }}
-          onCommit={(via) => void commitEdit(via)}
-          onCancel={cancelEdit}
-          onOpenLine={(line) => setOpenLineId(line.id)}
-          onReorder={(section, ids) => void reorderSection(section, ids)}
-          onAdd={setAddSection}
-          onOpenView={() => setViewOpen(true)}
-          linkedColumn={linkedColumn}
-          linkedRuleName={linkedRule ? autoOrganizeDisplayName(linkedRule) : null}
-          onOpenLink={() => setLinkOpen(true)}
-        />
+        // The table and the edit pill's own spot under it: the pill floats over
+        // the table while it runs past the screen, and parks in its spot at the
+        // table's end (native sticky), never over the notes below.
+        <div>
+          <PlanTable
+            lines={lines}
+            totals={totals}
+            columns={columns}
+            compact={view.compact}
+            locked={isAdmin && view.locked}
+            onLockedTap={showLockedHint}
+            canEdit={canEdit}
+            flashIds={flashIds}
+            editing={liveEditing}
+            lineName={lineName}
+            lineHasNote={(line) => Boolean(lineNotes(line)?.trim())}
+            lineHasDetails={(line) => canEdit || Boolean(line.paidBy) || Boolean(lineNotes(line)?.trim())}
+            masked={masked}
+            onStartEdit={startEdit}
+            onEditText={(text) => {
+              const prev = editingRef.current
+              if (prev) setEditing({ ...prev, text, invalid: false })
+            }}
+            onCommit={(via) => void commitEdit(via)}
+            onCancel={cancelEdit}
+            onOpenLine={(line) => setOpenLineId(line.id)}
+            onReorder={(section, ids) => void reorderSection(section, ids)}
+            onAdd={setAddSection}
+            onOpenView={() => setViewOpen(true)}
+            linkedColumn={linkedColumn}
+            linkedRuleName={linkedRule ? autoOrganizeDisplayName(linkedRule) : null}
+            onOpenLink={() => setLinkOpen(true)}
+          />
+          {isAdmin ? (
+            <PlanEditBar
+              // Kept in place while a cell is open, so nothing below moves.
+              hidden={Boolean(liveEditing)}
+              locked={view.locked}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onToggleLock={() => changeView({ ...view, locked: !view.locked })}
+              onUndo={() => void step('undo')}
+              onRedo={() => void step('redo')}
+            />
+          ) : null}
+        </div>
       )}
 
       {/* One household note under the plan: what the table can't hold. Shared
@@ -686,16 +711,6 @@ export default function PlanSection({
         />
       ) : null}
 
-      {isAdmin && lines.length > 0 && !liveEditing ? (
-        <PlanEditBar
-          locked={view.locked}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onToggleLock={() => changeView({ ...view, locked: !view.locked })}
-          onUndo={() => void step('undo')}
-          onRedo={() => void step('redo')}
-        />
-      ) : null}
       <p className="sr-only" aria-live="polite">
         {announcement}
       </p>

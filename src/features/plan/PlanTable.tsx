@@ -51,7 +51,8 @@ interface Props {
   columns: readonly PlanColumn[]
   compact: boolean
   canEdit: boolean
-  flashIds: ReadonlySet<string>
+  /** Lines glowing now; a new count restarts a line's glow. */
+  flashIds: ReadonlyMap<string, number>
   editing: PlanCellEdit | null
   /** Display name and notes per line (bucket lines use their bucket's). */
   lineName: (line: PlanLine) => string
@@ -589,7 +590,7 @@ function SectionLines({
             <LineRow
               key={line.id}
               line={line}
-              flash={table.flashIds.has(line.id)}
+              flash={table.flashIds.get(line.id)}
               {...table}
               drag={drag}
               nameCell={nameCell}
@@ -647,7 +648,7 @@ function LineRow({
   numCell,
 }: Props & {
   line: PlanLine
-  flash: boolean
+  flash: number | undefined
   drag: RowDrag
   nameCell: string
   numCell: (column: PlanColumn) => string
@@ -666,7 +667,7 @@ function LineRow({
       className={`relative isolate flex min-h-11 items-stretch border-b border-zinc-900 ${drag.dragging ? 'opacity-40' : ''}${rowEnd(compact)}`}
     >
       {flash ? (
-        <span aria-hidden="true" className="plan-row-flash pointer-events-none absolute inset-0 z-20 bg-emerald-500/20" />
+        <span key={flash} aria-hidden="true" className="plan-row-flash pointer-events-none absolute inset-0 z-20 bg-emerald-500/20" />
       ) : null}
       <div role="rowheader" className={`${nameCell} flex bg-zinc-950`}>
         {drag.grip === 'none' ? null : (
