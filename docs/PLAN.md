@@ -115,18 +115,35 @@ than the window. The rest of the page stays narrow.
   - **Compact** (off by default): smaller type and narrower columns, so about
     four columns fit on a phone instead of two. It stands in for pinch-zoom,
     which the app disables app-wide. Rows keep their 44px touch height.
-  - **Lock editing** (admins, off by default): the plan reads exactly as a
-    shared member sees it (no **+**, no editable cells, read-only line sheets),
-    so numbers can't be changed by accident. The household **Notes** under the
-    plan stay editable. The View button shows a lock while
-    it's on. It's per device, like the other View settings, and it doesn't apply
-    to the empty plan's first **Add income**. Tapping a number while locked
-    shows a small hint on it ("Editing is locked. Turn it off in View.", a
-    `TapHint`, like Peek's): it floats over the table, so nothing moves, and
-    goes away after a few seconds, on the next tap, or on scroll.
   - **Column switches** (`SwitchToggle`, like Compact), all on by default. At least one column must stay
     visible. Hiding the input's column or the ⚡ column only hides it: the line
     stays editable from any visible column.
+- **Edit pill** (admins, once the plan has a line): a small floating pill,
+  centered above the bottom nav (Peek keeps the right corner), out of the way
+  while a sheet or a cell is open. Left to right:
+  - **Lock editing** (off by default): the plan reads exactly as a shared
+    member sees it (no **+**, no editable cells, read-only line sheets), so
+    numbers can't be changed by accident. The household **Notes** under the
+    plan stay editable. Locked, the pill is just the lock. It's per device,
+    stored with the View settings, and it doesn't apply to the empty plan's
+    first **Add income**. Tapping a number while locked shows a small hint on
+    it ("Editing is locked. Tap the lock to unlock.", a `TapHint`, like
+    Peek's): it floats over the table, so nothing moves, and goes away after a
+    few seconds, on the next tap, or on scroll.
+  - **Undo / Redo**: step back and forward through the numbers typed into cells
+    (a unit switch counts; adds, deletes, moves and renames go
+    through their own sheets and aren't in it). Each step saves through
+    `set_plan_line_amount` like a typed number, one save at a time (quick taps
+    land in order; the plan reloads once the last is done). The changed line
+    glows and scrolls into view if it's off screen, and a screen reader hears
+    "Undid Groceries". A step whose line no longer shows the value it left (the
+    other person changed it, or the line is gone) is skipped, so undo never
+    overwrites someone else's edit, and the buttons are on only when a tap would
+    change something. A save that fails puts its step back. A new typed number
+    clears Redo. Like undo in a Google Sheet, the history is the person's own,
+    in memory only: it lasts while the app is open (moving to History and back
+    keeps it) and a reload or closing the app starts fresh. Logic in
+    `src/lib/planUndo.ts`.
 - View settings are a **per-person, per-device preference** in `localStorage`
   keyed by member, like Hide amounts (`hideAmountsStorage.ts`). They never
   change the plan, so they don't need a database table.

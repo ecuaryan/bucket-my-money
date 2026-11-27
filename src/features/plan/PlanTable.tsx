@@ -14,7 +14,6 @@ import {
   PLAN_TAKE_HOME_LABEL,
   PLAN_UNPLANNED_LABEL,
   PLAN_VIEW_LABEL,
-  PLAN_VIEW_LOCKED_ARIA,
   planAddLineAriaLabel,
   planCellAriaLabel,
   planLineDetailsAriaLabel,
@@ -255,10 +254,9 @@ export default function PlanTable(props: Props) {
               <button
                 type="button"
                 onClick={props.onOpenView}
-                aria-label={props.locked ? PLAN_VIEW_LOCKED_ARIA : undefined}
                 className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-800 px-2 text-[13px] font-semibold text-zinc-200 ring-1 ring-inset ring-zinc-700 hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
               >
-                {props.locked ? <LockIcon /> : <ColumnsIcon />}
+                <ColumnsIcon />
                 {PLAN_VIEW_LABEL}
               </button>
             </div>
@@ -894,15 +892,6 @@ function ColumnsIcon() {
     <svg {...iconProps} strokeWidth={1.75} className="size-4">
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M9 4v16M15 4v16" />
-    </svg>
-  )
-}
-
-function LockIcon() {
-  return (
-    <svg {...iconProps} strokeWidth={1.75} className="size-4">
-      <rect x="5" y="11" width="14" height="10" rx="2" />
-      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </svg>
   )
 }
