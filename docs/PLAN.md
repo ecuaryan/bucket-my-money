@@ -106,11 +106,13 @@ than the window. The rest of the page stays narrow.
     which the app disables app-wide. Rows keep their 44px touch height.
   - **Lock editing** (admins, off by default): the plan reads exactly as a
     shared member sees it (no **+**, no editable cells, read-only line sheets),
-    so numbers can't be changed by accident. The View button shows a lock while
+    so numbers can't be changed by accident. The household **Notes** under the
+    plan stay editable. The View button shows a lock while
     it's on. It's per device, like the other View settings, and it doesn't apply
     to the empty plan's first **Add income**. Tapping a number while locked
-    shows one neutral toast ("Editing is locked. Turn it off in View."), at
-    most once every few seconds, so a few taps never stack toasts.
+    shows a small hint on it ("Editing is locked. Turn it off in View.", a
+    `TapHint`, like Peek's): it floats over the table, so nothing moves, and
+    goes away after a few seconds, on the next tap, or on scroll.
   - **Column switches** (`SwitchToggle`, like Compact), all on by default. At least one column must stay
     visible. Hiding the input's column or the ⚡ column only hides it: the line
     stays editable from any visible column.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ListSkeleton } from '@/components/ui/ListSkeleton'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
+import { TapHint } from '@/components/ui/TapHint'
 import { usePostgresChanges, type PostgresChangePayload } from '@/hooks/usePostgresChanges'
 import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import { HIDDEN_MONEY_LABEL } from '@/lib/formatMoney'
@@ -87,8 +88,6 @@ interface Props {
   onLinkChanged: () => void
 }
 
-/** Taps within this long of the last locked notice don't show another. */
-const LOCKED_NOTICE_GAP_MS = 4000
 
 /** The Plan tab (docs/PLAN.md). Admins edit; shared members view. */
 export default function PlanSection({
@@ -296,14 +295,13 @@ export default function PlanSection({
   const liveEditing =
     editing && canEdit && (lines ?? []).some((l) => l.id === editing.lineId) ? editing : null
 
-  // Tapping a number while editing is locked says why nothing opens: once per
-  // burst of taps, not a toast per tap.
-  const lockedNoticeAt = useRef(0)
-  function showLockedNotice() {
-    const now = Date.now()
-    if (now - lockedNoticeAt.current < LOCKED_NOTICE_GAP_MS) return
-    lockedNoticeAt.current = now
-    toast.info(PLAN_LOCKED_NOTICE)
+  // Tapping a number while editing is locked says why nothing opens, in a hint
+  // on what was tapped. Each tap shows it fresh (the key replays its entrance).
+  const [lockedHint, setLockedHint] = useState<{ anchor: HTMLElement; key: number } | null>(null)
+  const lockedHintKey = useRef(0)
+  function showLockedHint(target: HTMLElement) {
+    lockedHintKey.current += 1
+    setLockedHint({ anchor: target, key: lockedHintKey.current })
   }
 
   function changeView(next: PlanViewPrefs) {
@@ -503,7 +501,7 @@ export default function PlanSection({
           columns={columns}
           compact={view.compact}
           locked={isAdmin && view.locked}
-          onLockedTap={showLockedNotice}
+          onLockedTap={showLockedHint}
           canEdit={canEdit}
           flashIds={flashIds}
           editing={liveEditing}
@@ -529,15 +527,16 @@ export default function PlanSection({
       )}
 
       {/* One household note under the plan: what the table can't hold. Shared
-          members see it when there is one; admins can always add one. */}
-      {lines.length > 0 && (notes || canEdit) ? (
+          members see it when there is one; admins can always add one, even with
+          editing locked (the lock guards the numbers). */}
+      {lines.length > 0 && (notes || isAdmin) ? (
         <section
           aria-label={PLAN_NOTES_TITLE}
           className="mt-4 rounded-2xl bg-zinc-950 px-4 py-3 ring-1 ring-zinc-800"
         >
           <div className="flex min-h-11 items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-zinc-200">{PLAN_NOTES_TITLE}</h3>
-            {canEdit && notes ? (
+            {isAdmin && notes ? (
               <button
                 type="button"
                 onClick={() => setNotesOpen(true)}
@@ -587,7 +586,7 @@ export default function PlanSection({
         />
       ) : null}
 
-      {notesOpen && canEdit ? (
+      {notesOpen && isAdmin ? (
         <PlanNotesSheet
           notes={notes}
           onClose={() => setNotesOpen(false)}
@@ -596,6 +595,15 @@ export default function PlanSection({
             setNotes(next)
             setNotesOpen(false)
           }}
+        />
+      ) : null}
+
+      {lockedHint && isAdmin && view.locked ? (
+        <TapHint
+          key={lockedHint.key}
+          anchor={lockedHint.anchor}
+          text={PLAN_LOCKED_NOTICE}
+          onDone={() => setLockedHint(null)}
         />
       ) : null}
 
