@@ -49,11 +49,12 @@ Entry point for AI coding agents (and humans) working in this repo.
   [CONTRIBUTING.md § Bump version](./CONTRIBUTING.md#bump-packagejson-version-on-every-pr).
 - **PR title includes the shipping version** — `v1.1.21: Short description`,
   matching the semver bumped in that PR (see CONTRIBUTING § Bump version).
-- **Do not enable auto-merge by default.** Open the PR and leave it for the repo
-  owner to review and merge — merging to `main` promotes to production (Vercel +
-  Deploy Supabase), so a human stays in the loop on every ship. Only run
-  `gh pr merge --auto --squash --delete-branch` if the owner explicitly asks for
-  it on that PR (see CONTRIBUTING § Branch workflow).
+- **Auto-merge on by default.** Right after opening a PR, run
+  `gh pr merge --auto --squash --delete-branch`. Merging to `main` promotes to
+  production (Vercel + Deploy Supabase) once CI is green, so the human in the
+  loop is the owner's go-ahead: open a PR only when the owner says to. Leave
+  auto-merge off when the owner asks to try a preview first (see CONTRIBUTING
+  § Branch workflow).
 - **Keep the privacy policy truthful.** Any change that adds a data source,
   third-party service, tracker, or newly stored user field must update
   [`site/src/pages/privacy.astro`](./site/src/pages/privacy.astro) in the same
