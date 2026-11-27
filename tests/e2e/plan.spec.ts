@@ -419,6 +419,16 @@ test('tapping a number while editing is locked says why, in place', async ({ pag
   await page.getByRole('dialog', { name: 'View' }).getByRole('switch', { name: 'Lock editing' }).click()
   await page.getByRole('dialog', { name: 'View' }).getByRole('button', { name: 'Close' }).click()
 
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // The table's top at the app bar: Salary in plain view, under no pinned header.
+  await page.evaluate(() =>
+    window.scrollBy(
+      0,
+      document.querySelector('[role="table"]')!.getBoundingClientRect().top -
+        parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-header-h')),
+    ),
+  )
+  await expect(page.locator('[data-pinned-section]')).toHaveCount(0)
   const salaryMonthly = page.getByRole('row').filter({ hasText: 'Salary' }).getByRole('cell').filter({ hasText: '$10,000.00' }).first()
   const scrollY = await page.evaluate(() => window.scrollY)
   const cellTop = (await salaryMonthly.boundingBox())!.y
@@ -481,12 +491,21 @@ test('the section being read pins its header under the table header', async ({ p
   const medicareTop = async () => (await page.getByRole('button', { name: 'Medicare, details' }).boundingBox())!.y
   await expect(pinned).toHaveCount(0)
 
-  // Withheld's header 5px short of the table header: nothing pinned yet.
+  const pushedBy = () =>
+    page.evaluate(() => {
+      const copy = document.querySelector('[data-pinned-section]')?.parentElement
+      return copy ? new DOMMatrix(getComputedStyle(copy).transform).m42 : null
+    })
+
+  // Withheld's header 5px short of the table header: it has pushed Income's
+  // pinned header all but 5px out of the way.
   await scrollHeaderTo('Withheld', 5)
-  await expect(pinned).toHaveCount(0)
+  await expect(pinned).toHaveAttribute('data-pinned-section', 'income')
+  const incomeHeight = (await page.locator('[data-plan-body] [role=rowgroup]').first().locator('[role=row]').first().boundingBox())!.height
+  await expect.poll(pushedBy).toBeCloseTo(5 - incomeHeight, 0)
   const before = await medicareTop()
 
-  // 10px on, it pins, covering the rows instead of pushing them.
+  // 10px on, Withheld pins, covering the rows instead of pushing them.
   await settle()
   await page.evaluate(() => window.scrollBy(0, 10))
   await expect(pinned).toHaveAttribute('data-pinned-section', 'withheld')
@@ -499,7 +518,11 @@ test('the section being read pins its header under the table header', async ({ p
   await page.getByRole('dialog', { name: 'Add withholding' }).getByRole('button', { name: 'Close' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0) // its scroll lock is released
 
-  // Scrolled into Bills, Bills pins.
+  // Bills' header arriving pushes Withheld up px for px, then takes over.
+  const pinnedHeight = (await pinned.boundingBox())!.height
+  await scrollHeaderTo('Bills', pinnedHeight - 20)
+  await expect(pinned).toHaveAttribute('data-pinned-section', 'withheld')
+  await expect.poll(pushedBy).toBeCloseTo(-20, 0)
   await scrollHeaderTo('Bills', -60)
   await expect(pinned).toHaveAttribute('data-pinned-section', 'bills')
 
