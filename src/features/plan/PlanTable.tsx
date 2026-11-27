@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
-import { createPortal } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
 import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
 import { GripDots } from '@/components/ui/DragHandle'
@@ -310,6 +310,8 @@ function PinnedSectionCopy({
   const rowRef = useRef<HTMLDivElement>(null)
   const [pinned, setPinned] = useState<PlanSection | null>(null)
   const pushedBy = useRef(0)
+  /** The section on screen (state can run ahead of what's rendered). */
+  const shown = useRef<PlanSection | null>(null)
   const applyPush = () => {
     const row = rowRef.current
     if (row) row.style.transform = pushedBy.current ? `translateY(${pushedBy.current}px)` : ''
@@ -330,8 +332,12 @@ function PinnedSectionCopy({
       })
       const next = pinnedSectionAt(boxes, pinnedBottom)
       pushedBy.current = next?.offset ?? 0
-      applyPush()
-      setPinned(next?.section ?? null)
+      const section = next?.section ?? null
+      if (section === shown.current) applyPush()
+      // A new section renders now, not after this frame paints: its push and
+      // the head's margin land with it (the layout effect), so the old header
+      // never shows a frame at the new push.
+      else flushSync(() => setPinned(section))
     }
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(measure)
@@ -343,7 +349,7 @@ function PinnedSectionCopy({
     // And anything that changes the page's height (content loading above).
     const resized = new ResizeObserver(schedule)
     resized.observe(document.body)
-    measure()
+    schedule()
     window.addEventListener('scroll', schedule, { passive: true })
     window.addEventListener('resize', schedule)
     document.addEventListener('transitionend', onSlid, true)
@@ -358,6 +364,7 @@ function PinnedSectionCopy({
 
   // The copy covers the body instead of pushing it down.
   useLayoutEffect(() => {
+    shown.current = pinned
     const head = headRef.current
     if (head) head.style.marginBottom = pinned ? `-${rowRef.current?.offsetHeight ?? 0}px` : ''
     applyPush()

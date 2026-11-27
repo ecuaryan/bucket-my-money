@@ -526,6 +526,43 @@ test('the section being read pins its header under the table header', async ({ p
   await scrollHeaderTo('Bills', -60)
   await expect(pinned).toHaveAttribute('data-pinned-section', 'bills')
 
+  // The handoff, checked in the very frame each scroll paints (a check that
+  // waits sees the next frame, where a one-frame flash is already gone): the
+  // pinned header is the section the real headers say, never pushed back down
+  // over the next one, and never missing.
+  const base = await tableHeaderBottom()
+  const frameAfterScroll = (by: number) =>
+    page.evaluate(
+      ({ by, base }) =>
+        new Promise<string | null>((resolve) => {
+          // After the table's own scroll listener, so in the same frame, after its measure.
+          addEventListener(
+            'scroll',
+            () =>
+              requestAnimationFrame(() => {
+                const realTop = (label: string) =>
+                  [...document.querySelectorAll(`[data-plan-body] button[aria-label="Add line to ${label}"]`)]
+                    .find((b) => !b.closest('[data-pinned-section]'))!
+                    .closest('[role=row]')!
+                    .getBoundingClientRect().top
+                const copy = document.querySelector<HTMLElement>('[data-pinned-section]')
+                const shown = copy?.dataset.pinnedSection ?? null
+                const billsTop = realTop('Bills')
+                const want = billsTop < base - 0.5 ? 'bills' : 'withheld'
+                if (want === 'bills' && shown !== 'bills') return resolve(`bills at ${billsTop}, showing ${shown}`)
+                if (shown === 'withheld' && copy!.getBoundingClientRect().bottom > billsTop + 1)
+                  return resolve(`withheld over bills: ${copy!.getBoundingClientRect().bottom} > ${billsTop}`)
+                resolve(null)
+              }),
+            { once: true },
+          )
+          scrollBy(0, by)
+        }),
+      { by, base },
+    )
+  await scrollHeaderTo('Bills', 4)
+  for (const by of [2, 2, 2, 2, 2, 2, -2, -2, -2, -2, -2, -2, 7, -7, 7]) expect(await frameAfterScroll(by)).toBeNull()
+
   // Back at the top, nothing.
   await page.evaluate(() => window.scrollTo(0, 0))
   await expect(pinned).toHaveCount(0)
