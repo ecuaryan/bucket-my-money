@@ -335,6 +335,15 @@ test('an admin can lock editing on this device, and unlock it', async ({ page })
   await expect(page.getByRole('button', { name: /^Salary, Monthly/ })).toHaveCount(0)
   await expect(page.getByRole('row').filter({ hasText: 'Salary' })).toContainText('$10,000.00')
   await expect(page.getByRole('table').locator('[data-reorder-grip]')).toHaveCount(0)
+  // The household notes under the plan stay editable.
+  const notes = page.getByRole('region', { name: 'Notes' })
+  await notes.getByRole('button', { name: 'Add notes' }).click()
+  const notesSheet = page.getByRole('dialog', { name: 'Notes' })
+  await notesSheet.getByRole('textbox', { name: 'Notes' }).fill('Written while locked')
+  await notesSheet.getByRole('button', { name: 'Save' }).click()
+  await expect(notesSheet).toBeHidden()
+  await expect(notes).toContainText('Written while locked')
+  await expect(notes.getByRole('button', { name: 'Edit' })).toBeVisible()
 
   // It stays locked after a reload (a per-device preference).
   await page.reload()
@@ -400,7 +409,7 @@ test('household notes under the plan: admins write, shared members read', async 
   await memberCtx.close()
 })
 
-test('tapping a number while editing is locked says why, once per burst', async ({ page }) => {
+test('tapping a number while editing is locked says why, in place', async ({ page }) => {
   const family = await createAdminFamily('e2e-plan-locked-tap')
   await signIn(page, family.adminEmail, family.adminPassword)
   const admin = await userClient(family.adminEmail, family.adminPassword)
@@ -411,10 +420,21 @@ test('tapping a number while editing is locked says why, once per burst', async 
   await page.getByRole('dialog', { name: 'View' }).getByRole('button', { name: 'Close' }).click()
 
   const salaryMonthly = page.getByRole('row').filter({ hasText: 'Salary' }).getByRole('cell').filter({ hasText: '$10,000.00' }).first()
+  const scrollY = await page.evaluate(() => window.scrollY)
+  const cellTop = (await salaryMonthly.boundingBox())!.y
   await salaryMonthly.click()
-  await expect(page.getByRole('status').filter({ hasText: 'Editing is locked. Turn it off in View.' })).toBeVisible()
+  const hint = page.getByRole('status').filter({ hasText: 'Editing is locked. Turn it off in View.' })
+  await expect(hint).toBeVisible()
+  // On the cell, and nothing moved (a toast would push the page down).
+  const hintBox = (await hint.boundingBox())!
+  expect(Math.abs(hintBox.y + hintBox.height - cellTop)).toBeLessThan(20)
+  expect((await salaryMonthly.boundingBox())!.y).toBe(cellTop)
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
+  // Taps never stack hints; one elsewhere dismisses it.
   await salaryMonthly.click()
   await salaryMonthly.click()
-  await expect(page.getByRole('status').filter({ hasText: 'Editing is locked' })).toHaveCount(1)
+  await expect(hint).toHaveCount(1)
   await expect(page.getByRole('textbox')).toHaveCount(0)
+  await page.getByRole('heading', { name: 'Notes' }).click()
+  await expect(hint).toHaveCount(0)
 })
