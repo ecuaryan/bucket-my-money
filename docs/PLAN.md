@@ -118,9 +118,13 @@ than the window. The rest of the page stays narrow.
   - **Column switches** (`SwitchToggle`, like Compact), all on by default. At least one column must stay
     visible. Hiding the input's column or the ⚡ column only hides it: the line
     stays editable from any visible column.
-- **Edit pill** (admins, once the plan has a line): a small floating pill,
-  centered above the bottom nav (Peek keeps the right corner), out of the way
-  while a sheet or a cell is open. Left to right:
+- **Edit pill** (admins, once the plan has a line): a small pill with its own
+  spot just under the table. It's natively sticky (`position: sticky`) to just
+  above the bottom nav, so it floats over the table while the table runs past
+  the screen, and rests in its spot at the table's end, never over the Notes.
+  Centered (Peek keeps the right corner; under 360px wide it sits left so the
+  two never touch). It hides while a sheet or a cell is open, keeping its spot
+  so nothing below moves. Left to right:
   - **Lock editing** (off by default): the plan reads exactly as a shared
     member sees it (no **+**, no editable cells, read-only line sheets), so
     numbers can't be changed by accident. The household **Notes** under the
