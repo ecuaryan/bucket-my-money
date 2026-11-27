@@ -32,8 +32,10 @@ export function PlanEditBar({
   const sheetOpen = useSheetBackdropOpen()
 
   return (
+    // z-25: over the table and its pinned headers (20), under the app's header
+    // and bottom nav (APP_CHROME_Z_INDEX, 30) as it scrolls up past them.
     <div
-      className={`pointer-events-none sticky z-30 mt-3 flex justify-center max-[359px]:justify-start ${PLAN_EDIT_BAR_STICKY_BOTTOM_CLASS} ${hidden || sheetOpen ? 'invisible' : ''}`}
+      className={`pointer-events-none sticky z-[25] mt-3 flex justify-center max-[359px]:justify-start ${PLAN_EDIT_BAR_STICKY_BOTTOM_CLASS} ${hidden || sheetOpen ? 'invisible' : ''}`}
     >
       <div
         role="group"
