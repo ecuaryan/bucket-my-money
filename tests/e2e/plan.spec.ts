@@ -697,3 +697,47 @@ test('undo shows what it changed, and quick taps land in order', async ({ page }
   await page.waitForTimeout(1000) // no late reload puts an older value back
   await expect(page.getByRole('button', { name: 'Last bill, Monthly, $100.00' })).toBeVisible()
 })
+
+test('the edit pill rests under the table, and scrolls away under the app header', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-pill-rest')
+  await page.setViewportSize({ width: 390, height: 760 })
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  await admin.rpc('set_plan_notes', { p_notes: Array(30).fill('A long household note.').join('\n') })
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  const pill = page.getByRole('group', { name: 'Plan editing' })
+  await expect(pill).toBeVisible()
+  // The tab's slide-in (a transform) would hide a stacking bug while it plays.
+  await page.evaluate(() => document.getAnimations().forEach((a) => a.finish()))
+
+  const layout = () =>
+    page.evaluate(() => {
+      const p = document.querySelector('[aria-label="Plan editing"]')!.getBoundingClientRect()
+      const t = document.querySelector('[role="table"]')!.getBoundingClientRect()
+      const n = document.querySelector('section[aria-label="Notes"]')!.getBoundingClientRect()
+      const h = document.querySelector('header')!.getBoundingClientRect()
+      return { pillTop: p.top, pillBottom: p.bottom, pillMid: p.top + p.height / 2, pillX: p.left + p.width / 2, tableBottom: t.bottom, notesTop: n.top, headerBottom: h.bottom }
+    })
+
+  // While the table runs past the screen, the pill floats over it.
+  let at = await layout()
+  expect(at.tableBottom).toBeGreaterThan(at.pillBottom)
+
+  // At the table's end it rests in its spot: after the table, before the notes.
+  await page.evaluate(() => window.scrollBy(0, document.querySelector('[role="table"]')!.getBoundingClientRect().bottom - 300))
+  at = await layout()
+  expect(at.pillTop).toBeGreaterThan(at.tableBottom)
+  expect(at.pillBottom).toBeLessThan(at.notesTop)
+
+  // Scrolled up under the app header, the header stays on top.
+  await page.evaluate(() => {
+    const p = document.querySelector('[aria-label="Plan editing"]')!.getBoundingClientRect()
+    const h = document.querySelector('header')!.getBoundingClientRect()
+    window.scrollBy(0, p.top + p.height / 2 - h.bottom / 2)
+  })
+  at = await layout()
+  expect(at.pillMid).toBeLessThan(at.headerBottom)
+  const onTop = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('header') !== null, { x: at.pillX, y: at.pillMid })
+  expect(onTop).toBe(true)
+})
