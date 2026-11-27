@@ -23,21 +23,14 @@ git checkout -b feat/my-change
 # … edit, commit …
 git push -u origin feat/my-change
 gh pr create --title "v1.1.21: Short description of the change"
-# then leave the PR open — the repo owner reviews and merges
+gh pr merge --auto --squash --delete-branch
 ```
 
-**Do not enable auto-merge by default.** Open the PR and leave it for the repo
-owner to review and merge. Merging to `main` promotes to production (Vercel +
-Deploy Supabase), so a human stays in the loop on every ship.
-
-Only enable auto-merge if the owner explicitly asks for it on that PR:
-
-```bash
-gh pr merge --auto --squash --delete-branch   # owner-requested only
-```
-
-The repo allows auto-merge under **Settings → General → Allow auto-merge**, but
-it is off by default per PR.
+**Auto-merge is on by default.** Merging to `main` promotes to production
+(Vercel + Deploy Supabase) as soon as CI is green, so the human in the loop is
+the owner's go-ahead: open a PR only when the owner says to. Leave auto-merge off
+when the owner wants to try the preview before it ships, and merge by hand then.
+(The repo allows it under **Settings → General → Allow auto-merge**.)
 
 ### Bump `package.json` version on every PR
 

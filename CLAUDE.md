@@ -6,8 +6,8 @@ automatically instead of relying on the agent to go find them.
 
 Pay special attention to the **PR workflow** it points to
 ([CONTRIBUTING.md](./CONTRIBUTING.md)): every PR bumps `package.json`, the PR
-title leads with that version (`vX.Y.Z: …`), and **auto-merge stays off** —
-open the PR and leave it for the owner to review and merge (merging promotes to
-production).
+title leads with that version (`vX.Y.Z: …`), and **auto-merge goes on** right
+after the PR opens. Open a PR only once the owner says to: merging promotes to
+production as soon as CI is green.
 
 @AGENTS.md
