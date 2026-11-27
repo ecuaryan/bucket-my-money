@@ -321,16 +321,13 @@ test('an admin can lock editing on this device, and unlock it', async ({ page })
   await page.getByRole('tab', { name: 'Plan' }).click()
   await expect(page.getByRole('button', { name: 'Salary, Monthly, $10,000.00' })).toBeVisible()
 
-  const lock = async (on: boolean) => {
-    await page.getByRole('button', { name: /^View/ }).click()
-    const sheet = page.getByRole('dialog', { name: 'View' })
-    const toggle = sheet.getByRole('switch', { name: 'Lock editing' })
-    if ((await toggle.getAttribute('aria-checked')) !== String(on)) await toggle.click()
-    await sheet.getByRole('button', { name: 'Close' }).click()
-  }
-
-  await lock(true)
-  await expect(page.getByRole('button', { name: 'View, editing locked' })).toBeVisible()
+  const bar = page.getByRole('group', { name: 'Plan editing' })
+  const lockButton = bar.getByRole('button', { name: 'Lock editing' })
+  await expect(lockButton).toHaveAttribute('aria-pressed', 'false')
+  await lockButton.click()
+  await expect(lockButton).toHaveAttribute('aria-pressed', 'true')
+  // Locked, the pill is just the lock.
+  await expect(bar.getByRole('button')).toHaveCount(1)
   await expect(page.getByRole('button', { name: /^Add line to/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Salary, Monthly/ })).toHaveCount(0)
   await expect(page.getByRole('row').filter({ hasText: 'Salary' })).toContainText('$10,000.00')
@@ -347,9 +344,10 @@ test('an admin can lock editing on this device, and unlock it', async ({ page })
 
   // It stays locked after a reload (a per-device preference).
   await page.reload()
-  await expect(page.getByRole('button', { name: 'View, editing locked' })).toBeVisible()
+  await expect(lockButton).toHaveAttribute('aria-pressed', 'true')
 
-  await lock(false)
+  await lockButton.click()
+  await expect(bar.getByRole('button', { name: 'Undo' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Salary, Monthly, $10,000.00' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add line to Bills' })).toBeVisible()
 })
@@ -415,11 +413,7 @@ test('tapping a number while editing is locked says why, in place', async ({ pag
   const admin = await userClient(family.adminEmail, family.adminPassword)
   await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
   await page.getByRole('tab', { name: 'Plan' }).click()
-  await page.getByRole('button', { name: 'View' }).click()
-  await page.getByRole('dialog', { name: 'View' }).getByRole('switch', { name: 'Lock editing' }).click()
-  await page.getByRole('dialog', { name: 'View' }).getByRole('button', { name: 'Close' }).click()
-
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('group', { name: 'Plan editing' }).getByRole('button', { name: 'Lock editing' }).click()
   // The table's top at the app bar: Salary in plain view, under no pinned header.
   await page.evaluate(() =>
     window.scrollBy(
@@ -432,7 +426,7 @@ test('tapping a number while editing is locked says why, in place', async ({ pag
   const scrollY = await page.evaluate(() => window.scrollY)
   const cellTop = (await salaryMonthly.boundingBox())!.y
   await salaryMonthly.click()
-  const hint = page.getByRole('status').filter({ hasText: 'Editing is locked. Turn it off in View.' })
+  const hint = page.getByRole('status').filter({ hasText: 'Editing is locked. Tap the lock to unlock.' })
   await expect(hint).toBeVisible()
   // On the cell, and nothing moved (a toast would push the page down).
   const hintBox = (await hint.boundingBox())!
@@ -575,4 +569,129 @@ test('the section being read pins its header under the table header', async ({ p
   // Back at the top, nothing.
   await page.evaluate(() => window.scrollTo(0, 0))
   await expect.poll(pinnedSection).toBeNull()
+})
+
+test('undo and redo step through typed numbers, and never undo someone else’s change', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-undo')
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  const { data: groceries } = await admin.rpc('add_plan_line', {
+    p_section: 'bills', p_name: 'Groceries', p_unit: 'month', p_amount_cents: 80_000,
+  })
+  await page.getByRole('tab', { name: 'Plan' }).click()
+
+  const bar = page.getByRole('group', { name: 'Plan editing' })
+  const undo = bar.getByRole('button', { name: 'Undo' })
+  const redo = bar.getByRole('button', { name: 'Redo' })
+  await expect(undo).toBeDisabled()
+  await expect(redo).toBeDisabled()
+  const stored = async () => {
+    const { data } = await serviceClient().from('plan_lines').select('unit, amount_cents, percent_bp').eq('id', groceries as string).single()
+    return data
+  }
+  const type = async (cell: RegExp, column: string, text: string) => {
+    await page.getByRole('button', { name: cell }).click()
+    const input = page.getByRole('textbox', { name: `Groceries, ${column}` })
+    await input.fill(text)
+    await input.press('Enter')
+    await expect(input).toBeHidden()
+  }
+
+  // Two tweaks, one of them switching the line to a yearly input.
+  await type(/^Groceries, Monthly,/, 'Monthly', '850')
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $850.00' })).toBeVisible()
+  // The pill steps aside while a cell is open.
+  await page.getByRole('button', { name: /^Groceries, Yearly,/ }).click()
+  await expect(bar).toBeHidden()
+  await page.getByRole('textbox', { name: 'Groceries, Yearly' }).press('Escape')
+  await type(/^Groceries, Yearly,/, 'Yearly', '12000')
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $1,000.00' })).toBeVisible()
+
+  await undo.click()
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $850.00' })).toBeVisible()
+  await expect.poll(stored).toMatchObject({ unit: 'month', amount_cents: 85_000 })
+  await undo.click()
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $800.00' })).toBeVisible()
+  await expect.poll(stored).toMatchObject({ unit: 'month', amount_cents: 80_000 })
+  await expect(undo).toBeDisabled()
+
+  await redo.click()
+  await redo.click()
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $1,000.00' })).toBeVisible()
+  await expect.poll(stored).toMatchObject({ unit: 'year', amount_cents: 1_200_000 })
+  await expect(redo).toBeDisabled()
+
+  // The other person changes the line: there's nothing of ours left to undo,
+  // so Undo turns off rather than overwrite their number.
+  await admin.rpc('set_plan_line_amount', { p_line_id: groceries as string, p_unit: 'month', p_amount_cents: 90_000 })
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $900.00' })).toBeVisible()
+  await expect(undo).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $900.00' })).toBeVisible()
+  expect(await stored()).toMatchObject({ unit: 'month', amount_cents: 90_000 })
+
+  // Like a Google Sheet: moving around the app keeps the history; a reload starts fresh.
+  await type(/^Groceries, Monthly,/, 'Monthly', '950')
+  const nav = page.getByRole('navigation')
+  await nav.getByRole('link', { name: 'History' }).click()
+  await expect(page).toHaveURL(/history/)
+  await nav.getByRole('link', { name: 'Buckets' }).click()
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  await expect(undo).toBeEnabled()
+  await page.reload()
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  await expect(page.getByRole('button', { name: 'Groceries, Monthly, $950.00' })).toBeVisible()
+  await expect(undo).toBeDisabled()
+})
+
+test('undo shows what it changed, and quick taps land in order', async ({ page }) => {
+  const family = await createAdminFamily('e2e-plan-undo-reveal')
+  await page.setViewportSize({ width: 390, height: 760 })
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  for (let i = 1; i <= 24; i++) {
+    await admin.rpc('add_plan_line', { p_section: 'bills', p_name: `Bill ${i}`, p_unit: 'month', p_amount_cents: 1_000 * i })
+  }
+  const { data: last } = await admin.rpc('add_plan_line', {
+    p_section: 'bills', p_name: 'Last bill', p_unit: 'month', p_amount_cents: 10_000,
+  })
+  await page.getByRole('tab', { name: 'Plan' }).click()
+
+  // Three quick tweaks to the last line, made at the bottom of the page.
+  for (const text of ['110', '120', '130']) {
+    await page.getByRole('button', { name: /^Last bill, Monthly,/ }).click()
+    const input = page.getByRole('textbox', { name: 'Last bill, Monthly' })
+    await input.fill(text)
+    await input.press('Enter')
+    await expect(input).toBeHidden()
+  }
+  await expect(page.getByRole('button', { name: 'Last bill, Monthly, $130.00' })).toBeVisible()
+
+  // Back at the top, undo brings the line into view and it glows.
+  await page.evaluate(() => window.scrollTo(0, 0))
+  const row = page.getByRole('row').filter({ hasText: 'Last bill' })
+  await expect(row).not.toBeInViewport()
+  const undo = page.getByRole('group', { name: 'Plan editing' }).getByRole('button', { name: 'Undo' })
+  await undo.click()
+  await expect(row).toBeInViewport()
+  await expect(row.locator('.plan-row-flash')).toHaveCount(1)
+  await expect(page.getByText('Undid Last bill')).toBeAttached()
+  // Focus stays on Undo, even once there's nothing left to undo.
+  await expect(undo).toBeFocused()
+
+  // Two more taps at once: saves land in order, ending where it started.
+  await undo.click()
+  await undo.click()
+  await expect(undo).toBeDisabled()
+  await expect(undo).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Last bill, Monthly, $100.00' })).toBeVisible()
+  await expect
+    .poll(async () => {
+      const { data } = await serviceClient().from('plan_lines').select('amount_cents').eq('id', last as string).single()
+      return Number(data?.amount_cents)
+    })
+    .toBe(10_000)
+  await page.waitForTimeout(1000) // no late reload puts an older value back
+  await expect(page.getByRole('button', { name: 'Last bill, Monthly, $100.00' })).toBeVisible()
 })

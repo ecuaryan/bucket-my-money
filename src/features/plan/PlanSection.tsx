@@ -2,6 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ListSkeleton } from '@/components/ui/ListSkeleton'
 import { LoadErrorPanel } from '@/components/ui/LoadErrorPanel'
 import { TapHint } from '@/components/ui/TapHint'
+import { PlanEditBar } from '@/features/plan/PlanEditBar'
+import {
+  keepPlanHistory,
+  openPlanHistory,
+  recordStep,
+  returnStep,
+  takeStep,
+  type PlanAmount,
+  type PlanAmountStep,
+} from '@/lib/planUndo'
 import { usePostgresChanges, type PostgresChangePayload } from '@/hooks/usePostgresChanges'
 import { useHideAmounts } from '@/lib/HideAmountsProvider'
 import { HIDDEN_MONEY_LABEL } from '@/lib/formatMoney'
@@ -27,6 +37,7 @@ import {
   PLAN_NOTES_ADD_LABEL,
   PLAN_NOTES_EDIT_LABEL,
   PLAN_NOTES_TITLE,
+  planStepAnnouncement,
 } from '@/lib/brand'
 import { cellCents, lineYearlyUnits, planTotals, type PlanSection as Section } from '@/lib/planMath'
 import { autoOrganizeDisplayName, fetchAutoOrganizes, type AutoOrganizeWithDetails } from '@/lib/autoOrganize'
@@ -72,6 +83,13 @@ type Bucket = Database['public']['Tables']['buckets']['Row']
 /** A change made on this device within this window doesn't flash. */
 const OWN_CHANGE_WINDOW_MS = 4000
 const FLASH_MS = 1600
+/** The bottom nav and the edit pill over it: a line under them isn't in view. */
+const BOTTOM_CHROME_PX = 150
+const SECTION_HEADER_PX = 44
+
+function lineAmount(line: PlanLine): PlanAmount {
+  return { unit: line.unit, value: (line.unit === 'percent' ? line.percentBp : line.amountCents) ?? 0n }
+}
 
 interface Props {
   familyId: string
@@ -123,6 +141,10 @@ export default function PlanSection({
   const [linkOpen, setLinkOpen] = useState(false)
   const [notes, setNotes] = useState<string | null>(null)
   const [notesOpen, setNotesOpen] = useState(false)
+  // Typed number changes to step back and forward through, kept while the app is open.
+  const [history, setHistory] = useState(() => openPlanHistory(memberId))
+  useEffect(() => keepPlanHistory(memberId, history), [memberId, history])
+  const [announcement, setAnnouncement] = useState('')
 
   const ownChanges = useRef(new Map<string, number>())
   const lastOwnAdd = useRef(0)
@@ -137,6 +159,9 @@ export default function PlanSection({
   const hasLoaded = useRef(false)
   const reorderQueue = useRef<Promise<void>>(Promise.resolve())
   const reordersPending = useRef(0)
+  const amountQueue = useRef<Promise<void>>(Promise.resolve())
+  const amountsPending = useRef(0)
+  const sectionRef = useRef<HTMLElement>(null)
 
   const flash = useCallback((id: string) => {
     setFlashIds((prev) => new Set(prev).add(id))
@@ -228,7 +253,12 @@ export default function PlanSection({
         if (id && !isOwn(id) && !ownAdd && !onlyMoved) pendingFlash.current.add(id)
       }
       if (reloadTimer.current) clearTimeout(reloadTimer.current)
-      reloadTimer.current = setTimeout(() => void load(), 150)
+      reloadTimer.current = setTimeout(() => {
+        // Our own saves still queued: their reload, once the last lands, brings
+        // this change in too. Loading now could show a value about to be replaced.
+        if (amountsPending.current > 0 || reordersPending.current > 0) return
+        void load()
+      }, 150)
     },
     [load, loadLink],
   )
@@ -345,19 +375,77 @@ export default function PlanSection({
     // other person changed it meanwhile, leaving the cell must not undo that.
     if (text === edit.initial.trim()) return
 
+    const amount: PlanAmount = { unit: edit.column, value }
+    const change: PlanAmountStep = { lineId: line.id, before: lineAmount(line), after: amount }
+    setHistory((h) => recordStep(h, change))
+    if (!(await saveAmount(line, amount))) setHistory((h) => returnStep(h, change, 'record'))
+  }
+
+  /**
+   * Show a line's new number at once, then save it. Saves run one after
+   * another, so quick Undo taps land in the order they were made, and the
+   * plan reloads once the last is done (never stepping back through older values).
+   */
+  async function saveAmount(line: PlanLine, { unit, value }: PlanAmount): Promise<boolean> {
     const updated: PlanLine =
-      edit.column === 'percent'
-        ? { ...line, unit: 'percent', percentBp: value, amountCents: null }
-        : { ...line, unit: edit.column, amountCents: value, percentBp: null }
+      unit === 'percent'
+        ? { ...line, unit, percentBp: value, amountCents: null }
+        : { ...line, unit, amountCents: value, percentBp: null }
     invalidateLoads()
     setLines((prev) => prev?.map((l) => (l.id === line.id ? updated : l)) ?? prev)
     markOwn(line.id)
+    amountsPending.current += 1
+    const save = amountQueue.current.then(() => setPlanLineAmount(line.id, unit, value))
+    amountQueue.current = save.catch(() => {})
+    let saved = true
     try {
-      await setPlanLineAmount(line.id, updated.unit, value)
+      await save
     } catch (e) {
+      saved = false
       toast.error(formatErrorMessage(e))
     }
-    void load()
+    amountsPending.current -= 1
+    if (amountsPending.current === 0) void load()
+    return saved
+  }
+
+  const linesById = useMemo(() => new Map((lines ?? []).map((l) => [l.id, l])), [lines])
+  const currentAmount = useCallback(
+    (id: string) => {
+      const line = linesById.get(id)
+      return line ? lineAmount(line) : null
+    },
+    [linesById],
+  )
+  // Enabled only when a tap would change something: steps the other person
+  // has since overwritten don't count.
+  const canUndo = takeStep(history, 'undo', currentAmount).apply !== null
+  const canRedo = takeStep(history, 'redo', currentAmount).apply !== null
+
+  async function step(direction: 'undo' | 'redo') {
+    const result = takeStep(history, direction, currentAmount)
+    setHistory(result.history)
+    const line = result.apply ? linesById.get(result.apply.step.lineId) : undefined
+    if (!result.apply || !line) return
+    const { step: change, amount } = result.apply
+    // Like a sheet moving to the undone cell: the line glows, and comes into
+    // view if it's off screen, so it's clear what changed.
+    flash(line.id)
+    requestAnimationFrame(() => revealLine(line.id))
+    setAnnouncement('')
+    requestAnimationFrame(() => setAnnouncement(planStepAnnouncement(direction, lineName(line))))
+    if (!(await saveAmount(line, amount))) setHistory((h) => returnStep(h, change, direction))
+  }
+
+  function revealLine(lineId: string) {
+    const row = sectionRef.current?.querySelector(`[role="row"][data-flip-id="${CSS.escape(lineId)}"]`)
+    if (!row) return
+    const rect = row.getBoundingClientRect()
+    const head = sectionRef.current?.querySelector('[role="table"] [role="rowgroup"]')
+    // Below the pinned table header and the section header pinned under it.
+    const top = (head ? head.getBoundingClientRect().bottom : 0) + SECTION_HEADER_PX
+    const bottom = window.innerHeight - BOTTOM_CHROME_PX
+    if (rect.top < top || rect.bottom > bottom) row.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
 
   async function createHouseholdBucket(name: string, notes: string | null): Promise<string> {
@@ -480,7 +568,7 @@ export default function PlanSection({
     .map((b) => ({ id: b.id, name: b.name, notes: b.notes ?? null }))
 
   return (
-    <section aria-label={PLAN_TAB_LABEL}>
+    <section ref={sectionRef} aria-label={PLAN_TAB_LABEL}>
       {lines.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-2xl bg-zinc-950 px-6 py-12 text-center ring-1 ring-zinc-800">
           <p className="text-base text-zinc-300">{PLAN_EMPTY_BODY}</p>
@@ -598,6 +686,20 @@ export default function PlanSection({
         />
       ) : null}
 
+      {isAdmin && lines.length > 0 && !liveEditing ? (
+        <PlanEditBar
+          locked={view.locked}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onToggleLock={() => changeView({ ...view, locked: !view.locked })}
+          onUndo={() => void step('undo')}
+          onRedo={() => void step('redo')}
+        />
+      ) : null}
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
+
       {lockedHint && isAdmin && view.locked ? (
         <TapHint
           key={lockedHint.key}
@@ -608,7 +710,7 @@ export default function PlanSection({
       ) : null}
 
       {viewOpen ? (
-        <PlanViewSheet prefs={view} canLock={isAdmin} onChange={changeView} onClose={() => setViewOpen(false)} />
+        <PlanViewSheet prefs={view} onChange={changeView} onClose={() => setViewOpen(false)} />
       ) : null}
 
       {linkOpen ? (

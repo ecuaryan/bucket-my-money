@@ -50,8 +50,15 @@ export const PLAN_VIEW_LABEL = 'View'
 export const PLAN_COMPACT_LABEL = 'Compact'
 export const PLAN_COLUMNS_LABEL = 'Columns'
 export const PLAN_LOCK_LABEL = 'Lock editing'
-export const PLAN_VIEW_LOCKED_ARIA = 'View, editing locked'
-export const PLAN_LOCKED_NOTICE = 'Editing is locked. Turn it off in View.'
+export const PLAN_LOCKED_NOTICE = 'Editing is locked. Tap the lock to unlock.'
+export const PLAN_UNDO_LABEL = 'Undo'
+export const PLAN_REDO_LABEL = 'Redo'
+export const PLAN_EDIT_BAR_LABEL = 'Plan editing'
+
+/** Read out after an undo or redo (the row's glow says the same on screen). */
+export function planStepAnnouncement(direction: 'undo' | 'redo', lineName: string): string {
+  return `${direction === 'undo' ? 'Undid' : 'Redid'} ${lineName}`
+}
 
 // Notes: one household note under the table (docs/PLAN.md § Notes)
 export const PLAN_NOTES_TITLE = 'Notes'
