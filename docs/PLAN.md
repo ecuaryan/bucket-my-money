@@ -89,6 +89,12 @@ swipe on a phone). **The column header and Unplanned pin under the app bar**
 (`.sticky-below-header`, like History's dates). They sit in their own sideways
 scroller, kept in step with the body's, and the table rounds its corners with
 `overflow: clip`, which doesn't create a scroll box that would stop the pinning.
+**The section being read pins its header under them** (Income, Withheld,
+Bills or Buckets, with its subtotal, **+** and ⚡). The body's sideways scroller
+can't pin to the page, so it's a copy in the header (`pinnedSectionAt`,
+`data-pinned-section`), hidden from screen readers and Tab; it covers the rows
+under it instead of pushing them (a negative bottom margin), and lets go as the
+section runs out, so the next header comes up in its own place.
 On screens 640px and wider, the table breaks out of the app's narrow column:
 it sizes to its columns (all six fit at about 810px), centered, never wider
 than the window. The rest of the page stays narrow.

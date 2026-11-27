@@ -438,3 +438,72 @@ test('tapping a number while editing is locked says why, in place', async ({ pag
   await page.getByRole('heading', { name: 'Notes' }).click()
   await expect(hint).toHaveCount(0)
 })
+
+test('the section being read pins its header under the table header', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const family = await createAdminFamily('e2e-plan-pinned-section')
+  await signIn(page, family.adminEmail, family.adminPassword)
+  const admin = await userClient(family.adminEmail, family.adminPassword)
+  await admin.rpc('add_plan_line', { p_section: 'income', p_name: 'Salary', p_unit: 'year', p_amount_cents: 12_000_000 })
+  for (const name of ['Mortgage', 'Electric', 'Water', 'Internet', 'Phone', 'Car insurance', 'Gym', 'Streaming'])
+    await admin.rpc('add_plan_line', { p_section: 'bills', p_name: name, p_unit: 'month', p_amount_cents: 10_000 })
+  await page.getByRole('tab', { name: 'Plan' }).click()
+  await expect(page.getByRole('button', { name: 'Streaming, details' })).toBeVisible()
+
+  const pinned = page.locator('[data-pinned-section]')
+  const sectionRow = (section: string) =>
+    page.getByRole('row').filter({ has: page.getByRole('button', { name: `Add line to ${section}` }) })
+  const tableHeaderBottom = async () => {
+    const box = await page.getByRole('row').filter({ hasText: 'Unplanned' }).boundingBox()
+    return box!.y + box!.height
+  }
+  // Scroll until a section's header sits `gap` px below the table header (the
+  // header moves with the page until it pins, so in a few steps).
+  // Wait until nothing on the page is still moving (data loading, a toast).
+  const settle = () =>
+    expect
+      .poll(async () => {
+        const a = await page.evaluate(() => [document.body.scrollHeight, document.querySelector('[data-plan-body]')!.getBoundingClientRect().top])
+        await page.waitForTimeout(150)
+        const b = await page.evaluate(() => [document.body.scrollHeight, document.querySelector('[data-plan-body]')!.getBoundingClientRect().top])
+        return a.join() === b.join()
+      })
+      .toBe(true)
+  const scrollHeaderTo = async (section: string, gap: number) => {
+    await settle()
+    for (let i = 0; i < 8; i += 1) {
+      const off = (await sectionRow(section).boundingBox())!.y - (await tableHeaderBottom()) - gap
+      if (Math.abs(off) < 1) return
+      await page.evaluate((by) => window.scrollBy(0, by), off)
+    }
+    throw new Error(`could not scroll ${section} into place`)
+  }
+  const medicareTop = async () => (await page.getByRole('button', { name: 'Medicare, details' }).boundingBox())!.y
+  await expect(pinned).toHaveCount(0)
+
+  // Withheld's header 5px short of the table header: nothing pinned yet.
+  await scrollHeaderTo('Withheld', 5)
+  await expect(pinned).toHaveCount(0)
+  const before = await medicareTop()
+
+  // 10px on, it pins, covering the rows instead of pushing them.
+  await settle()
+  await page.evaluate(() => window.scrollBy(0, 10))
+  await expect(pinned).toHaveAttribute('data-pinned-section', 'withheld')
+  expect(await medicareTop()).toBeCloseTo(before - 10, 0)
+
+  // The copy works by touch but isn't announced twice.
+  await expect(page.getByRole('button', { name: 'Add line to Withheld' })).toHaveCount(1)
+  await pinned.getByRole('button', { name: 'Add line to Withheld', includeHidden: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Add withholding' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'Add withholding' }).getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0) // its scroll lock is released
+
+  // Scrolled into Bills, Bills pins.
+  await scrollHeaderTo('Bills', -60)
+  await expect(pinned).toHaveAttribute('data-pinned-section', 'bills')
+
+  // Back at the top, nothing.
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect(pinned).toHaveCount(0)
+})

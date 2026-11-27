@@ -4,6 +4,7 @@ import { blockShiftY } from '@/features/buckets/rowLongPressReorder'
 import { useRowLongPressReorder } from '@/features/buckets/useRowLongPressReorder'
 import { GripDots } from '@/components/ui/DragHandle'
 import { prefersReducedMotion } from '@/lib/motion'
+import { pinnedSectionAt } from './pinnedSection'
 import {
   PLAN_COLUMN_LABELS,
   PLAN_LINK_BUTTON_ARIA,
@@ -137,6 +138,70 @@ export default function PlanTable(props: Props) {
     }
   }, [])
 
+  // The section being read pins its header under the table's header (as a copy
+  // in the header, since the body's sideways scroll box can't pin to the page).
+  const baseRowRef = useRef<HTMLDivElement>(null)
+  const pinnedRowRef = useRef<HTMLDivElement>(null)
+  const groupRefs = useRef(new Map<PlanSection, HTMLDivElement>())
+  const [pinned, setPinned] = useState<PlanSection | null>(null)
+  useEffect(() => {
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      const pinnedBottom = baseRowRef.current?.getBoundingClientRect().bottom
+      if (pinnedBottom === undefined) return
+      const boxes = PLAN_SECTIONS.flatMap((section) => {
+        const group = groupRefs.current.get(section)
+        const header = group?.firstElementChild
+        if (!group || !header) return []
+        const head = header.getBoundingClientRect()
+        return [{ section, headerTop: head.top, headerHeight: head.height, bottom: group.getBoundingClientRect().bottom }]
+      })
+      setPinned(pinnedSectionAt(boxes, pinnedBottom))
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure)
+    }
+    // A toast slides the pinned header and the page (their `top`) with no scroll.
+    const onSlid = (e: TransitionEvent) => {
+      if (e.propertyName === 'top') schedule()
+    }
+    // And anything that changes the page's height (content loading above).
+    const resized = new ResizeObserver(schedule)
+    resized.observe(document.body)
+    measure()
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
+    document.addEventListener('transitionend', onSlid, true)
+    return () => {
+      cancelAnimationFrame(frame)
+      resized.disconnect()
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      document.removeEventListener('transitionend', onSlid, true)
+    }
+  }, [lines, columns, compact])
+  // The copy covers the body instead of pushing it down.
+  useLayoutEffect(() => {
+    const head = headRef.current
+    if (head) head.style.marginBottom = pinned ? `-${pinnedRowRef.current?.offsetHeight ?? 0}px` : ''
+  }, [pinned, compact, columns])
+
+  const sectionHeader = (section: PlanSection, pinnedCopy: boolean) => (
+    <SectionHeader
+      section={section}
+      subtotal={totals.sections[section]}
+      {...{ columns, gross, masked, canEdit, compact, nameCell, numCell }}
+      onAdd={props.onAdd}
+      linkedColumn={props.linkedColumn}
+      linkedRunCents={
+        section === 'buckets' && props.linkedColumn ? sumPerRun(lines, gross, props.linkedColumn) : null
+      }
+      onOpenLink={props.onOpenLink}
+      pinnedCopy={pinnedCopy}
+    />
+  )
+
   const unplanned = totals.unplannedUnits
   const unplannedTone =
     unplanned === 0n ? 'text-emerald-300' : unplanned < 0n ? 'text-red-300' : 'text-zinc-100'
@@ -196,7 +261,7 @@ export default function PlanTable(props: Props) {
               ),
             )}
           </div>
-          <div role="row" className={`flex min-h-11 items-stretch border-b border-zinc-700 bg-zinc-900${rowEnd(compact)}`}>
+          <div ref={baseRowRef} role="row" className={`flex min-h-11 items-stretch border-b border-zinc-700 bg-zinc-900${rowEnd(compact)}`}>
             <div role="rowheader" className={`${nameCell} flex items-center bg-zinc-900 px-3 text-sm font-bold text-zinc-100`}>
               {PLAN_UNPLANNED_LABEL}
             </div>
@@ -210,26 +275,23 @@ export default function PlanTable(props: Props) {
               </div>
             ))}
           </div>
+          {pinned ? <div ref={pinnedRowRef}>{sectionHeader(pinned, true)}</div> : null}
         </div>
       </div>
 
       <div ref={bodyRef} data-plan-body="" className="overflow-x-auto overscroll-x-none">
         <div className="w-max min-w-full">
         {PLAN_SECTIONS.map((section) => (
-          <div role="rowgroup" key={section} className="mt-2.5">
-            <SectionHeader
-              section={section}
-              subtotal={totals.sections[section]}
-              {...{ columns, gross, masked, canEdit, compact, nameCell, numCell }}
-              onAdd={props.onAdd}
-              linkedColumn={props.linkedColumn}
-              linkedRunCents={
-                section === 'buckets' && props.linkedColumn
-                  ? sumPerRun(lines, gross, props.linkedColumn)
-                  : null
-              }
-              onOpenLink={props.onOpenLink}
-            />
+          <div
+            role="rowgroup"
+            key={section}
+            ref={(el) => {
+              if (el) groupRefs.current.set(section, el)
+              else groupRefs.current.delete(section)
+            }}
+            className="mt-2.5"
+          >
+            {sectionHeader(section, false)}
             <SectionLines
               section={section}
               rows={lines.filter((line) => line.section === section)}
@@ -270,8 +332,11 @@ function SectionHeader({
   linkedColumn,
   linkedRunCents,
   onOpenLink,
+  pinnedCopy,
 }: {
   section: PlanSection
+  /** The copy pinned under the table header: works by touch, hidden from screen readers and Tab (the real one is in the table). */
+  pinnedCopy: boolean
   subtotal: bigint
   linkedColumn: PlanColumn | null
   /** In the linked column, the Buckets subtotal is the sum of per-run amounts: exactly what moves. */
@@ -290,7 +355,12 @@ function SectionHeader({
   // with the same 12px edge as every other row.
   const actionW = compact ? 'w-7' : 'w-10'
   return (
-    <div role="row" className={`flex min-h-11 items-stretch border-y border-zinc-800 bg-zinc-900${rowEnd(compact)}`}>
+    <div
+      role={pinnedCopy ? undefined : 'row'}
+      aria-hidden={pinnedCopy || undefined}
+      data-pinned-section={pinnedCopy ? section : undefined}
+      className={`flex min-h-11 items-stretch border-y border-zinc-800 bg-zinc-900${rowEnd(compact)}`}
+    >
       <div role="rowheader" className={`${nameCell} flex items-center justify-between bg-zinc-900 pl-3`}>
         <span
           className={`font-bold uppercase text-zinc-400 ${compact ? 'text-[10px] tracking-wide' : 'text-[11px] tracking-wider'}`}
@@ -303,6 +373,7 @@ function SectionHeader({
               <button
                 type="button"
                 onClick={onOpenLink}
+                tabIndex={pinnedCopy ? -1 : undefined}
                 aria-label={PLAN_LINK_BUTTON_ARIA}
                 className={`flex h-11 ${actionW} items-center justify-center rounded-lg hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${
                   linkedColumn ? 'text-emerald-300' : 'text-zinc-500'
@@ -315,6 +386,7 @@ function SectionHeader({
               <button
                 type="button"
                 onClick={() => onAdd(section)}
+                tabIndex={pinnedCopy ? -1 : undefined}
                 aria-label={planAddLineAriaLabel(section)}
                 className={`flex h-11 ${actionW} items-center justify-center rounded-lg text-emerald-300 hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400`}
               >
