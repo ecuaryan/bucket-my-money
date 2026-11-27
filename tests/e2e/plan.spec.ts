@@ -265,8 +265,18 @@ test('a note can be written while adding a line; a Buckets line’s note is its 
   await addBill.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(addBill).toBeHidden()
   await page.getByRole('button', { name: 'Electric, details' }).click()
-  await expect(page.getByRole('dialog', { name: 'Edit line' }).getByLabel('Note')).toHaveValue('Due the 3rd')
-  await page.getByRole('dialog', { name: 'Edit line' }).getByRole('button', { name: 'Close' }).click()
+  const editLine = page.getByRole('dialog', { name: 'Edit line' })
+  await expect(editLine.getByLabel('Note')).toHaveValue('Due the 3rd')
+  // A tap outside closes it while nothing has changed, never once something has.
+  const outside = { position: { x: 5, y: 5 } }
+  await editLine.click(outside)
+  await expect(editLine).toBeHidden()
+  await page.getByRole('button', { name: 'Electric, details' }).click()
+  await editLine.getByLabel('Note').fill('Due the 5th')
+  await editLine.click(outside)
+  await expect(editLine.getByLabel('Note')).toHaveValue('Due the 5th')
+  await editLine.getByRole('button', { name: 'Close' }).click()
+  await expect(editLine).toBeHidden()
 
   // An existing bucket shows its note; editing it here updates the bucket.
   await page.getByRole('button', { name: 'Add line to Buckets' }).click()

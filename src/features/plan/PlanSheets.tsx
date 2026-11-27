@@ -186,6 +186,15 @@ export function PlanAddLineSheet({
       : Boolean(bucketChoice)
     : name.trim().length > 0
   const canAdd = nameOk && value !== null && !saving
+  // A backdrop tap closes the sheet only while there's nothing to lose.
+  const edited =
+    name !== '' ||
+    bucketChoice !== '' ||
+    notes !== '' ||
+    newBucketName !== '' ||
+    amountText !== '' ||
+    unit !== DEFAULT_UNIT[section] ||
+    paidBy !== null
 
   async function submit() {
     if (!canAdd || value === null) return
@@ -209,7 +218,7 @@ export function PlanAddLineSheet({
   }
 
   return (
-    <Sheet open onClose={saving ? () => {} : onClose} aria-label={PLAN_ADD_TITLES[section]} closeOnBackdropClick={false}>
+    <Sheet open onClose={saving ? () => {} : onClose} aria-label={PLAN_ADD_TITLES[section]} closeOnBackdropClick={!edited}>
       <SheetHeader title={PLAN_ADD_TITLES[section]} onClose={onClose} disabled={saving} />
       <form
         className="space-y-4"
@@ -383,6 +392,7 @@ export function PlanLineSheet({
   }, [canMoveUp, canMoveDown])
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const edited = name !== displayName || paidBy !== line.paidBy || notes !== (displayNotes ?? '')
 
   async function save() {
     if (!name.trim()) return
@@ -428,7 +438,7 @@ export function PlanLineSheet({
 
   return (
     <>
-      <Sheet open onClose={saving ? () => {} : onClose} aria-label={PLAN_EDIT_LINE_TITLE} closeOnBackdropClick={false}>
+      <Sheet open onClose={saving ? () => {} : onClose} aria-label={PLAN_EDIT_LINE_TITLE} closeOnBackdropClick={!edited}>
         <SheetHeader title={PLAN_EDIT_LINE_TITLE} onClose={onClose} disabled={saving} />
         <form
           className="space-y-4"
@@ -749,7 +759,7 @@ export function PlanNotesSheet({
   }
 
   return (
-    <Sheet open onClose={saving ? () => {} : onClose} aria-label={PLAN_NOTES_TITLE} closeOnBackdropClick={false}>
+    <Sheet open onClose={saving ? () => {} : onClose} aria-label={PLAN_NOTES_TITLE} closeOnBackdropClick={draft === (notes ?? '')}>
       <SheetHeader title={PLAN_NOTES_TITLE} onClose={onClose} disabled={saving} />
       <form
         className="space-y-4"

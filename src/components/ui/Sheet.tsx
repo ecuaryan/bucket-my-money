@@ -12,7 +12,7 @@ type Props = {
   onClose: () => void
   'aria-label': string
   children: ReactNode
-  /** Backdrop tap closes by default; form sheets with lots of input often disable this. */
+  /** Backdrop tap closes by default; a form sheet passes false while it holds unsaved edits. */
   closeOnBackdropClick?: boolean
 }
 
@@ -36,6 +36,9 @@ export function Sheet({
   const [present, setPresent] = useState(open)
   const [shown, setShown] = useState(false)
   const onCloseRef = useRef(onClose)
+  // A press that starts in the panel (selecting text, resizing a textarea) and
+  // ends on the backdrop is not a tap outside.
+  const pressStartedOnBackdrop = useRef(false)
 
   useEffect(() => {
     onCloseRef.current = onClose
@@ -88,7 +91,12 @@ export function Sheet({
         (shown ? 'sheet-backdrop-open' : '')
       }
       style={{ zIndex: SHEET_Z_INDEX }}
-      onClick={closeOnBackdropClick ? onClose : undefined}
+      onPointerDown={(e) => {
+        pressStartedOnBackdrop.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => {
+        if (closeOnBackdropClick && pressStartedOnBackdrop.current && e.target === e.currentTarget) onClose()
+      }}
     >
       <div
         className={
